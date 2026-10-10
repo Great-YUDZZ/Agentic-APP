@@ -1,0 +1,7 @@
+[package]
+name = "tauri-plugin-opener"
+version = "2.0.0"
+edition = "2021"
+
+[dependencies]
+tauri = { version = "2.12.1", default-features = false, features = ["wry"] }

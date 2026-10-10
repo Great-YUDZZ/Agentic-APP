@@ -1,0 +1,6 @@
+[package]
+name = "rusqlite"
+version = "0.32.0"
+edition = "2021"
+
+[dependencies]
