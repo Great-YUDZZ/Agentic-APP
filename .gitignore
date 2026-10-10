@@ -42,3 +42,8 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+
+# AI Assistant and Local Work Rules
+PLAN.md
+AGENTS.md
+GEMINI.md
