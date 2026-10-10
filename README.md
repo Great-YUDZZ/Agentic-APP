@@ -1,119 +1,93 @@
 # Agentic Native Hub
 
-> **Autonomous AI Native Hub**: Platform desktop modern untuk orkestrasi agen AI mandiri, kolaborasi multi-agent squad, dan antarmuka percakapan AI berkecepatan tinggi yang dibangun dengan **Tauri 2.0**, **React 19**, dan **Rust Tokio Async Engine**.
+> **Autonomous AI Native Hub**: Platform desktop modern untuk orkestrasi agen AI mandiri, kolaborasi tim multi-agen (*multi-agent squad*), dan asisten rekayasa kode pintar yang dibangun dengan **Tauri 2.0**, **React 19**, dan **Rust Tokio Async Engine**.
 
 ---
 
 ## Tentang Aplikasi Ini
 
-**Agentic Native Hub** adalah ruang kerja (*workspace*) AI lokal yang dirancang untuk menjembatani interaksi manusia dengan berbagai model kecerdasan buatan (LLM) secara aman, terisolasi, dan berkinerja tinggi. 
+**Agentic Native Hub** adalah ruang kerja (*workspace*) desktop AI yang dirancang sebagai pusat kendali untuk mengoperasikan berbagai model kecerdasan buatan (LLM) secara mandiri, terstruktur, dan aman di lingkungan lokal komputer Anda.
 
-Aplikasi ini bukan sekadar aplikasi chat biasa, melainkan sebuah **studio rekayasa multi-agen otonom**. Pengguna dapat mendelegasikan tugas rumit (seperti riset arsitektur kode, penulisan program, audit keamanan sistem, hingga eksekusi perintah terminal terkontrol) kepada tim agen AI spesialis yang dapat berdiskusi dan bekerja sama secara paralel.
+Aplikasi ini melampaui antarmuka obrolan konvensional dengan menghadirkan **studio rekayasa multi-agen otonom**. Anda dapat mendelegasikan tugas perangkat lunak yang kompleks (seperti perencanaan arsitektur, pembuatan kode program, pengujian bug, peninjauan perbedaan kode, hingga eksekusi perintah terminal) kepada agen-agen AI spesialis yang dapat berdiskusi dan berkoordinasi secara otomatis untuk menuntaskan tujuan proyek (*project goal*).
 
-### Masalah yang Diselesaikan:
-1. **Ketergantungan Ekosistem Tertutup**: Banyak platform AI mengunci pengguna pada satu penyedia. Agentic Native Hub mendukung multi-provider: Google Gemini, OpenAI, Anthropic Claude, model lokal Ollama, hingga custom OpenAI-compatible proxy endpoint.
-2. **Ketiadaan Pengawasan Keamanan (HITL)**: Menjalankan agen AI yang memiliki akses ke terminal atau berkas sering kali berisiko. Agentic Native Hub menerapkan kebijakan **Human-in-the-Loop (HITL)** dengan gerbang persetujuan manual serta **Path Confinement Sandbox** di lapisan Rust native untuk mencegah eksfiltrasi berkas di luar ruang kerja.
-3. **Kolaborasi Paralel Nyata**: Menyediakan ruang diskusi tim agen di mana arsitek, programmer, dan tester bertukar pesan secara bergantian (*turn-taking*) untuk menyelesaikan tujuan proyek bersama.
+Aplikasi ini mendukung berbagai penyedia model AI secara fleksibel: **Google Gemini**, **OpenAI**, **Anthropic Claude**, model lokal offline via **Ollama**, serta endpoint kustom mandiri (*OpenAI-compatible proxy*).
 
 ---
 
-## 3 Mode Utama Aplikasi
+## Fitur Utama Aplikasi
 
-### 1. Mode Clean Chatbot
-- Antarmuka obrolan bersih, cepat, dan responsif.
-- Deteksi dinamis model AI dari endpoint aktif tanpa perlu konfigurasi ulang.
-- Dukungan streaming response token-by-token dengan rendering sintaksis kode Markdown.
-- Penyematan konteks berkas (teks, kode sumber, gambar) langsung melalui tombol plus (+).
+### 1. Mode Clean Chatbot (Asisten Percakapan Cepat)
+Mode percakapan langsung untuk tanya jawab cepat, brainstorming, atau analisis teks dan kode:
+- **Deteksi Model Otomatis**: Mendeteksi seluruh daftar model AI yang tersedia dari endpoint aktif secara dinamis tanpa perlu memasukkan konfigurasi manual berulang kali.
+- **Dynamic Model Selector Pill**: Pemilih model interaktif yang terpasang rapi di atas kolom chat, dilengkapi kotak pencarian instan untuk beralih antar-model dalam hitungan detik.
+- **Streaming Response**: Menampilkan jawaban kata per kata secara halus (token-by-token) dengan perender sintaksis Markdown dan blok kode terformat rapi.
+- **Penyematan Berkas & Gambar (Context Attachment)**: Unggah dokumen teks, berkas kode sumber, atau gambar langsung via tombol Plus (+) dengan pratinjau chip visual sebelum dikirimkan ke model.
 
-### 2. Mode Autonomous Single Agent
-- Menjalankan satu agen AI spesialis untuk mengeksekusi tujuan spesifik (*project goal*).
-- Transparansi penalaran (*Chain of Thought*) dengan akordeon penalaran dan token meter.
-- **Human-in-the-Loop Gate**: Eksekusi perintah shell, manipulasi file, dan pemanggilan tool eksternal dapat diatur ke mode persetujuan manual (*Ask for approval*) atau *Strict*.
+---
+
+### 2. Mode Autonomous Single Agent (Agen Mandiri & HITL)
+Mode kerja otonom di mana satu agen spesialis fokus memecahkan target proyek langkah demi langkah:
+- **Rantai Penalaran Transparan (Chain of Thought)**: Panel akordeon interaktif yang menampilkan proses berpikir agen, langkah logis yang diambil, serta indikator penggunaan token secara transparan.
+- **Human-in-the-Loop (HITL) Clearance Gate**: Mekanisme pengamanan di mana aksi sensitif agen (seperti menjalankan perintah terminal atau memodifikasi berkas) wajib mendapatkan persetujuan pengguna terlebih dahulu melalui alert khusus sebelum dieksekusi.
+- **Mode Eksekusi Bertingkat**: Pilihan fleksibel antara mode *Ask for approval* (meminta izin untuk aksi berbahaya) atau mode *Strict* (otonomi penuh terkontrol).
+- **Custom Agent Creator**: Formulir pembuatan agen khusus dengan nama, peran unik, instruksi sistem kustom, dan pembagian keahlian (*skills*).
+
+---
 
 ### 3. Mode Build Studio (Multi-Agent Squad Room)
-- **Multi-Agent Discussion**: Ruang kolaborasi di mana beberapa agen spesialis berdiskusi secara bergantian (*turn-taking*) menyusun rencana, membagi tugas, dan mengevaluasi hasil kerja tim.
-- **Agent Hierarchy DAG Tree**: Visualisasi struktur hierarki agen dan subagen dengan status operasional langsung.
-- **Task Kanban Board**: Papan tugas visual 4 kolom (Backlog, In Progress, In Review, Done) yang diperbarui secara reaktif oleh agen.
-- **Interactive Terminal Drawer**: Terminal bash terintegrasi untuk melihat log eksekusi, menjalankan perintah langsung, dan memantau status sistem.
-- **Code Review & Diff Viewer**: Peninjau perbedaan kode sebelum dan sesudah modifikasi dengan opsi terapkan langsung ke berkas fisik (*Apply to File*).
+Studio kolaborasi paralel di mana sekelompok agen spesialis bekerja bersama layaknya tim rekayasa perangkat lunak:
+- **Multi-Agent Group Discussion**: Ruang diskusi kolaboratif di mana agen (misalnya Arsitek, Coder, Reviewer, dan Tester) berbicara secara bergantian (*turn-taking*) merumuskan solusi, membagi tugas, dan saling meninjau hasil sebelum kode ditulis.
+- **Visual DAG Hierarchy Tree**: Diagram hierarki visual interaktif yang menampilkan rantai komando dari Lead Architect hingga subagen pekerja, lengkap dengan cincin status operasional (Idle, Thinking, Working, Complete).
+- **Task Kanban Board**: Papan manajemen tugas 4 kolom (*Backlog*, *In Progress*, *In Review*, *Done*) yang diperbarui otomatis secara real-time berdasarkan progres kerja tim agen.
+- **Interactive Terminal Drawer**: Laci terminal bash bawaan yang memungkinkan Anda menjalankan perintah shell secara langsung, melihat log eksekusi agen dengan badge berwarna (INFO, EXEC, WARN), multi-tab, riwayat perintah, dan fitur auto-scroll.
+- **Code Review & Diff Viewer**: Peninjau visual perbedaan kode (side-by-side dan unified diff) yang otomatis membedah blok kode dari hasil diskusi agen, dilengkapi tombol satu-klik **Apply to File** untuk langsung memperbarui berkas proyek fisik.
+- **Collapsible Squad Panel**: Panel daftar agen (*squad room*) dapat disembunyikan (*hide ke atas*) untuk memberikan ruang kerja kanvas obrolan yang jauh lebih luas dan bebas distraksi.
 
 ---
 
-## Filosofi Desain & Standar Visual (Flat Design)
-
-Antarmuka dibangun dengan mengadopsi standar **Flat Design Minimalist**:
-- **True Solid Surfaces**: Latar kanvas utama `#212121`, Sidebar `#171717`, dan Kartu/Dock `#2f2f2f`.
-- **Anti-AI Slop**: Tanpa gradien warna-warni ungu-biru, tanpa blur layar penuh (*no full-screen blur abuse*), dan tanpa bayangan tebal. Struktur visual murni dibangun dengan kontras permukaan solid dan garis batas 1px.
-- **Floating Input Dock 2-Tingkat**: Input obrolan mengapung di bagian bawah dengan radius `rounded-3xl` dan tombol aksi berukuran seragam 32px (`h-8`).
-- **Collapsible Squad Room**: Panel tim agen dapat disembunyikan (*hide ke atas*) agar kanvas percakapan memiliki ruang pandang yang lega.
-- **4 Boundary States**: Setiap modul dinamis dilengkapi dengan *Loading Skeleton*, *Empty State*, *Error Boundary*, dan *Toast Feedback*.
+### 4. Ekosistem Pendukung & Alat Produktivitas
+- **Skills Hub Management**: Pusat pengelolaan keahlian agen untuk memasang, mengaktifkan, atau mengimpor modul keterampilan (*skills*) baru, baik dalam cakupan lokal proyek maupun global sistem.
+- **Interactive Slash Commands (`/`)**: Menu pintasan cepat yang muncul saat mengetik garis miring di kolom input (seperti `/plan`, `/review`, `/test`, `/terminal`, `/skills`, `/clear`, `/help`) dengan navigasi keyboard penuh.
+- **Multi-Provider & API Key Manager**: Pengelola kredensial mandiri untuk menyimpan kunci API Gemini, OpenAI, Claude, DeepSeek, dan Ollama secara aman pada basis data SQLite lokal, dilengkapi fitur uji latensi koneksi (*Ping Tester*).
+- **Sandbox Path Confinement**: Mesin eksekutor di lapisan Rust native yang mengisolasi seluruh operasi baca/tulis berkas agar tetap terkunci di dalam direktori kerja proyek, mencegah directory traversal ke berkas sistem di luar izin.
+- **Project Picker & Workspace Selector**: Pengalih direktori kerja aktif dengan pemindaian otomatis proyek lokal pada sistem penyimpanan Anda.
 
 ---
 
-## Arsitektur Teknis
+## Struktur Direktori Proyek
 
 ```
 Agentic/
-├── src-tauri/                     # Rust Native Backend (Tauri 2.0)
+├── src-tauri/                     # Backend Desktop Native (Tauri 2.0 & Rust Tokio)
 │   ├── Cargo.toml
 │   ├── tauri.conf.json
 │   └── src/
 │       ├── main.rs
 │       ├── lib.rs
 │       ├── db/                    # Persistensi SQLite thread-safe lokal
-│       ├── providers/             # Client bridge Gemini, OpenAI, Claude, Ollama
-│       ├── engine/                # Tokio async orchestrator & sandbox tool runner
-│       └── ipc/                   # Tauri IPC command bridge
-└── src/                           # Frontend React 19 + Vite
+│       ├── providers/             # Jembatan API provider (Gemini, Claude, OpenAI, Ollama)
+│       ├── engine/                # Mesin orkestrasi multi-agen & sandbox runner aman
+│       └── ipc/                   # Jembatan perintah Tauri IPC
+└── src/                           # Frontend Antarmuka (React 19 + TypeScript + Tailwind)
     ├── package.json
     ├── vite.config.ts
     └── src/
         ├── App.tsx
         ├── components/
-        │   ├── chatbot/           # Mode Chatbot & Model Pill Selector
-        │   ├── agent/             # Mode Single Agent & HITL Clearance
-        │   ├── build/             # Mode Build Studio, Kanban, DAG Tree, Diff Viewer
-        │   ├── layout/            # TitleBar & Sidebar navigasi
+        │   ├── chatbot/           # Modul Chatbot & Dynamic Model Pill Selector
+        │   ├── agent/             # Modul Single Agent & Approval Alert HITL
+        │   ├── build/             # Modul Build Studio (Discussion, Kanban, DAG Tree, Diff Viewer)
+        │   ├── layout/            # Komponen TitleBar & Sidebar navigasi
         │   ├── terminal/          # Terminal drawer interaktif (bash)
         │   ├── skills/            # Modal Hub manajemen skills agen
-        │   └── common/            # 4 Boundary States & Attachment Chips
-        └── store/                 # State management reaktif menggunakan Zustand
+        │   └── common/            # State boundary (Skeleton, Empty State, Error, Toast)
+        └── store/                 # Pengelola state reaktif (Zustand)
 ```
-
----
-
-## Petunjuk Menjalankan Aplikasi
-
-### Prasyarat Sistem:
-- **Node.js**: Versi 18 ke atas dan npm
-- **Rust Toolchain**: `cargo` dan `rustc` versi 1.78 ke atas
-- **Dependensi Linux** (untuk kompilasi Tauri):
-  ```bash
-  sudo apt install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-  ```
-
-### Menjalankan Mode Pengembangan:
-```bash
-# 1. Pasang dependensi frontend
-npm install
-
-# 2. Jalankan preview frontend browser
-npm run dev
-
-# 3. Jalankan aplikasi desktop native penuh (Tauri + Rust)
-npm run tauri dev
-```
-
-### Membangun Paket Biner Rilis (Production Build):
-```bash
-npm run tauri build
-```
-Biner aplikasi desktop siap pakai dan paket instalasi `.deb` akan dihasilkan pada direktori `src-tauri/target/release/bundle/`.
 
 ---
 
 ## Lisensi
 
-Didistribusikan di bawah lisensi [MIT](LICENSE).
+Didistribusikan di bawah ketentuan lisensi [MIT](LICENSE).
 
 Hak Cipta (c) [Great-YUDZZ](https://github.com/Great-YUDZZ).
