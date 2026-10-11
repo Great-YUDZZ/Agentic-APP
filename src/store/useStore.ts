@@ -100,7 +100,7 @@ interface AppStore {
   setActiveSessionId: (id: string | null) => void;
   setMessages: (messages: ChatMessage[]) => void;
   addMessage: (msg: ChatMessage) => void;
-  createNewSession: () => string;
+  createNewSession: (title?: string, mode?: AppMode) => string;
   deleteSession: (id: string) => Promise<void>;
   loadSessionsFromDb: () => Promise<void>;
   selectSession: (id: string) => Promise<void>;
@@ -151,43 +151,35 @@ interface AppStore {
   removeToast: (id: string) => void;
 }
 
-const DEFAULT_AGENTS: CustomAgent[] = [
-  {
-    id: 'agent-architect',
-    name: 'Lead System Architect',
-    role: 'System Architect',
-    task_description: 'Merancang arsitektur sistem, memecah requirement menjadi modul teknis, dan menentukan dependensi.',
-    skills: ['file_system', 'web_fetcher', 'Architecture Design'],
-    system_instructions: 'Fokus pada desain tingkat tinggi, modularitas, diagram alur, dan dekomposisi tugas.',
-    avatar_color: '#3b82f6',
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'agent-coder',
-    name: 'Fullstack Core Engineer',
-    role: 'Core Software Engineer',
-    task_description: 'Mengimplementasikan logika kode, menulis fungsi bersih, menangani algoritma, dan mengintegrasikan API.',
-    skills: ['file_system', 'terminal_runner', 'code_evaluator'],
-    system_instructions: 'Tulis kode yang modular, efisien, aman, dan tanpa boilerplate yang tidak perlu.',
-    avatar_color: '#10b981',
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'agent-reviewer',
-    name: 'QA & Security Auditor',
-    role: 'Quality & Security Reviewer',
-    task_description: 'Memeriksa potensi celah keamanan, boundary bugs, verifikasi sanitasi input, dan validasi kode.',
-    skills: ['file_system', 'terminal_runner', 'Security Audit'],
-    system_instructions: 'Kritisi solusi yang dibuat, cari edge-case, dan pastikan tidak ada kebocoran sandbox.',
-    avatar_color: '#f59e0b',
-    created_at: new Date().toISOString(),
-  },
-];
-
 export const useStore = create<AppStore>((set, get) => ({
   // Clean default mode: Chatbot
   currentMode: 'chatbot',
-  setMode: (currentMode) => set({ currentMode }),
+  setMode: (nextMode) => {
+    const prevMode = get().currentMode;
+    if (prevMode === nextMode) return;
+
+    // Jika beralih ke mode chatbot, tutup terminal demi proteksi isolasi
+    if (nextMode === 'chatbot') {
+      set({ isTerminalOpen: false });
+    }
+
+    set({ currentMode: nextMode });
+
+    // Cari sesi yang cocok untuk mode ini
+    const modeSessions = get().sessions.filter((s) => (s.mode || 'chatbot') === nextMode);
+    if (modeSessions.length > 0) {
+      get().selectSession(modeSessions[0].id);
+    } else {
+      // Buat sesi default untuk mode ini jika belum ada
+      const defaultTitle =
+        nextMode === 'chatbot'
+          ? 'Percakapan Chat'
+          : nextMode === 'agent'
+          ? 'Sesi Tugas Agent'
+          : 'Proyek Studio Multi-Agent';
+      get().createNewSession(defaultTitle, nextMode);
+    }
+  },
   isSidebarOpen: true,
   setSidebarOpen: (isSidebarOpen) => set({ isSidebarOpen }),
 
@@ -516,11 +508,25 @@ export const useStore = create<AppStore>((set, get) => ({
         const loadedSessions = (await invoke('get_chat_sessions')) as ChatSession[];
         if (loadedSessions && loadedSessions.length > 0) {
           set({ sessions: loadedSessions });
+          const currentMode = get().currentMode;
           const currentActive = get().activeSessionId;
-          const targetId = currentActive && loadedSessions.some((s) => s.id === currentActive)
-            ? currentActive
-            : loadedSessions[0].id;
-          await get().selectSession(targetId);
+          const modeSessions = loadedSessions.filter((s) => (s.mode || 'chatbot') === currentMode);
+
+          if (currentActive && modeSessions.some((s) => s.id === currentActive)) {
+            await get().selectSession(currentActive);
+          } else if (modeSessions.length > 0) {
+            await get().selectSession(modeSessions[0].id);
+          } else {
+            // Jika belum ada sesi untuk mode saat ini, buat sesi baru
+            get().createNewSession(
+              currentMode === 'chatbot'
+                ? 'Percakapan Chat'
+                : currentMode === 'agent'
+                ? 'Sesi Tugas Agent'
+                : 'Proyek Studio Multi-Agent',
+              currentMode
+            );
+          }
         }
       } catch (err) {
         console.warn('Gagal memuat sesi obrolan dari SQLite:', err);
@@ -541,13 +547,23 @@ export const useStore = create<AppStore>((set, get) => ({
     }
   },
 
-  createNewSession: () => {
+  createNewSession: (customTitle?: string, targetMode?: AppMode) => {
+    const effectiveMode = targetMode || get().currentMode;
     const newId = `session-${Date.now()}`;
+    const defaultTitle =
+      customTitle ||
+      (effectiveMode === 'chatbot'
+        ? 'Percakapan Chat'
+        : effectiveMode === 'agent'
+        ? 'Sesi Tugas Agent'
+        : 'Proyek Studio Multi-Agent');
+
     const newSession: ChatSession = {
       id: newId,
-      title: 'Obrolan Baru',
+      title: defaultTitle,
       model: get().selectedModel,
       provider: get().selectedProvider,
+      mode: effectiveMode,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -564,6 +580,7 @@ export const useStore = create<AppStore>((set, get) => ({
           title: newSession.title,
           model: newSession.model || 'default',
           provider: newSession.provider || 'custom',
+          mode: effectiveMode,
         }).catch((e) => console.warn('Gagal simpan create_chat_session ke SQLite:', e));
       });
     }
@@ -599,7 +616,12 @@ export const useStore = create<AppStore>((set, get) => ({
   deleteSession: async (id: string) => {
     const remaining = get().sessions.filter((sess) => sess.id !== id);
     const remainingMsgs = get().messages.filter((m) => m.session_id !== id);
-    const nextActive = get().activeSessionId === id ? remaining[0]?.id || null : get().activeSessionId;
+    const currentMode = get().currentMode;
+    const remainingModeSessions = remaining.filter((s) => (s.mode || 'chatbot') === currentMode);
+    const nextActive =
+      get().activeSessionId === id
+        ? remainingModeSessions[0]?.id || null
+        : get().activeSessionId;
 
     set({
       sessions: remaining,
@@ -609,6 +631,9 @@ export const useStore = create<AppStore>((set, get) => ({
 
     if (nextActive) {
       await get().selectSession(nextActive);
+    } else {
+      // Jika semua sesi mode ini habis terhapus, buat sesi baru
+      get().createNewSession(undefined, currentMode);
     }
 
     if ((window as any).__TAURI_INTERNALS__) {
@@ -621,9 +646,9 @@ export const useStore = create<AppStore>((set, get) => ({
     }
   },
 
-  // CUSTOM AGENTS ROSTER
-  customAgents: DEFAULT_AGENTS,
-  selectedAgentId: 'agent-architect',
+  // CUSTOM AGENTS ROSTER (Default zero built-in agents)
+  customAgents: [],
+  selectedAgentId: null,
   setCustomAgents: (customAgents) => set({ customAgents }),
   setSelectedAgentId: (selectedAgentId) => set({ selectedAgentId }),
   createCustomAgent: (agentData) => {

@@ -20,6 +20,7 @@ export interface ChatSession {
   title: string;
   model: string;
   provider: string;
+  mode?: AppMode;
   created_at: string;
   updated_at: string;
 }

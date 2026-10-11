@@ -10,6 +10,7 @@ import { useStore } from '../../store/useStore';
 
 export const Sidebar: React.FC = () => {
   const {
+    currentMode,
     sessions,
     activeSessionId,
     selectSession,
@@ -27,14 +28,34 @@ export const Sidebar: React.FC = () => {
 
   const activeKeyCount = apiKeys.filter((k) => k.is_active && k.api_key.trim().length > 0).length;
 
-  const filteredSessions = sessions.filter((s) =>
+  // Filter sesi berdasarkan mode yang sedang aktif
+  const modeSessions = sessions.filter((s) => (s.mode || 'chatbot') === currentMode);
+
+  const filteredSessions = modeSessions.filter((s) =>
     s.title.toLowerCase().includes(searchFilter.toLowerCase())
   );
+
+  const getModeLabel = () => {
+    switch (currentMode) {
+      case 'chatbot':
+        return { sectionTitle: 'Percakapan Chat', newBtn: 'Chat Baru', placeholder: 'Cari chat...' };
+      case 'agent':
+        return { sectionTitle: 'Task Agent', newBtn: 'Task Baru', placeholder: 'Cari sesi task...' };
+      case 'build':
+        return { sectionTitle: 'Proyek Studio', newBtn: 'Proyek Baru', placeholder: 'Cari proyek...' };
+    }
+  };
+
+  const modeLabel = getModeLabel();
+
+  const handleCreateNew = () => {
+    createNewSession();
+  };
 
   const handleDeleteSession = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     deleteSession(id);
-    addToast('info', 'Percakapan dihapus');
+    addToast('info', 'Sesi dihapus');
   };
 
   if (!isSidebarOpen) {
@@ -49,9 +70,9 @@ export const Sidebar: React.FC = () => {
             <img src="/logo.png" alt="Hub Logo" className="w-6 h-6 rounded-md object-contain" />
           </button>
           <button
-            onClick={createNewSession}
+            onClick={handleCreateNew}
             className="p-2 rounded-xl bg-[#212121] hover:bg-[#282828] border border-[#303030] text-[#ececec] transition-colors"
-            title="Percakapan Baru"
+            title={modeLabel.newBtn}
           >
             <Plus className="w-4 h-4" />
           </button>
@@ -76,7 +97,7 @@ export const Sidebar: React.FC = () => {
           <div className="flex items-center gap-2">
             <img src="/logo.png" alt="Hub Logo" className="w-4 h-4 rounded-md object-contain" />
             <span className="text-[11px] font-semibold text-[#b4b4b4] tracking-wide uppercase">
-              Percakapan
+              {modeLabel.sectionTitle}
             </span>
           </div>
           <button
@@ -89,12 +110,12 @@ export const Sidebar: React.FC = () => {
         </div>
 
         <button
-          onClick={createNewSession}
+          onClick={handleCreateNew}
           className="w-full flex items-center justify-between py-2 px-3 rounded-xl bg-[#212121] hover:bg-[#282828] border border-[#303030] text-[#ececec] text-xs font-medium transition-colors"
         >
           <div className="flex items-center gap-2">
             <Plus className="w-4 h-4" />
-            <span>Chat Baru</span>
+            <span>{modeLabel.newBtn}</span>
           </div>
           <span className="text-[10px] text-[#707070] font-mono">⌘N</span>
         </button>
@@ -104,7 +125,7 @@ export const Sidebar: React.FC = () => {
           <Search className="w-3.5 h-3.5 text-[#707070] absolute left-2.5 top-2.5" />
           <input
             type="text"
-            placeholder="Cari chat..."
+            placeholder={modeLabel.placeholder}
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
             className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-[#212121] border border-[#303030] text-xs text-[#ececec] placeholder-[#707070] focus:outline-none focus:border-[#404040] transition-colors"

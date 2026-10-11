@@ -29,12 +29,15 @@ export const TitleBar: React.FC = () => {
       }
       if ((e.ctrlKey || e.metaKey) && e.key === '`') {
         e.preventDefault();
-        setTerminalOpen(!isTerminalOpen);
+        // Mode chat tidak memiliki akses terminal
+        if (currentMode !== 'chatbot') {
+          setTerminalOpen(!isTerminalOpen);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [emergencyStopped, isTerminalOpen]);
+  }, [emergencyStopped, isTerminalOpen, currentMode]);
 
   const triggerEmergencyStop = () => {
     const nextState = !emergencyStopped;
@@ -105,20 +108,22 @@ export const TitleBar: React.FC = () => {
         })}
       </div>
 
-      {/* Right: Terminal Panel Toggle Button */}
+      {/* Right: Terminal Panel Toggle Button (Hidden in Chatbot Mode) */}
       <div className="flex items-center gap-2">
-        <button
-          onClick={() => setTerminalOpen(!isTerminalOpen)}
-          title={isTerminalOpen ? 'Tutup Terminal [Ctrl+`]' : 'Buka Terminal [Ctrl+`]'}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono transition-colors border ${
-            isTerminalOpen
-              ? 'bg-[#2b2b2b] text-emerald-400 border-emerald-500/40 shadow-sm'
-              : 'bg-[#212121] text-[#8e8e8e] hover:text-[#ececec] border-[#303030] hover:bg-[#2b2b2b]'
-          }`}
-        >
-          <Terminal className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Terminal</span>
-        </button>
+        {currentMode !== 'chatbot' && (
+          <button
+            onClick={() => setTerminalOpen(!isTerminalOpen)}
+            title={isTerminalOpen ? 'Tutup Terminal [Ctrl+`]' : 'Buka Terminal [Ctrl+`]'}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono transition-colors border ${
+              isTerminalOpen
+                ? 'bg-[#2b2b2b] text-emerald-400 border-emerald-500/40 shadow-sm'
+                : 'bg-[#212121] text-[#8e8e8e] hover:text-[#ececec] border-[#303030] hover:bg-[#2b2b2b]'
+            }`}
+          >
+            <Terminal className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Terminal</span>
+          </button>
+        )}
       </div>
     </header>
   );

@@ -18,6 +18,7 @@ pub struct ChatSession {
     pub title: String,
     pub model: String,
     pub provider: String,
+    pub mode: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -114,6 +115,7 @@ impl Database {
                 title TEXT NOT NULL,
                 model TEXT NOT NULL,
                 provider TEXT NOT NULL,
+                mode TEXT DEFAULT 'chatbot',
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
@@ -162,6 +164,13 @@ impl Database {
             VALUES (1, datetime('now'));
             ",
         )?;
+
+        // Migrasi aman jika kolom mode belum ada di tabel chat_sessions lama
+        conn.execute(
+            "ALTER TABLE chat_sessions ADD COLUMN mode TEXT DEFAULT 'chatbot'",
+            params![],
+        ).ok();
+
         Ok(())
     }
 
@@ -211,13 +220,14 @@ impl Database {
     pub fn save_chat_session(&self, session: &ChatSession) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
-            "INSERT OR REPLACE INTO chat_sessions (id, title, model, provider, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            "INSERT OR REPLACE INTO chat_sessions (id, title, model, provider, mode, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
                 session.id,
                 session.title,
                 session.model,
                 session.provider,
+                session.mode.as_deref().unwrap_or("chatbot"),
                 session.created_at,
                 session.updated_at
             ],
@@ -227,15 +237,16 @@ impl Database {
 
     pub fn get_chat_sessions(&self) -> Result<Vec<ChatSession>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, title, model, provider, created_at, updated_at FROM chat_sessions ORDER BY updated_at DESC")?;
+        let mut stmt = conn.prepare("SELECT id, title, model, provider, mode, created_at, updated_at FROM chat_sessions ORDER BY updated_at DESC")?;
         let rows = stmt.query_map(params![], |row| {
             Ok(ChatSession {
                 id: row.get(0)?,
                 title: row.get(1)?,
                 model: row.get(2)?,
                 provider: row.get(3)?,
-                created_at: row.get(4)?,
-                updated_at: row.get(5)?,
+                mode: row.get(4)?,
+                created_at: row.get(5)?,
+                updated_at: row.get(6)?,
             })
         })?;
         let mut list = Vec::new();
@@ -434,6 +445,7 @@ mod tests {
             title: "Autonomous Agent Task".to_string(),
             model: "gemini-2.5-flash".to_string(),
             provider: "gemini".to_string(),
+            mode: Some("agent".to_string()),
             created_at: "2026-10-10T10:00:00Z".to_string(),
             updated_at: "2026-10-10T10:00:00Z".to_string(),
         };

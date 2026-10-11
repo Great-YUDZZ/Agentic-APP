@@ -5,7 +5,6 @@ import {
   Wrench,
   Search,
   CheckCircle,
-  Terminal,
   Sparkles,
   Trash2,
   HelpCircle,
@@ -53,13 +52,6 @@ export const SLASH_COMMANDS: SlashCommandItem[] = [
     icon: CheckCircle,
     type: 'template',
     actionText: 'Tolong buatkan unit test lengkap (termasuk happy path, boundary state, dan error edge cases) untuk:',
-  },
-  {
-    id: 'terminal',
-    name: '/terminal',
-    description: 'Buka drawer terminal interaktif bawaan aplikasi.',
-    icon: Terminal,
-    type: 'action',
   },
   {
     id: 'skills',

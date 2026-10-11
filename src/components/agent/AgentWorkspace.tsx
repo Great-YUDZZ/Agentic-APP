@@ -126,10 +126,6 @@ export const AgentWorkspace: React.FC = () => {
   };
 
   const handleDelete = (agentId: string, agentName: string) => {
-    if (customAgents.length <= 1) {
-      addToast('warning', 'Minimal harus ada 1 agent di dalam sistem!');
-      return;
-    }
     deleteCustomAgent(agentId);
     addToast('info', `Agent "${agentName}" telah dihapus.`);
   };
@@ -360,8 +356,27 @@ Sebagai agent spesialis, berikan:
         </button>
       </div>
 
-      {/* 2. Active Agent Identity Card */}
-      {activeAgent && (
+      {/* 2. Active Agent Identity Card or Empty State */}
+      {customAgents.length === 0 ? (
+        <div className="rounded-2xl bg-[#2f2f2f] border border-[#383838] p-8 text-center space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-[#212121] border border-[#383838] flex items-center justify-center mx-auto text-[#ececec]">
+            <Bot className="w-6 h-6" />
+          </div>
+          <div className="max-w-md mx-auto space-y-1.5">
+            <h3 className="text-sm font-semibold text-[#ececec]">Belum Ada Agent yang Dibuat</h3>
+            <p className="text-xs text-[#b4b4b4] leading-relaxed">
+              Buat agent pertama Anda untuk mulai mendelegasikan tugas khusus, instruksi peran, dan tool eksekusi mandiri.
+            </p>
+          </div>
+          <button
+            onClick={handleOpenCreate}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#ececec] hover:bg-white text-xs font-semibold text-black transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Buat Agent Pertama</span>
+          </button>
+        </div>
+      ) : activeAgent ? (
         <div className="rounded-2xl bg-[#2f2f2f] border border-[#383838] p-5 space-y-4">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-3.5 flex-1">
@@ -416,7 +431,7 @@ Sebagai agent spesialis, berikan:
             ))}
           </div>
         </div>
-      )}
+      ) : null}
 
 
 

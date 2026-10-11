@@ -39,8 +39,8 @@ export const App: React.FC = () => {
             </ErrorBoundary>
           </main>
 
-          {/* Resizable Bottom Terminal Panel */}
-          <TerminalPanel />
+          {/* Resizable Bottom Terminal Panel (Disabled & Unmounted in Chatbot Mode) */}
+          {currentMode !== 'chatbot' && <TerminalPanel />}
         </div>
 
         {/* Global Floating Modals */}

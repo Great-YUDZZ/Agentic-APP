@@ -121,12 +121,14 @@ pub async fn create_chat_session(
     title: String,
     model: String,
     provider: String,
+    mode: Option<String>,
 ) -> Result<ChatSession, String> {
     let session = ChatSession {
         id: id.unwrap_or_else(|| Uuid::new_v4().to_string()),
         title,
         model,
         provider,
+        mode,
         created_at: chrono::Utc::now().to_rfc3339(),
         updated_at: chrono::Utc::now().to_rfc3339(),
     };

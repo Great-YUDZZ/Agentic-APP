@@ -129,7 +129,6 @@ export const ChatContainer: React.FC = () => {
     apiKeys,
     setMessages,
     addToast,
-    setTerminalOpen,
     setSkillsModalOpen,
     setSettingsOpen,
     isContextCompressed,
@@ -228,10 +227,7 @@ export const ChatContainer: React.FC = () => {
     setIsSlashOpen(false);
 
     if (cmd.type === 'action') {
-      if (cmd.id === 'terminal') {
-        setTerminalOpen(true);
-        setInputPrompt('');
-      } else if (cmd.id === 'skills') {
+      if (cmd.id === 'skills') {
         setSkillsModalOpen(true);
         setInputPrompt('');
       } else if (cmd.id === 'clear') {
