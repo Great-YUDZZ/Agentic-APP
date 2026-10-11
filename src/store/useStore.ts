@@ -210,13 +210,15 @@ export const useStore = create<AppStore>((set, get) => ({
       const keys = get().apiKeys;
       const customConfig = keys.find((k) => k.provider === 'custom');
       const url = customUrl || customConfig?.base_url || 'http://localhost:20128/v1';
-      const key = customKey || customConfig?.api_key || 'sk-fba3a2b12de42b58-3isf9v-4b13a384';
+      const key = customKey || customConfig?.api_key || '';
 
       const targetModelsUrl = getModelsEndpoint(url);
+      const headers: Record<string, string> = {};
+      if (key) {
+        headers['Authorization'] = `Bearer ${key}`;
+      }
       const res = await fetch(targetModelsUrl, {
-        headers: {
-          Authorization: `Bearer ${key}`,
-        },
+        headers,
       });
 
       if (!res.ok) {
@@ -264,7 +266,7 @@ export const useStore = create<AppStore>((set, get) => ({
   apiKeys: [
     {
       provider: 'custom',
-      api_key: 'sk-fba3a2b12de42b58-3isf9v-4b13a384',
+      api_key: '',
       base_url: 'http://localhost:20128/v1',
       is_active: true,
       updated_at: new Date().toISOString(),
@@ -483,7 +485,7 @@ export const useStore = create<AppStore>((set, get) => ({
     // Ambil endpoint dan model
     const customConfig = state.apiKeys.find((k) => k.provider === 'custom');
     const baseUrl = customConfig?.base_url || 'http://localhost:20128/v1';
-    const apiKey = customConfig?.api_key || 'sk-fba3a2b12de42b58-3isf9v-4b13a384';
+    const apiKey = customConfig?.api_key || '';
     const model = state.selectedModel || 'openrouter/openrouter/free';
 
     // Format riwayat diskusi

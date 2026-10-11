@@ -174,7 +174,7 @@ export const AgentWorkspace: React.FC = () => {
     try {
       const customConfig = apiKeys.find((k) => k.provider === 'custom');
       const baseUrl = customConfig?.base_url || 'http://localhost:20128/v1';
-      const apiKey = customConfig?.api_key || 'sk-fba3a2b12de42b58-3isf9v-4b13a384';
+      const apiKey = customConfig?.api_key || '';
 
       const prompt = `Anda adalah ${activeAgent.name} (Peran: ${activeAgent.role}).
 TUGAS UTAMA ANDA: ${activeAgent.task_description}
