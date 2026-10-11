@@ -33,12 +33,17 @@ export function extractCodeReviewItems(
 
       if (!codeContent.trim()) continue;
 
-      // Extract filename from header (e.g. ```tsx src/App.tsx)
+      // Extract filename from header (e.g. ```tsx src/App.tsx or ```python filename="calc.py")
       let filename = '';
       if (rawHeaderInfo) {
-        const potentialPath = rawHeaderInfo.split(/\s+/)[0];
-        if (potentialPath && !potentialPath.startsWith('//') && !potentialPath.startsWith('#')) {
-          filename = potentialPath;
+        const matchAttr = rawHeaderInfo.match(/(?:filename|file|path)=["']?([^"'\s]+)["']?/i);
+        if (matchAttr && matchAttr[1]) {
+          filename = matchAttr[1];
+        } else {
+          const potentialPath = rawHeaderInfo.split(/\s+/)[0];
+          if (potentialPath && !potentialPath.startsWith('//') && !potentialPath.startsWith('#')) {
+            filename = potentialPath;
+          }
         }
       }
 

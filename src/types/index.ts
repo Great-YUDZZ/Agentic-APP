@@ -92,6 +92,7 @@ export interface CustomAgent {
   skills: string[];
   system_instructions?: string;
   avatar_color: string;
+  model?: string;
   created_at: string;
 }
 

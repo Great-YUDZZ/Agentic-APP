@@ -20,6 +20,7 @@ import {
   CodeReviewItem,
 } from '../types';
 import { parseRobustJson, getChatEndpoint, getModelsEndpoint, formatApiErrorMessage } from '../utils/api';
+import { extractCodeReviewItems } from '../utils/codeExtractor';
 
 interface AppStore {
   // Code Review Modal
@@ -33,6 +34,8 @@ interface AppStore {
   // Terminal State
   isTerminalOpen: boolean;
   setTerminalOpen: (open: boolean) => void;
+  terminalHeight: number;
+  setTerminalHeight: (height: number) => void;
   terminalTabs: TerminalTab[];
   activeTerminalTabId: string;
   setActiveTerminalTabId: (id: string) => void;
@@ -40,6 +43,8 @@ interface AppStore {
   closeTerminalTab: (id: string) => void;
   clearTerminalLogs: (tabId?: string) => void;
   runTerminalCommand: (command: string, tabId?: string) => Promise<void>;
+  appendTerminalStreamData: (tabId: string, line: string, isStderr: boolean) => void;
+  killTerminalProcess: (tabId?: string) => Promise<void>;
 
   // Skills Management
   isSkillsModalOpen: boolean;
@@ -58,6 +63,7 @@ interface AppStore {
   // Workspace Project Root & Approval Policy
   workspaceProjectRoot: string;
   setWorkspaceProjectRoot: (path: string) => void;
+  pickAndSetWorkspaceRoot: () => Promise<string | null>;
   isProjectPickerOpen: boolean;
   setProjectPickerOpen: (open: boolean) => void;
   isStrictApprovalMode: boolean; // false = 'Ask for approval' (HITL), true = 'Strict' (Auto-execute without asking)
@@ -78,8 +84,9 @@ interface AppStore {
   setSettingsOpen: (open: boolean) => void;
   apiKeys: ApiKeyRecord[];
   setApiKeys: (keys: ApiKeyRecord[]) => void;
-  saveApiKey: (provider: string, apiKey: string, baseUrl?: string) => void;
-  toggleApiKey: (provider: string) => void;
+  loadApiKeysFromDb: () => Promise<void>;
+  saveApiKey: (provider: string, apiKey: string, baseUrl?: string) => Promise<void>;
+  toggleApiKey: (provider: string) => Promise<void>;
 
   // Chatbot Mode
   sessions: ChatSession[];
@@ -90,7 +97,11 @@ interface AppStore {
   setMessages: (messages: ChatMessage[]) => void;
   addMessage: (msg: ChatMessage) => void;
   createNewSession: () => string;
-  deleteSession: (id: string) => void;
+  deleteSession: (id: string) => Promise<void>;
+  loadSessionsFromDb: () => Promise<void>;
+  selectSession: (id: string) => Promise<void>;
+  saveChatMessageToDb: (msg: ChatMessage) => Promise<void>;
+  updateSessionTitle: (id: string, title: string) => Promise<void>;
 
   // Custom Agent Mode
   customAgents: CustomAgent[];
@@ -178,9 +189,51 @@ export const useStore = create<AppStore>((set, get) => ({
 
   // Workspace Project Root & Approval Policy
   workspaceProjectRoot: '/home/yudz/Agentic',
-  setWorkspaceProjectRoot: (workspaceProjectRoot) => {
-    set({ workspaceProjectRoot });
+  setWorkspaceProjectRoot: async (workspaceProjectRoot) => {
+    set((s) => ({
+      workspaceProjectRoot,
+      terminalTabs: s.terminalTabs.map((t) => ({ ...t, cwd: workspaceProjectRoot })),
+    }));
+    if ((window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('set_workspace_directory', { path: workspaceProjectRoot });
+      } catch (err) {
+        console.warn('Gagal sinkronisasi workspace directory ke Rust:', err);
+      }
+    }
     get().addToast('info', `Direktori proyek diatur ke: ${workspaceProjectRoot}`);
+  },
+  pickAndSetWorkspaceRoot: async () => {
+    try {
+      if ((window as any).__TAURI_INTERNALS__) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const chosen = (await invoke('pick_workspace_directory')) as string | null;
+        if (chosen) {
+          set((s) => ({
+            workspaceProjectRoot: chosen,
+            terminalTabs: s.terminalTabs.map((t) => ({ ...t, cwd: chosen })),
+          }));
+          get().addToast('success', `Direktori proyek aktif: ${chosen}`);
+          return chosen;
+        }
+        return null;
+      } else if (typeof window !== 'undefined' && 'showDirectoryPicker' in window) {
+        // Fallback untuk browser web preview
+        const handle = await (window as any).showDirectoryPicker();
+        if (handle?.name) {
+          const pseudoPath = `/workspace/${handle.name}`;
+          set({ workspaceProjectRoot: pseudoPath });
+          get().addToast('success', `Folder terpilih: ${handle.name}`);
+          return pseudoPath;
+        }
+      }
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        get().addToast('error', `Gagal memilih folder: ${err?.message || err}`);
+      }
+    }
+    return null;
   },
   isProjectPickerOpen: false,
   setProjectPickerOpen: (isProjectPickerOpen) => set({ isProjectPickerOpen }),
@@ -195,8 +248,8 @@ export const useStore = create<AppStore>((set, get) => ({
     }
   },
 
-  // Custom Endpoint pre-configured with user credentials
-  selectedModel: 'openrouter/openrouter/free',
+  // Custom Endpoint - model dideteksi berdasarkan ketersediaan API key
+  selectedModel: '',
   selectedProvider: 'custom',
   availableModels: [],
   isDetectingModels: false,
@@ -205,18 +258,28 @@ export const useStore = create<AppStore>((set, get) => ({
   setAvailableModels: (availableModels) => set({ availableModels }),
 
   fetchAvailableModels: async (customUrl, customKey) => {
+    const keys = get().apiKeys;
+    const customConfig = keys.find((k) => k.provider === 'custom');
+    const url = customUrl || customConfig?.base_url || 'http://localhost:20128/v1';
+    const key = customKey ?? customConfig?.api_key ?? '';
+
+    // Jika tidak ada API key aktif, kosongkan model dan batalkan deteksi
+    if (!key.trim()) {
+      set({
+        availableModels: [],
+        selectedModel: '',
+        isDetectingModels: false,
+      });
+      return 0;
+    }
+
     set({ isDetectingModels: true });
     try {
-      const keys = get().apiKeys;
-      const customConfig = keys.find((k) => k.provider === 'custom');
-      const url = customUrl || customConfig?.base_url || 'http://localhost:20128/v1';
-      const key = customKey || customConfig?.api_key || '';
-
       const targetModelsUrl = getModelsEndpoint(url);
-      const headers: Record<string, string> = {};
-      if (key) {
-        headers['Authorization'] = `Bearer ${key}`;
-      }
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${key.trim()}`,
+      };
+
       const res = await fetch(targetModelsUrl, {
         headers,
       });
@@ -250,12 +313,12 @@ export const useStore = create<AppStore>((set, get) => ({
         return detected.length;
       }
 
-      set({ isDetectingModels: false });
+      set({ availableModels: [], selectedModel: '', isDetectingModels: false });
       return 0;
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
       get().addToast('error', `Gagal mendeteksi model: ${errMsg}`);
-      set({ isDetectingModels: false });
+      set({ availableModels: [], selectedModel: '', isDetectingModels: false });
       return 0;
     }
   },
@@ -297,14 +360,65 @@ export const useStore = create<AppStore>((set, get) => ({
     },
     {
       provider: 'ollama',
-      api_key: 'local-ollama',
+      api_key: '',
       base_url: 'http://localhost:11434',
       is_active: false,
       updated_at: new Date().toISOString(),
     },
   ],
   setApiKeys: (apiKeys) => set({ apiKeys }),
-  saveApiKey: (provider, apiKey, baseUrl) =>
+
+  loadApiKeysFromDb: async () => {
+    try {
+      if ((window as any).__TAURI_INTERNALS__) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const dbKeys = (await invoke('get_api_keys')) as ApiKeyRecord[];
+        if (dbKeys && Array.isArray(dbKeys) && dbKeys.length > 0) {
+          const currentKeys = get().apiKeys;
+          const merged = currentKeys.map((k) => {
+            const found = dbKeys.find((dk) => dk.provider === k.provider);
+            return found ? { ...k, ...found } : k;
+          });
+          // Tambahkan custom providers yang mungkin ada di DB tapi belum ada di state
+          dbKeys.forEach((dk) => {
+            if (!merged.some((m) => m.provider === dk.provider)) {
+              merged.push(dk);
+            }
+          });
+
+          set({ apiKeys: merged });
+
+          // Cek provider custom yang aktif
+          const custom = merged.find((k) => k.provider === 'custom' && k.is_active && k.api_key.trim().length > 0);
+          if (custom) {
+            get().fetchAvailableModels(custom.base_url, custom.api_key);
+          } else {
+            set({ availableModels: [], selectedModel: '' });
+          }
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Gagal memuat api keys dari SQLite database:', err);
+    }
+  },
+
+  saveApiKey: async (provider, apiKey, baseUrl) => {
+    // 1. Simpan ke SQLite Rust Tauri jika tersedia
+    if ((window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('save_api_key', {
+          provider,
+          apiKey,
+          baseUrl: baseUrl ?? null,
+        });
+      } catch (err) {
+        console.warn(`Gagal menyimpan api key ${provider} ke SQLite:`, err);
+      }
+    }
+
+    // 2. Perbarui state Zustand
     set((s) => {
       const existing = s.apiKeys.find((k) => k.provider === provider);
       if (existing) {
@@ -315,7 +429,7 @@ export const useStore = create<AppStore>((set, get) => ({
                   ...k,
                   api_key: apiKey,
                   base_url: baseUrl ?? k.base_url,
-                  is_active: apiKey.length > 0,
+                  is_active: apiKey.trim().length > 0,
                   updated_at: new Date().toISOString(),
                 }
               : k
@@ -329,20 +443,56 @@ export const useStore = create<AppStore>((set, get) => ({
             provider,
             api_key: apiKey,
             base_url: baseUrl,
-            is_active: true,
+            is_active: apiKey.trim().length > 0,
             updated_at: new Date().toISOString(),
           },
         ],
       };
-    }),
-  toggleApiKey: (provider) =>
+    });
+
+    // 3. Refresh ketersediaan model jika custom provider diperbarui
+    if (provider === 'custom') {
+      if (apiKey.trim().length > 0) {
+        await get().fetchAvailableModels(baseUrl, apiKey);
+      } else {
+        set({ availableModels: [], selectedModel: '' });
+      }
+    }
+  },
+
+  toggleApiKey: async (provider) => {
+    const target = get().apiKeys.find((k) => k.provider === provider);
+    const nextActive = target ? !target.is_active : false;
+
     set((s) => ({
       apiKeys: s.apiKeys.map((k) =>
-        k.provider === provider ? { ...k, is_active: !k.is_active } : k
+        k.provider === provider ? { ...k, is_active: nextActive } : k
       ),
-    })),
+    }));
 
-  // CLEAN CHAT STATE
+    if ((window as any).__TAURI_INTERNALS__ && target) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('save_api_key', {
+          provider,
+          apiKey: target.api_key,
+          baseUrl: target.base_url ?? null,
+        });
+      } catch (err) {
+        console.warn(`Gagal toggle status api key ${provider} di SQLite:`, err);
+      }
+    }
+
+    if (provider === 'custom') {
+      if (nextActive && target?.api_key.trim()) {
+        await get().fetchAvailableModels(target.base_url, target.api_key);
+      } else {
+        set({ availableModels: [], selectedModel: '' });
+      }
+    }
+  },
+
+  // CLEAN CHAT STATE & PERSISTENCE
   sessions: [],
   activeSessionId: null,
   messages: [],
@@ -350,6 +500,39 @@ export const useStore = create<AppStore>((set, get) => ({
   setActiveSessionId: (activeSessionId) => set({ activeSessionId }),
   setMessages: (messages) => set({ messages }),
   addMessage: (msg) => set((s) => ({ messages: [...s.messages, msg] })),
+
+  loadSessionsFromDb: async () => {
+    if ((window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const loadedSessions = (await invoke('get_chat_sessions')) as ChatSession[];
+        if (loadedSessions && loadedSessions.length > 0) {
+          set({ sessions: loadedSessions });
+          const currentActive = get().activeSessionId;
+          const targetId = currentActive && loadedSessions.some((s) => s.id === currentActive)
+            ? currentActive
+            : loadedSessions[0].id;
+          await get().selectSession(targetId);
+        }
+      } catch (err) {
+        console.warn('Gagal memuat sesi obrolan dari SQLite:', err);
+      }
+    }
+  },
+
+  selectSession: async (id: string) => {
+    set({ activeSessionId: id });
+    if ((window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const msgs = (await invoke('get_chat_messages', { sessionId: id })) as ChatMessage[];
+        set({ messages: msgs || [] });
+      } catch (err) {
+        console.warn(`Gagal memuat pesan untuk sesi ${id}:`, err);
+      }
+    }
+  },
+
   createNewSession: () => {
     const newId = `session-${Date.now()}`;
     const newSession: ChatSession = {
@@ -363,19 +546,72 @@ export const useStore = create<AppStore>((set, get) => ({
     set((s) => ({
       sessions: [newSession, ...s.sessions],
       activeSessionId: newId,
+      messages: [],
     }));
+
+    if ((window as any).__TAURI_INTERNALS__) {
+      import('@tauri-apps/api/core').then(({ invoke }) => {
+        invoke('create_chat_session', {
+          id: newId,
+          title: newSession.title,
+          model: newSession.model || 'default',
+          provider: newSession.provider || 'custom',
+        }).catch((e) => console.warn('Gagal simpan create_chat_session ke SQLite:', e));
+      });
+    }
+
     return newId;
   },
-  deleteSession: (id) =>
-    set((s) => {
-      const remaining = s.sessions.filter((sess) => sess.id !== id);
-      const remainingMsgs = s.messages.filter((m) => m.session_id !== id);
-      return {
-        sessions: remaining,
-        messages: remainingMsgs,
-        activeSessionId: s.activeSessionId === id ? remaining[0]?.id || null : s.activeSessionId,
-      };
-    }),
+
+  saveChatMessageToDb: async (msg: ChatMessage) => {
+    if ((window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('save_chat_message', { message: msg });
+      } catch (err) {
+        console.warn('Gagal menyimpan pesan ke SQLite:', err);
+      }
+    }
+  },
+
+  updateSessionTitle: async (id: string, title: string) => {
+    set((s) => ({
+      sessions: s.sessions.map((sess) => (sess.id === id ? { ...sess, title } : sess)),
+    }));
+    if ((window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('update_chat_session_title', { sessionId: id, title });
+      } catch (err) {
+        console.warn('Gagal memperbarui judul sesi di SQLite:', err);
+      }
+    }
+  },
+
+  deleteSession: async (id: string) => {
+    const remaining = get().sessions.filter((sess) => sess.id !== id);
+    const remainingMsgs = get().messages.filter((m) => m.session_id !== id);
+    const nextActive = get().activeSessionId === id ? remaining[0]?.id || null : get().activeSessionId;
+
+    set({
+      sessions: remaining,
+      messages: remainingMsgs,
+      activeSessionId: nextActive,
+    });
+
+    if (nextActive) {
+      await get().selectSession(nextActive);
+    }
+
+    if ((window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('delete_chat_session', { sessionId: id });
+      } catch (err) {
+        console.warn('Gagal menghapus sesi dari SQLite:', err);
+      }
+    }
+  },
 
   // CUSTOM AGENTS ROSTER
   customAgents: DEFAULT_AGENTS,
@@ -482,11 +718,50 @@ export const useStore = create<AppStore>((set, get) => ({
 
     if (!currentAgent) return;
 
-    // Ambil endpoint dan model
+    // Ambil endpoint dan model spesifik agen (fallback ke model global)
     const customConfig = state.apiKeys.find((k) => k.provider === 'custom');
     const baseUrl = customConfig?.base_url || 'http://localhost:20128/v1';
     const apiKey = customConfig?.api_key || '';
-    const model = state.selectedModel || 'openrouter/openrouter/free';
+    const model = currentAgent.model || state.selectedModel;
+
+    if (!apiKey.trim()) {
+      state.addToast('error', `API Key belum diatur. Buka Pengaturan API untuk memasukkan kredensial.`);
+      set((s) => ({
+        buildDiscussion: {
+          ...s.buildDiscussion,
+          status: 'paused',
+        },
+      }));
+      return;
+    }
+
+    if (!model.trim()) {
+      state.addToast('error', `Model belum dipilih untuk ${currentAgent.name}. Pastikan API Key aktif dan model terdeteksi.`);
+      set((s) => ({
+        buildDiscussion: {
+          ...s.buildDiscussion,
+          status: 'paused',
+        },
+      }));
+      return;
+    }
+
+    // Query konteks file eksisting di workspace jika berjalan di Tauri
+    let existingWorkspaceFiles = '';
+    if ((window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const listRes: any = await invoke('execute_sandbox_tool', {
+          toolName: 'list_dir',
+          parameters: { path: '.' },
+        });
+        if (listRes?.success && listRes?.output) {
+          existingWorkspaceFiles = listRes.output;
+        }
+      } catch (e) {
+        // Lanjutkan jika list_dir belum tersedia
+      }
+    }
 
     // Format riwayat diskusi
     const recentMessages = session.messages.slice(-6).map((m) => `${m.agent_name} (${m.agent_role}): ${m.content}`).join('\n\n');
@@ -499,16 +774,21 @@ ${currentAgent.system_instructions ? `Instruksi khusus: ${currentAgent.system_in
 Target Proyek Bersama:
 "${session.project_goal}"
 
+Direktori Workspace Proyek Aktif:
+"${state.workspaceProjectRoot}"
+${existingWorkspaceFiles ? `Daftar File di Workspace Saat Ini:\n${existingWorkspaceFiles}\n` : ''}
+
 Riwayat Diskusi Tim Sebelumnya:
 ${recentMessages || '(Belum ada pesan sebelumnya, Anda adalah pembicara pertama)'}
 
-TUGAS ANDA SEKARANG:
-Berikan kontribusi nyata sesuai peran dan keahlian Anda untuk memajukan proyek ini atau menanggapi instruksi operator/rekan tim.
-- Jika Anda arsitek/perencana: Usulkan struktur, rancangan teknis, atau dekomposisi langkah.
-- Jika Anda engineer/koder: Berikan solusi implementasi konkret, cuplikan kode/logika, atau algoritma.
-- Jika Anda reviewer/QA: Analisis usulan kawan tim Anda, temukan celah, uji boundary, atau validasi kepatuhan.
-
-Berbicaralah secara ringkas, padat, profesional, dan to the point (maksimal 3 paragraf). Jangan bertele-tele.`;
+ATURAN KOMUNIKASI & TUGAS ANDA SEKARANG:
+1. WAJIB menggunakan Bahasa Indonesia yang ramah, jelas, sopan, dan mudah dipahami oleh pengguna awam.
+2. Tanggapi langsung instruksi terbaru dari Operator atau kawan tim Anda secara to-the-point.
+3. Kontribusi sesuai peran:
+   - Jika Anda arsitek: Jelaskan rancangan alur langkah demi langkah secara terstruktur.
+   - Jika Anda engineer/koder: Buat kode program yang lengkap dan siap pakai di dalam blok kode Markdown dengan mencantumkan nama file di header blok kode (contoh: \`\`\`python kalkulator.py atau \`\`\`python filename="kalkulator.py"), sertakan penjelasan singkat fungsinya. Runtime kami akan secara otomatis menulis file tersebut langsung ke direktori workspace proyek!
+   - Jika Anda reviewer/QA: Tinjau kelengkapan kode/solusi kawan tim dan berikan masukan atau konfirmasi kesiapan.
+4. Jangan memberikan pesan error teknis server, dan jangan gunakan singkatan yang membingungkan.`;
 
     try {
       const targetChatUrl = getChatEndpoint(baseUrl);
@@ -534,7 +814,8 @@ Berbicaralah secara ringkas, padat, profesional, dan to the point (maksimal 3 pa
       const json = parseRobustJson<any>(rawText);
       const reply = json.choices?.[0]?.message?.content || `${currentAgent.name} menganalisis tujuan proyek.`;
 
-      const newMsg: DiscussionMessage = {
+      let finalContent = reply;
+      const tempMsg: DiscussionMessage = {
         id: `turn-${Date.now()}`,
         agent_id: currentAgent.id,
         agent_name: currentAgent.name,
@@ -543,6 +824,53 @@ Berbicaralah secara ringkas, padat, profesional, dan to the point (maksimal 3 pa
         content: reply,
         step_type: currentTurn === 0 ? 'proposal' : currentTurn === 1 ? 'implementation' : 'critique',
         timestamp: new Date().toLocaleTimeString(),
+      };
+
+      // Autonomous File Writing ke Workspace
+      const extractedItems = extractCodeReviewItems([tempMsg]);
+      const writtenFiles: string[] = [];
+
+      if (extractedItems.length > 0 && (window as any).__TAURI_INTERNALS__) {
+        try {
+          const { invoke } = await import('@tauri-apps/api/core');
+          for (const item of extractedItems) {
+            const writeRes: any = await invoke('execute_sandbox_tool', {
+              toolName: 'write_file',
+              parameters: {
+                path: item.filename,
+                content: item.content,
+              },
+            });
+            if (writeRes?.success) {
+              writtenFiles.push(item.filename);
+              set((s) => ({
+                codeReviewItems: [
+                  ...s.codeReviewItems.filter((i) => i.filename !== item.filename),
+                  { ...item, status: 'accepted' },
+                ],
+              }));
+              state.addLog({
+                id: `log-file-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                agent_name: currentAgent.name,
+                level: 'EXEC',
+                message: `Menulis file "${item.filename}" ke workspace (${item.content.length} bytes)`,
+                timestamp: new Date().toLocaleTimeString(),
+              });
+            }
+          }
+        } catch (writeErr) {
+          console.warn('Gagal autonomous write file:', writeErr);
+        }
+      }
+
+      if (writtenFiles.length > 0) {
+        finalContent += `\n\n> File berhasil ditulis ke direktori workspace: ${writtenFiles.map((f) => `\`${f}\``).join(', ')}`;
+        state.addToast('success', `${currentAgent.name} berhasil menulis ${writtenFiles.length} file ke workspace`);
+      }
+
+      const newMsg: DiscussionMessage = {
+        ...tempMsg,
+        content: finalContent,
       };
 
       set((s) => ({
@@ -696,21 +1024,16 @@ Berbicaralah secara ringkas, padat, profesional, dan to the point (maksimal 3 pa
   },
 
   // Terminal State Implementation
-  isTerminalOpen: false,
+  isTerminalOpen: true,
   setTerminalOpen: (isTerminalOpen) => set({ isTerminalOpen }),
+  terminalHeight: 260,
+  setTerminalHeight: (terminalHeight) => set({ terminalHeight }),
   terminalTabs: [
     {
       id: 'term-tab-1',
       title: 'bash #1',
       cwd: '/home/yudz/Agentic',
-      logs: [
-        {
-          id: 'log-init-1',
-          type: 'system',
-          content: 'Agentic Native Interactive Terminal ready.\nType any bash command (e.g. ls -la, git status, cargo test, npm run dev) or /help.',
-          timestamp: new Date().toLocaleTimeString(),
-        },
-      ],
+      logs: [],
     },
   ],
   activeTerminalTabId: 'term-tab-1',
@@ -720,15 +1043,8 @@ Berbicaralah secara ringkas, padat, profesional, dan to the point (maksimal 3 pa
     const newTab: TerminalTab = {
       id,
       title: `bash #${get().terminalTabs.length + 1}`,
-      cwd: '/home/yudz/Agentic',
-      logs: [
-        {
-          id: `log-${Date.now()}`,
-          type: 'system',
-          content: 'New shell session initialized.',
-          timestamp: new Date().toLocaleTimeString(),
-        },
-      ],
+      cwd: get().workspaceProjectRoot,
+      logs: [],
     };
     set((s) => ({
       terminalTabs: [...s.terminalTabs, newTab],
@@ -748,6 +1064,44 @@ Berbicaralah secara ringkas, padat, profesional, dan to the point (maksimal 3 pa
       terminalTabs: s.terminalTabs.map((t) => (t.id === targetId ? { ...t, logs: [] } : t)),
     }));
   },
+  appendTerminalStreamData: (tabId, line, isStderr) => {
+    const targetId = tabId || get().activeTerminalTabId;
+    const newLog: TerminalLog = {
+      id: `stream-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      type: isStderr ? 'stderr' : 'stdout',
+      content: line,
+      timestamp: new Date().toLocaleTimeString(),
+    };
+    set((s) => ({
+      terminalTabs: s.terminalTabs.map((t) =>
+        t.id === targetId ? { ...t, logs: [...t.logs, newLog] } : t
+      ),
+    }));
+  },
+
+  killTerminalProcess: async (tabId) => {
+    const targetId = tabId || get().activeTerminalTabId;
+    if ((window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('kill_terminal_command', { tabId: targetId });
+      } catch (e) {
+        console.warn('Gagal kill terminal process:', e);
+      }
+    }
+    const cLog: TerminalLog = {
+      id: `ctrlc-${Date.now()}`,
+      type: 'stderr',
+      content: '^C',
+      timestamp: new Date().toLocaleTimeString(),
+    };
+    set((s) => ({
+      terminalTabs: s.terminalTabs.map((t) =>
+        t.id === targetId ? { ...t, logs: [...t.logs, cLog] } : t
+      ),
+    }));
+  },
+
   runTerminalCommand: async (cmdStr, tabId) => {
     const targetId = tabId || get().activeTerminalTabId;
     const trimmed = cmdStr.trim();
@@ -773,47 +1127,42 @@ Berbicaralah secara ringkas, padat, profesional, dan to the point (maksimal 3 pa
     }
 
     try {
-      // Invoke Tauri IPC sandbox execute_sandbox_tool or fallback
-      let output = '';
-      let isErr = false;
-
       if ((window as any).__TAURI_INTERNALS__) {
         const { invoke } = await import('@tauri-apps/api/core');
-        const res: any = await invoke('execute_sandbox_tool', {
-          toolName: 'execute_command',
-          parameters: { command: trimmed },
+        const { listen } = await import('@tauri-apps/api/event');
+
+        // Jalankan perintah streaming dan tunggu event terminal-stream-done
+        await new Promise<void>(async (resolve) => {
+          let unlistenDone: (() => void) | null = null;
+
+          unlistenDone = await listen<any>('terminal-stream-done', (event) => {
+            if (event.payload?.tab_id === targetId) {
+              if (unlistenDone) unlistenDone();
+              resolve();
+            }
+          });
+
+          try {
+            await invoke('run_terminal_command_stream', {
+              tabId: targetId,
+              command: trimmed,
+            });
+          } catch (invokeErr: any) {
+            if (unlistenDone) unlistenDone();
+            get().appendTerminalStreamData(targetId, `Error: ${invokeErr?.message || invokeErr}`, true);
+            resolve();
+          }
         });
-        output = res.output;
-        isErr = !res.success;
       } else {
-        // Dev server / web fallback simulation
-        output = `[Dev mode execution for]: ${trimmed}\n(Tip: In Tauri desktop app, this executes directly in system bash shell)`;
+        // Fallback untuk web preview simulation
+        get().appendTerminalStreamData(
+          targetId,
+          `[Web Preview]: Menjalankan "${trimmed}" secara streaming...`,
+          false
+        );
       }
-
-      const outLog: TerminalLog = {
-        id: `out-${Date.now()}`,
-        type: isErr ? 'stderr' : 'stdout',
-        content: output,
-        timestamp: new Date().toLocaleTimeString(),
-      };
-
-      set((s) => ({
-        terminalTabs: s.terminalTabs.map((t) =>
-          t.id === targetId ? { ...t, logs: [...t.logs, outLog] } : t
-        ),
-      }));
     } catch (e: any) {
-      const errLog: TerminalLog = {
-        id: `err-${Date.now()}`,
-        type: 'stderr',
-        content: `Execution error: ${e?.message || e}`,
-        timestamp: new Date().toLocaleTimeString(),
-      };
-      set((s) => ({
-        terminalTabs: s.terminalTabs.map((t) =>
-          t.id === targetId ? { ...t, logs: [...t.logs, errLog] } : t
-        ),
-      }));
+      get().appendTerminalStreamData(targetId, `Execution error: ${e?.message || e}`, true);
     }
   },
 

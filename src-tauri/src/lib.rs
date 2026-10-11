@@ -27,6 +27,8 @@ pub fn run() {
         db,
         orchestrator,
         tool_runner,
+        active_terminal_processes: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
+        pty_sessions: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
     };
 
     tauri::Builder::<tauri::Wry>::default()
@@ -40,6 +42,9 @@ pub fn run() {
             ipc::create_chat_session,
             ipc::get_chat_sessions,
             ipc::get_chat_messages,
+            ipc::save_chat_message,
+            ipc::delete_chat_session,
+            ipc::update_chat_session_title,
             ipc::send_chat_message,
             ipc::start_build_session,
             ipc::get_build_agents,
@@ -47,6 +52,14 @@ pub fn run() {
             ipc::trigger_emergency_stop,
             ipc::resolve_tool_clearance,
             ipc::execute_sandbox_tool,
+            ipc::pick_workspace_directory,
+            ipc::set_workspace_directory,
+            ipc::run_terminal_command_stream,
+            ipc::kill_terminal_command,
+            ipc::init_terminal_pty,
+            ipc::terminal_pty_write,
+            ipc::terminal_pty_resize,
+            ipc::close_terminal_pty,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

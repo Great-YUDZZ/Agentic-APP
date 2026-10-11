@@ -56,11 +56,12 @@ export const AgentWorkspace: React.FC = () => {
     setPendingToolClearance,
     resolveToolClearance,
     workspaceProjectRoot,
-    setProjectPickerOpen,
+    pickAndSetWorkspaceRoot,
     setSkillsModalOpen,
     setTerminalOpen,
     isStrictApprovalMode,
     toggleStrictApprovalMode,
+    setSettingsOpen,
     addToast,
     addLog,
   } = useStore();
@@ -175,6 +176,19 @@ export const AgentWorkspace: React.FC = () => {
       const customConfig = apiKeys.find((k) => k.provider === 'custom');
       const baseUrl = customConfig?.base_url || 'http://localhost:20128/v1';
       const apiKey = customConfig?.api_key || '';
+      const effectiveModel = activeAgent.model || selectedModel;
+
+      if (!apiKey.trim()) {
+        addToast('error', 'API Key belum diatur. Buka Pengaturan API untuk memasukkan kredensial.');
+        setIsExecuting(false);
+        return;
+      }
+
+      if (!effectiveModel.trim()) {
+        addToast('error', `Model belum dipilih untuk ${activeAgent.name}. Pastikan API Key aktif dan model terdeteksi.`);
+        setIsExecuting(false);
+        return;
+      }
 
       const prompt = `Anda adalah ${activeAgent.name} (Peran: ${activeAgent.role}).
 TUGAS UTAMA ANDA: ${activeAgent.task_description}
@@ -197,7 +211,7 @@ Sebagai agent spesialis, berikan:
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: selectedModel || 'openrouter/openrouter/free',
+          model: effectiveModel,
           messages: [{ role: 'user', content: prompt }],
           temperature: 0.7,
         }),
@@ -205,7 +219,7 @@ Sebagai agent spesialis, berikan:
 
       if (!res.ok) {
         const errText = await res.text();
-        throw new Error(formatApiErrorMessage(res.status, errText, selectedModel));
+        throw new Error(formatApiErrorMessage(res.status, errText, effectiveModel));
       }
 
       const rawText = await res.text();
@@ -648,17 +662,30 @@ Sebagai agent spesialis, berikan:
                   <div className="relative">
                     <button
                       type="button"
-                      onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
-                      className="h-8 flex items-center gap-1.5 px-3 rounded-full bg-[#212121] hover:bg-[#262626] border border-[#383838] text-xs font-mono text-[#ececec] transition-all group"
+                      onClick={() => {
+                        if (availableModels.length === 0) {
+                          setSettingsOpen(true);
+                        } else {
+                          setIsModelMenuOpen(!isModelMenuOpen);
+                        }
+                      }}
+                      className={`h-8 flex items-center gap-1.5 px-3 rounded-full border text-xs font-mono transition-all group ${
+                        availableModels.length === 0
+                          ? 'bg-[#212121] border-[#383838] text-[#707070] hover:text-[#b4b4b4] hover:border-[#4f4f4f]'
+                          : 'bg-[#212121] hover:bg-[#262626] border-[#383838] text-[#ececec]'
+                      }`}
+                      title={availableModels.length === 0 ? 'Klik untuk mengatur API Key di Pengaturan' : 'Pilih Model AI'}
                     >
                       <span className="max-w-[150px] truncate font-medium">
-                        {selectedModel || 'Pilih Model'}
+                        {activeAgent?.model || selectedModel || (availableModels.length === 0 ? 'Atur API Key' : 'Pilih Model')}
                       </span>
-                      <ChevronDown className="w-3 h-3 text-[#b4b4b4] group-hover:text-[#ececec] transition-transform" />
+                      {availableModels.length > 0 && (
+                        <ChevronDown className="w-3 h-3 text-[#b4b4b4] group-hover:text-[#ececec] transition-transform" />
+                      )}
                     </button>
 
                     {/* Model Selector Popover */}
-                    {isModelMenuOpen && (
+                    {isModelMenuOpen && availableModels.length > 0 && (
                       <div className="absolute bottom-full right-0 mb-2 w-80 max-h-96 rounded-2xl bg-[#262626] border border-[#383838] p-2.5 z-50 flex flex-col space-y-2 shadow-2xl">
                         <div className="flex items-center justify-between px-1 pb-1 border-b border-[#303030] text-xs">
                           <span className="font-semibold text-[#ececec]">Model Tersedia</span>
@@ -763,8 +790,8 @@ Sebagai agent spesialis, berikan:
                 {/* Choose project button */}
                 <button
                   type="button"
-                  onClick={() => setProjectPickerOpen(true)}
-                  title={`Root Workspace: ${workspaceProjectRoot}`}
+                  onClick={() => pickAndSetWorkspaceRoot()}
+                  title={`Pilih folder proyek native: ${workspaceProjectRoot}`}
                   className="flex items-center gap-1.5 text-xs text-[#b4b4b4] hover:text-[#ececec] transition-colors group"
                 >
                   <Folder className="w-3.5 h-3.5 text-[#b4b4b4] group-hover:text-[#ececec]" />

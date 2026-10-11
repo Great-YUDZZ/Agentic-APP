@@ -18,9 +18,11 @@ pub struct ToolCallResult {
     pub execution_time_ms: u128,
 }
 
+use std::sync::{Arc, RwLock};
+
 #[derive(Clone)]
 pub struct ToolRunner {
-    workspace_root: PathBuf,
+    workspace_root: Arc<RwLock<PathBuf>>,
 }
 
 pub fn normalize_path(path: &Path) -> PathBuf {
@@ -45,39 +47,47 @@ pub fn normalize_path(path: &Path) -> PathBuf {
 
 impl ToolRunner {
     pub fn new(workspace_root: PathBuf) -> Self {
-        Self { workspace_root }
+        Self {
+            workspace_root: Arc::new(RwLock::new(workspace_root)),
+        }
     }
 
-    pub fn workspace_root(&self) -> &Path {
-        &self.workspace_root
+    pub fn workspace_root(&self) -> PathBuf {
+        self.workspace_root.read().unwrap().clone()
+    }
+
+    pub fn set_workspace_root(&self, new_root: PathBuf) {
+        if let Ok(mut lock) = self.workspace_root.write() {
+            *lock = new_root;
+        }
     }
 
     pub fn sanitize_path(&self, requested: &str) -> anyhow::Result<PathBuf> {
+        let current_ws = self.workspace_root();
         let raw = Path::new(requested);
         let candidate = if raw.is_absolute() {
             raw.to_path_buf()
         } else {
-            self.workspace_root.join(raw)
+            current_ws.join(raw)
         };
 
         // 1. Lexical normalization (resolve '.' and '..' without requiring file existence)
         let normalized = normalize_path(&candidate);
-        let workspace = normalize_path(&self.workspace_root);
+        let workspace = normalize_path(&current_ws);
 
         // 2. Strict path confinement check
         if !normalized.starts_with(&workspace) {
             return Err(anyhow::anyhow!(
                 "Security confinement violation: Path '{}' is outside workspace '{}'",
                 requested,
-                self.workspace_root.display()
+                current_ws.display()
             ));
         }
 
         // 3. Symlink escape check for existing paths
         if normalized.exists() {
             let canonical = normalized.canonicalize()?;
-            let canonical_ws = self
-                .workspace_root
+            let canonical_ws = current_ws
                 .canonicalize()
                 .unwrap_or_else(|_| workspace);
             if !canonical.starts_with(&canonical_ws) {
@@ -190,13 +200,21 @@ impl ToolRunner {
     }
 
     async fn execute_command(&self, command: &str) -> anyhow::Result<String> {
-        let cmd_str = command.to_string();
-        let ws = self.workspace_root.clone();
+        let mut cmd_str = command.trim().to_string();
+        let ws = self.workspace_root();
+
+        // Di Linux, perintah ping berjalan selamanya jika tanpa flag -c.
+        // Otomatis tambahkan -c 4 jika user mengetik ping tanpa argumen hitungan.
+        if cmd_str.starts_with("ping ") && !cmd_str.contains(" -c ") && !cmd_str.contains(" -c") {
+            cmd_str = format!("{} -c 4", cmd_str);
+        }
 
         tokio::task::spawn_blocking(move || -> anyhow::Result<String> {
+            // Bungkus dengan timeout 15 detik untuk mencegah hang pada perintah interaktif
+            let wrapped_cmd = format!("timeout 15s bash -c {:?}", cmd_str);
             let mut cmd = std::process::Command::new("bash");
             cmd.arg("-c")
-                .arg(&cmd_str)
+                .arg(&wrapped_cmd)
                 .current_dir(&ws);
 
             let output = cmd.output()?;
@@ -211,9 +229,14 @@ impl ToolRunner {
                 if !out.is_empty() {
                     out.push('\n');
                 }
-                out.push_str(&format!("STDERR: {}", stderr_str));
+                out.push_str(&stderr_str);
             }
-            out.push_str(&format!("\n[Exit status: {}]", output.status));
+            if output.status.code() == Some(124) {
+                if !out.is_empty() {
+                    out.push('\n');
+                }
+                out.push_str("[Proses dihentikan: batas waktu 15 detik tercapai]");
+            }
             Ok(out)
         })
         .await?

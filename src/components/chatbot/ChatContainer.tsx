@@ -115,8 +115,11 @@ export const ChatContainer: React.FC = () => {
   const {
     messages,
     addMessage,
+    sessions,
     activeSessionId,
     createNewSession,
+    saveChatMessageToDb,
+    updateSessionTitle,
     selectedModel,
     setModel,
     availableModels,
@@ -127,6 +130,7 @@ export const ChatContainer: React.FC = () => {
     addToast,
     setTerminalOpen,
     setSkillsModalOpen,
+    setSettingsOpen,
   } = useStore();
 
   const [inputPrompt, setInputPrompt] = useState('');
@@ -300,9 +304,33 @@ export const ChatContainer: React.FC = () => {
     };
 
     addMessage(userMsg);
+    saveChatMessageToDb(userMsg);
+
+    // Update judul sesi jika masih default "Obrolan Baru"
+    const currentSession = sessions.find((s) => s.id === targetSessionId);
+    if (!currentSession || currentSession.title === 'Obrolan Baru') {
+      const summaryTitle = userMsg.content.slice(0, 32) + (userMsg.content.length > 32 ? '...' : '');
+      updateSessionTitle(targetSessionId, summaryTitle);
+    }
+
     setInputPrompt('');
     setIsSlashOpen(false);
     setIsGenerating(true);
+
+    const customKey = apiKeys.find((k) => k.provider === 'custom');
+    const apiKeyVal = customKey?.api_key || '';
+
+    if (!apiKeyVal.trim()) {
+      addToast('error', 'API Key belum diatur. Buka menu Pengaturan API di sidebar untuk mengisi kunci.');
+      setIsGenerating(false);
+      return;
+    }
+
+    if (!selectedModel.trim()) {
+      addToast('error', 'Belum ada model AI yang dipilih. Pastikan API Key aktif dan pilih model di dock bawah.');
+      setIsGenerating(false);
+      return;
+    }
 
     const assistantMsgId = `assistant-${Date.now()}`;
     const initialAssistantMsg: ChatMessage = {
@@ -316,9 +344,6 @@ export const ChatContainer: React.FC = () => {
     addMessage(initialAssistantMsg);
 
     try {
-      const customKey = apiKeys.find((k) => k.provider === 'custom');
-      const apiKeyVal = customKey?.api_key || 'sk-local';
-
       const conversationHistory = [
         ...currentMessages.map((m) => ({
           role: m.role,
@@ -328,7 +353,7 @@ export const ChatContainer: React.FC = () => {
       ];
 
       const requestPayload = {
-        model: selectedModel || 'gemini-1.5-flash',
+        model: selectedModel,
         messages: injectSystemDesignRules(conversationHistory),
         stream: true,
         temperature: 0.7,
@@ -438,6 +463,11 @@ export const ChatContainer: React.FC = () => {
       }));
     } finally {
       setIsGenerating(false);
+      // Simpan pesan asisten yang telah selesai ke database SQLite
+      const finalMsg = useStore.getState().messages.find((m) => m.id === assistantMsgId);
+      if (finalMsg && (finalMsg.content || finalMsg.reasoning)) {
+        saveChatMessageToDb(finalMsg);
+      }
     }
   };
 
@@ -574,18 +604,31 @@ export const ChatContainer: React.FC = () => {
                 <div className="relative">
                   <button
                     type="button"
-                    onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
-                    className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#212121] hover:bg-[#262626] border border-[#383838] text-xs font-mono text-[#ececec] transition-all group"
+                    onClick={() => {
+                      if (availableModels.length === 0) {
+                        setSettingsOpen(true);
+                      } else {
+                        setIsModelMenuOpen(!isModelMenuOpen);
+                      }
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-mono transition-all group ${
+                      availableModels.length === 0
+                        ? 'bg-[#212121] border-[#383838] text-[#707070] hover:text-[#b4b4b4] hover:border-[#4f4f4f]'
+                        : 'bg-[#212121] hover:bg-[#262626] border-[#383838] text-[#ececec]'
+                    }`}
+                    title={availableModels.length === 0 ? 'Klik untuk mengatur API Key di Pengaturan' : 'Pilih Model AI'}
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-[#ececec]" />
+                    <Sparkles className={`w-3.5 h-3.5 ${availableModels.length === 0 ? 'text-[#707070]' : 'text-[#ececec]'}`} />
                     <span className="max-w-[160px] truncate font-medium">
-                      {selectedModel || 'Pilih Model'}
+                      {selectedModel || (availableModels.length === 0 ? 'Atur API Key' : 'Pilih Model')}
                     </span>
-                    <ChevronDown className="w-3 h-3 text-[#b4b4b4] group-hover:text-[#ececec] transition-transform" />
+                    {availableModels.length > 0 && (
+                      <ChevronDown className="w-3 h-3 text-[#b4b4b4] group-hover:text-[#ececec] transition-transform" />
+                    )}
                   </button>
 
                   {/* Model Selector Popover */}
-                  {isModelMenuOpen && (
+                  {isModelMenuOpen && availableModels.length > 0 && (
                     <div className="absolute bottom-full left-0 mb-2 w-80 max-h-96 rounded-2xl bg-[#262626] border border-[#383838] p-2.5 z-50 flex flex-col space-y-2 shadow-2xl">
                       <div className="flex items-center justify-between px-1 pb-1 border-b border-[#303030] text-xs">
                         <span className="font-semibold text-[#ececec]">Model Tersedia</span>

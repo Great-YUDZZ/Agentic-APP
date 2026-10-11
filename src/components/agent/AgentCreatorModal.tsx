@@ -10,6 +10,7 @@ import {
   Cpu,
   Check,
   Sparkles,
+  ChevronDown,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { CustomAgent } from '../../types';
@@ -62,7 +63,7 @@ export const AgentCreatorModal: React.FC<AgentCreatorModalProps> = ({
   onClose,
   editingAgent,
 }) => {
-  const { createCustomAgent, updateCustomAgent, installedSkills, addToast } = useStore();
+  const { createCustomAgent, updateCustomAgent, installedSkills, availableModels, selectedModel, addToast } = useStore();
 
   const [name, setName] = useState(editingAgent?.name || '');
   const [role, setRole] = useState(editingAgent?.role || '');
@@ -71,6 +72,7 @@ export const AgentCreatorModal: React.FC<AgentCreatorModalProps> = ({
   const [selectedSkills, setSelectedSkills] = useState<string[]>(
     editingAgent?.skills || ['file_system', 'code_evaluator']
   );
+  const [agentModel, setAgentModel] = useState<string>(editingAgent?.model || '');
   const [customSkillInput, setCustomSkillInput] = useState('');
   const [avatarColor, setAvatarColor] = useState(editingAgent?.avatar_color || '#3b82f6');
 
@@ -82,6 +84,7 @@ export const AgentCreatorModal: React.FC<AgentCreatorModalProps> = ({
       setTaskDescription(editingAgent.task_description);
       setSystemInstructions(editingAgent.system_instructions || '');
       setSelectedSkills(editingAgent.skills);
+      setAgentModel(editingAgent.model || '');
       setAvatarColor(editingAgent.avatar_color);
     } else {
       setName('');
@@ -89,6 +92,7 @@ export const AgentCreatorModal: React.FC<AgentCreatorModalProps> = ({
       setTaskDescription('');
       setSystemInstructions('');
       setSelectedSkills(['file_system', 'code_evaluator']);
+      setAgentModel('');
       setAvatarColor('#3b82f6');
     }
   }, [editingAgent, isOpen]);
@@ -130,6 +134,7 @@ export const AgentCreatorModal: React.FC<AgentCreatorModalProps> = ({
         task_description: taskDescription.trim(),
         system_instructions: systemInstructions.trim(),
         skills: selectedSkills,
+        model: agentModel || undefined,
         avatar_color: avatarColor,
       });
       addToast('success', `Agent "${name}" berhasil diperbarui.`);
@@ -140,6 +145,7 @@ export const AgentCreatorModal: React.FC<AgentCreatorModalProps> = ({
         task_description: taskDescription.trim(),
         system_instructions: systemInstructions.trim(),
         skills: selectedSkills,
+        model: agentModel || undefined,
         avatar_color: avatarColor,
       });
     }
@@ -227,6 +233,40 @@ export const AgentCreatorModal: React.FC<AgentCreatorModalProps> = ({
                   placeholder="misal: Systems Architect, Security Reviewer, API Developer"
                   className="w-full px-3 py-2 rounded-xl bg-[#212121] border border-[#303030] text-xs text-[#ececec] placeholder-[#707070] focus:outline-none focus:border-[#404040]"
                 />
+              </div>
+
+              {/* Model AI Spesifik untuk Agent ini */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-[#b4b4b4]">Model AI Khusus Agent</label>
+                  <span className="text-[10px] text-[#707070]">
+                    {agentModel ? 'Model Kustom' : 'Mengikuti Model Global'}
+                  </span>
+                </div>
+                <div className="relative">
+                  <select
+                    value={agentModel}
+                    onChange={(e) => setAgentModel(e.target.value)}
+                    className="w-full pl-3 pr-9 py-2 rounded-xl bg-[#212121] border border-[#303030] text-xs font-mono text-[#ececec] focus:outline-none focus:border-[#404040] cursor-pointer appearance-none"
+                  >
+                    <option value="" className="bg-[#212121] text-[#ececec]">
+                      (Default: Mengikuti Model Global {selectedModel ? `[${selectedModel}]` : ''})
+                    </option>
+                    {availableModels.map((m) => (
+                      <option key={m.id} value={m.id} className="bg-[#212121] text-[#ececec]">
+                        {m.id}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[#707070]">
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+                <p className="text-[10px] text-[#707070]">
+                  {availableModels.length === 0
+                    ? 'Belum ada model terdeteksi. Silakan atur API Key di menu Pengaturan.'
+                    : 'Pilih model spesifik agar agent ini menggunakan kecerdasan buatan yang berbeda dari agent lain.'}
+                </p>
               </div>
 
               {/* 2. Main Task Description */}

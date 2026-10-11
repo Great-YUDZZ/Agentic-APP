@@ -12,7 +12,7 @@ export const Sidebar: React.FC = () => {
   const {
     sessions,
     activeSessionId,
-    setActiveSessionId,
+    selectSession,
     createNewSession,
     deleteSession,
     isSettingsOpen,
@@ -122,7 +122,7 @@ export const Sidebar: React.FC = () => {
             return (
               <div
                 key={session.id}
-                onClick={() => setActiveSessionId(session.id)}
+                onClick={() => selectSession(session.id)}
                 className={`group flex items-center justify-between p-2 rounded-xl text-xs cursor-pointer transition-colors ${
                   isActive
                     ? 'bg-[#212121] text-[#ececec] font-medium border border-[#303030]'

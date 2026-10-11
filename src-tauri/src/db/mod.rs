@@ -284,6 +284,23 @@ impl Database {
         Ok(list)
     }
 
+    pub fn delete_chat_session(&self, session_id: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM chat_messages WHERE session_id = ?1", params![session_id])?;
+        conn.execute("DELETE FROM chat_sessions WHERE id = ?1", params![session_id])?;
+        Ok(())
+    }
+
+    pub fn update_chat_session_title(&self, session_id: &str, title: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            "UPDATE chat_sessions SET title = ?1, updated_at = ?2 WHERE id = ?3",
+            params![title, now, session_id],
+        )?;
+        Ok(())
+    }
+
     // Tasks & Logs
     pub fn save_agent_task(&self, task: &AgentTask) -> Result<()> {
         let conn = self.conn.lock().unwrap();

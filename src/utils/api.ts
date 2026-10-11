@@ -199,6 +199,7 @@ export function formatApiErrorMessage(
  */
 export function isModelActive(id: string): boolean {
   if (
+    id === 'ag/gemini-2.5-flash' ||
     id.startsWith('ag/gemini-3.6-') ||
     id === 'ag/gemini-3-flash' ||
     id === 'ag/gemini-3-flash-agent' ||

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Bot, Layers } from 'lucide-react';
+import { MessageSquare, Bot, Layers, Terminal } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { AppMode } from '../../types';
 
@@ -61,7 +61,7 @@ export const TitleBar: React.FC = () => {
   };
 
   return (
-    <header className="h-12 w-full bg-[#171717] border-b border-[#262626] px-4 flex items-center justify-between select-none z-30 shrink-0">
+    <header className="relative h-12 w-full bg-[#171717] border-b border-[#262626] px-4 flex items-center justify-between select-none z-30 shrink-0">
       {/* Left: Clean Brand Logo & App Title (No Traffic Lights) */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2.5 text-xs font-semibold text-[#ececec] tracking-tight hover:opacity-90 transition-opacity">
@@ -74,8 +74,11 @@ export const TitleBar: React.FC = () => {
         </div>
       </div>
 
-      {/* Center: Flat Segmented Capsule Pill Switcher */}
-      <div className="flex items-center bg-[#212121] p-1 rounded-full border border-[#303030]">
+      {/* Center: Flat Segmented Capsule Pill Switcher (Exact 50% Horizontal Center) */}
+      <div
+        style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}
+        className="flex items-center gap-1 bg-[#212121] p-1 rounded-full border border-[#303030] z-10"
+      >
         {MODES.map((mode) => {
           const Icon = mode.icon;
           const isActive = currentMode === mode.id;
@@ -102,8 +105,21 @@ export const TitleBar: React.FC = () => {
         })}
       </div>
 
-      {/* Right: Clean & Empty (Removed all icons and text as requested) */}
-      <div className="flex items-center gap-2" />
+      {/* Right: Terminal Panel Toggle Button */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setTerminalOpen(!isTerminalOpen)}
+          title={isTerminalOpen ? 'Tutup Terminal [Ctrl+`]' : 'Buka Terminal [Ctrl+`]'}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono transition-colors border ${
+            isTerminalOpen
+              ? 'bg-[#2b2b2b] text-emerald-400 border-emerald-500/40 shadow-sm'
+              : 'bg-[#212121] text-[#8e8e8e] hover:text-[#ececec] border-[#303030] hover:bg-[#2b2b2b]'
+          }`}
+        >
+          <Terminal className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Terminal</span>
+        </button>
+      </div>
     </header>
   );
 };

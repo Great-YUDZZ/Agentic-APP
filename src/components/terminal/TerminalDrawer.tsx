@@ -24,6 +24,7 @@ export const TerminalDrawer: React.FC = () => {
     clearTerminalLogs,
     runTerminalCommand,
     setSkillsModalOpen,
+    workspaceProjectRoot,
   } = useStore();
 
   const [inputCmd, setInputCmd] = useState('');
@@ -37,6 +38,8 @@ export const TerminalDrawer: React.FC = () => {
 
   const activeTab =
     terminalTabs.find((t) => t.id === activeTerminalTabId) || terminalTabs[0];
+  const activePath = activeTab?.cwd || workspaceProjectRoot;
+  const currentFolderName = activePath ? activePath.split('/').filter(Boolean).pop() || 'workspace' : 'workspace';
 
   // Auto-scroll when new logs arrive
   useEffect(() => {
@@ -258,7 +261,7 @@ export const TerminalDrawer: React.FC = () => {
           className="h-11 bg-[#212121] border-t border-[#303030] px-3 flex items-center gap-2 shrink-0"
         >
           <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-mono select-none">
-            <span>agentic:~/Agentic</span>
+            <span>agentic:~/{currentFolderName}</span>
             <span className="font-bold">$</span>
           </div>
 
@@ -269,7 +272,7 @@ export const TerminalDrawer: React.FC = () => {
             onChange={(e) => setInputCmd(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={isExecuting}
-            placeholder="Ketik perintah (contoh: ls -la, git status, cargo test, /skills, clear)..."
+            placeholder="Ketik perintah bash..."
             className="flex-1 bg-transparent text-xs text-[#ececec] font-mono outline-none placeholder-[#707070]"
           />
 
