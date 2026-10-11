@@ -92,6 +92,10 @@ interface AppStore {
   sessions: ChatSession[];
   activeSessionId: string | null;
   messages: ChatMessage[];
+  isContextCompressed: boolean;
+  contextUsagePercent: number;
+  setContextCompressed: (compressed: boolean) => void;
+  setContextUsagePercent: (percent: number) => void;
   setSessions: (sessions: ChatSession[]) => void;
   setActiveSessionId: (id: string | null) => void;
   setMessages: (messages: ChatMessage[]) => void;
@@ -496,6 +500,10 @@ export const useStore = create<AppStore>((set, get) => ({
   sessions: [],
   activeSessionId: null,
   messages: [],
+  isContextCompressed: false,
+  contextUsagePercent: 0,
+  setContextCompressed: (isContextCompressed) => set({ isContextCompressed }),
+  setContextUsagePercent: (contextUsagePercent) => set({ contextUsagePercent }),
   setSessions: (sessions) => set({ sessions }),
   setActiveSessionId: (activeSessionId) => set({ activeSessionId }),
   setMessages: (messages) => set({ messages }),

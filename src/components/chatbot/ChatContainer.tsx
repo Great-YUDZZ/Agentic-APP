@@ -12,6 +12,7 @@ import {
   RotateCw,
   Search,
   Sparkles,
+  AlertTriangle,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { ChatMessage } from '../../types';
@@ -23,8 +24,8 @@ import {
   isModelActive,
   isModelUnavailable,
   getModelCategory,
-  injectSystemDesignRules,
 } from '../../utils/api';
+import { preparePrunedContextMessages } from '../../utils/contextManager';
 import { SlashCommandPopover, SLASH_COMMANDS, SlashCommandItem } from '../common/SlashCommandPopover';
 
 // Formatted Code and Text component
@@ -131,6 +132,10 @@ export const ChatContainer: React.FC = () => {
     setTerminalOpen,
     setSkillsModalOpen,
     setSettingsOpen,
+    isContextCompressed,
+    contextUsagePercent,
+    setContextCompressed,
+    setContextUsagePercent,
   } = useStore();
 
   const [inputPrompt, setInputPrompt] = useState('');
@@ -344,17 +349,23 @@ export const ChatContainer: React.FC = () => {
     addMessage(initialAssistantMsg);
 
     try {
-      const conversationHistory = [
-        ...currentMessages.map((m) => ({
-          role: m.role,
-          content: m.content,
-        })),
-        { role: 'user', content: userMsg.content },
-      ];
+      const {
+        messages: prunedMessages,
+        isCompressed,
+        usagePercent,
+      } = preparePrunedContextMessages(
+        currentMessages,
+        userMsg.content,
+        selectedModel,
+        availableModels
+      );
+
+      setContextCompressed(isCompressed);
+      setContextUsagePercent(usagePercent);
 
       const requestPayload = {
         model: selectedModel,
-        messages: injectSystemDesignRules(conversationHistory),
+        messages: prunedMessages,
         stream: true,
         temperature: 0.7,
       };
@@ -576,6 +587,35 @@ export const ChatContainer: React.FC = () => {
       {/* Floating Prompt Input Dock with Integrated Model Selector Inside */}
       <div className="p-4 bg-gradient-to-t from-[#212121] via-[#212121] to-transparent shrink-0">
         <div className="max-w-3xl mx-auto space-y-2">
+          {/* Context Thresholding & Pruning Notice Banner */}
+          {isContextCompressed && (
+            <div className="px-3.5 py-2 rounded-2xl bg-[#2a2415] border border-[#784e12] flex items-center justify-between gap-3 text-xs text-[#fde047] animate-fadeIn">
+              <div className="flex items-center gap-2 min-w-0">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-[#facc15]" />
+                <span className="truncate">
+                  Kapasitas konteks mencapai batas ({contextUsagePercent}%). Pesan terlama telah diringkas, kualitas ingatan topik lama kemungkinan menurun.
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => createNewSession()}
+                  className="px-2.5 py-1 rounded-lg bg-[#3a301a] hover:bg-[#4a3d20] border border-[#784e12] text-[#fef08a] font-medium transition-colors text-[11px]"
+                >
+                  Chat Baru
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setContextCompressed(false)}
+                  className="text-[#a16207] hover:text-[#fde047] transition-colors p-1"
+                  title="Tutup Peringatan"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* ChatGPT Capsule Prompt Input Container with Integrated Model Selector & Slash Command Popover */}
           <div className="relative rounded-3xl bg-[#2f2f2f] border border-[#383838] p-3 focus-within:border-[#4f4f4f] transition-colors">
             {isSlashOpen && (
