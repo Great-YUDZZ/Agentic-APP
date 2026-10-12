@@ -172,22 +172,7 @@ export const useStore = create<AppStore>((set, get) => ({
       set({ isTerminalOpen: false });
     }
 
-    set({ currentMode: nextMode });
-
-    // Cari sesi yang cocok untuk mode ini
-    const modeSessions = get().sessions.filter((s) => (s.mode || 'chatbot') === nextMode);
-    if (modeSessions.length > 0) {
-      get().selectSession(modeSessions[0].id);
-    } else {
-      // Buat sesi default untuk mode ini jika belum ada
-      const defaultTitle =
-        nextMode === 'chatbot'
-          ? 'Percakapan Chat'
-          : nextMode === 'agent'
-          ? 'Sesi Tugas Agent'
-          : 'Proyek Studio Multi-Agent';
-      get().createNewSession(defaultTitle, nextMode);
-    }
+    set({ currentMode: nextMode, activeSessionId: null, messages: [] });
   },
   isSidebarOpen: true,
   setSidebarOpen: (isSidebarOpen) => set({ isSidebarOpen }),
@@ -516,26 +501,7 @@ export const useStore = create<AppStore>((set, get) => ({
         const { invoke } = await import('@tauri-apps/api/core');
         const loadedSessions = (await invoke('get_chat_sessions')) as ChatSession[];
         if (loadedSessions && loadedSessions.length > 0) {
-          set({ sessions: loadedSessions });
-          const currentMode = get().currentMode;
-          const currentActive = get().activeSessionId;
-          const modeSessions = loadedSessions.filter((s) => (s.mode || 'chatbot') === currentMode);
-
-          if (currentActive && modeSessions.some((s) => s.id === currentActive)) {
-            await get().selectSession(currentActive);
-          } else if (modeSessions.length > 0) {
-            await get().selectSession(modeSessions[0].id);
-          } else {
-            // Jika belum ada sesi untuk mode saat ini, buat sesi baru
-            get().createNewSession(
-              currentMode === 'chatbot'
-                ? 'Percakapan Chat'
-                : currentMode === 'agent'
-                ? 'Sesi Tugas Agent'
-                : 'Proyek Studio Multi-Agent',
-              currentMode
-            );
-          }
+          set({ sessions: loadedSessions, activeSessionId: null, messages: [] });
         }
       } catch (err) {
         console.warn('Gagal memuat sesi obrolan dari SQLite:', err);

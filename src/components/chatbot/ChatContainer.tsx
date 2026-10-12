@@ -547,18 +547,6 @@ export const ChatContainer: React.FC = () => {
                       <FormattedMessage content={msg.content} reasoning={msg.reasoning} />
                     </div>
                   )}
-
-                  {/* Metadata */}
-                  <div
-                    className={`flex items-center gap-2 px-1 text-[10px] text-[#707070] font-mono ${
-                      isUser ? 'justify-end' : 'justify-start'
-                    }`}
-                  >
-                    <span>{new Date(msg.created_at).toLocaleTimeString()}</span>
-                    {msg.token_count && (
-                      <span>• ~{msg.token_count} tokens</span>
-                    )}
-                  </div>
                 </div>
               </div>
             );
