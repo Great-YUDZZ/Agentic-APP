@@ -16,6 +16,11 @@ import { useStore } from '../../store/useStore';
 // Curated Skill Catalog to Install with 1 Click
 const SKILL_CATALOG = [
   {
+    name: 'Multi-Agent Orchestration',
+    description: 'Koordinasi terarah sub-agen, pemecahan DAG tugas, decision gates, dan loop pengawasan.',
+    content: `# Multi-Agent Orchestration Skill\nCoordinate supervised workers: threaded messages, blocking ask/reply, task dispatch, worker_done/escalation waits, task DAGs, decision gates, coordinator loops, and decomposing work across agents. Ensure architectural coherence and review subagent outputs before merging.`,
+  },
+  {
     name: 'Git Workflow & Conventional Commits',
     description: 'Menstandarisasi commit message, branching strategy, dan rebase hygiene.',
     content: `# Git Hygiene Skill\nFollow conventional commits: feat:, fix:, docs:, refactor:, test:. Ensure rebase without messy merge commits.`,

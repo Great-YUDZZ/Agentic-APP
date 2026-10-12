@@ -11,6 +11,7 @@ import {
   Check,
   Sparkles,
   ChevronDown,
+  Network,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { CustomAgent } from '../../types';
@@ -22,6 +23,12 @@ interface AgentCreatorModalProps {
 }
 
 const BUILTIN_SKILLS = [
+  {
+    id: 'orchestration',
+    label: 'Multi-Agent Orchestration',
+    description: 'Koordinasi terarah sub-agen, pemecahan DAG tugas, decision gates, dan loop pengawasan orkestrator.',
+    icon: Network,
+  },
   {
     id: 'file_system',
     label: 'File System Operations',

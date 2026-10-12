@@ -1,4 +1,5 @@
 export type AppMode = 'chatbot' | 'agent' | 'build';
+export type StudioTab = 'discussion' | 'hierarchy' | 'kanban' | 'diff';
 
 export interface ApiKeyRecord {
   provider: string;

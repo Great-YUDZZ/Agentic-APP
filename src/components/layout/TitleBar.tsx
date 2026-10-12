@@ -1,13 +1,30 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Bot, Layers, Terminal } from 'lucide-react';
+import {
+  MessageSquare,
+  Bot,
+  Layers,
+  Terminal,
+  Users,
+  CheckSquare,
+  FileDiff,
+  ChevronDown,
+  Check,
+} from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import { AppMode } from '../../types';
+import { AppMode, StudioTab } from '../../types';
 
 const MODES: { id: AppMode; label: string; icon: React.ElementType }[] = [
   { id: 'chatbot', label: 'Chat', icon: MessageSquare },
   { id: 'agent', label: 'Agent', icon: Bot },
   { id: 'build', label: 'Studio (Build)', icon: Layers },
+];
+
+const STUDIO_TABS: { id: StudioTab; label: string; icon: React.ElementType }[] = [
+  { id: 'discussion', label: 'Diskusi', icon: Users },
+  { id: 'hierarchy', label: 'Hierarki', icon: Layers },
+  { id: 'kanban', label: 'Kanban', icon: CheckSquare },
+  { id: 'diff', label: 'Diff', icon: FileDiff },
 ];
 
 export const TitleBar: React.FC = () => {
@@ -18,9 +35,13 @@ export const TitleBar: React.FC = () => {
     setEmergencyStopped,
     isTerminalOpen,
     setTerminalOpen,
+    activeStudioTab,
+    setActiveStudioTab,
     addToast,
     addLog,
   } = useStore();
+
+  const [isStudioMenuOpen, setIsStudioMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -108,9 +129,59 @@ export const TitleBar: React.FC = () => {
         })}
       </div>
 
-      {/* Right: Terminal Panel Toggle Button (Hidden in Chatbot Mode) */}
+      {/* Right Controls: Studio Tab Dropdown (in Build Mode) or Terminal Toggle (in Agent Mode) */}
       <div className="flex items-center gap-2">
-        {currentMode !== 'chatbot' && (
+        {currentMode === 'build' ? (
+          <div className="relative">
+            <button
+              onClick={() => setIsStudioMenuOpen(!isStudioMenuOpen)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#212121] hover:bg-[#282828] border border-[#303030] text-xs font-medium text-[#ececec] transition-colors"
+              title="Pilih Tampilan Studio"
+            >
+              {(() => {
+                const cur = STUDIO_TABS.find((t) => t.id === activeStudioTab) || STUDIO_TABS[0];
+                const CurIcon = cur.icon;
+                return (
+                  <>
+                    <CurIcon className="w-3.5 h-3.5 text-[#ececec]" />
+                    <span>{cur.label}</span>
+                    <ChevronDown className="w-3 h-3 text-[#707070] transition-transform" />
+                  </>
+                );
+              })()}
+            </button>
+
+            {/* Dropdown Menu Popover */}
+            {isStudioMenuOpen && (
+              <div className="absolute right-0 top-full mt-1.5 w-48 rounded-2xl bg-[#262626] border border-[#383838] p-1.5 z-50 shadow-2xl space-y-1">
+                {STUDIO_TABS.map((tab) => {
+                  const Icon = tab.icon;
+                  const isCur = activeStudioTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        setActiveStudioTab(tab.id);
+                        setIsStudioMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+                        isCur
+                          ? 'bg-[#2f2f2f] text-white border border-[#404040]'
+                          : 'text-[#b4b4b4] hover:bg-[#212121] hover:text-[#ececec]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Icon className="w-3.5 h-3.5" />
+                        <span>{tab.label}</span>
+                      </div>
+                      {isCur && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ) : currentMode === 'agent' ? (
           <button
             onClick={() => setTerminalOpen(!isTerminalOpen)}
             title={isTerminalOpen ? 'Tutup Terminal [Ctrl+`]' : 'Buka Terminal [Ctrl+`]'}
@@ -123,7 +194,7 @@ export const TitleBar: React.FC = () => {
             <Terminal className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Terminal</span>
           </button>
-        )}
+        ) : null}
       </div>
     </header>
   );

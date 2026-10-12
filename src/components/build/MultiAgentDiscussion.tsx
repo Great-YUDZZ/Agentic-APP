@@ -214,269 +214,7 @@ export const MultiAgentDiscussion: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[#212121] overflow-hidden">
-      {/* 1. Squad Roster & Goal Status Bar (Collapsible) */}
-      <div className="bg-[#171717] border-b border-[#262626] shrink-0 transition-all">
-        {/* Compact Toggle Bar */}
-        <div className="px-4 py-2.5 flex items-center justify-between flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setIsSquadHeaderCollapsed(!isSquadHeaderCollapsed)}
-            className="flex items-center gap-2 text-xs font-semibold text-[#ececec] hover:text-white transition-colors group"
-            title={isSquadHeaderCollapsed ? 'Tampilkan Pengaturan Tim' : 'Sembunyikan Pengaturan Tim'}
-          >
-            <Users className="w-4 h-4 text-[#ececec]" />
-            <span>
-              Multi-Agent Squad Room ({selectedAgentIds.length} Agen Aktif)
-            </span>
-            <span className="p-0.5 rounded text-[#707070] group-hover:text-[#ececec] transition-transform">
-              {isSquadHeaderCollapsed ? (
-                <ChevronDown className="w-3.5 h-3.5" />
-              ) : (
-                <ChevronUp className="w-3.5 h-3.5" />
-              )}
-            </span>
-          </button>
 
-          <div className="flex items-center gap-2">
-            {buildDiscussion.status === 'running' && (
-              <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-mono">
-                Sesi Berjalan
-              </span>
-            )}
-            {/* Quick action buttons always accessible when running even if collapsed */}
-            {buildDiscussion.status === 'running' && isSquadHeaderCollapsed && (
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={handleStepNextTurn}
-                  disabled={isThinkingTurn}
-                  title="Lanjut Giliran"
-                  className="px-2 py-0.5 rounded-md bg-[#212121] text-xs font-medium text-[#ececec] border border-[#303030]"
-                >
-                  Lanjut
-                </button>
-                <button
-                  onClick={() => setIsAutoLooping(!isAutoLooping)}
-                  className={`px-2 py-0.5 rounded-md text-xs font-medium border ${
-                    isAutoLooping ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-[#212121] text-[#b4b4b4] border-[#303030]'
-                  }`}
-                >
-                  {isAutoLooping ? 'Auto: ON' : 'Auto: OFF'}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Collapsible Content Area */}
-        {!isSquadHeaderCollapsed && (
-          <div className="px-4 pb-3 space-y-2.5">
-            {/* Agent selection pills */}
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
-                {customAgents.length === 0 ? (
-                  <span className="text-xs text-[#707070] italic">
-                    Belum ada agent. Buka mode Agent untuk membuat agen baru.
-                  </span>
-                ) : (
-                  customAgents.map((agent) => {
-                    const isSelected = selectedAgentIds.includes(agent.id);
-                    const activeModelName = agent.model || selectedModel || 'Default';
-
-                    return (
-                      <div
-                        key={agent.id}
-                        className={`flex items-center gap-2 px-2.5 py-1 rounded-xl border text-xs font-medium transition-colors shrink-0 ${
-                          isSelected
-                            ? 'bg-[#2f2f2f] border-[#404040] text-white'
-                            : 'bg-[#212121] border-[#303030] text-[#b4b4b4] hover:text-[#ececec]'
-                        }`}
-                      >
-                      <button
-                        type="button"
-                        onClick={() => toggleAgentSelection(agent.id)}
-                        className="flex items-center gap-1.5 focus:outline-none"
-                        title={isSelected ? 'Klik untuk menonaktifkan agen dari tim' : 'Klik untuk mengaktifkan agen'}
-                      >
-                        <div
-                          className="w-2.5 h-2.5 rounded-full"
-                          style={{ backgroundColor: agent.avatar_color }}
-                        />
-                        <span>{agent.name}</span>
-                      </button>
-
-                      {/* Custom Dark Dropdown pemilih model khusus agen ini */}
-                      <div className="relative agent-model-dropdown-container">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOpenAgentModelDropdown(
-                              openAgentModelDropdown === agent.id ? null : agent.id
-                            );
-                          }}
-                          className="flex items-center gap-1 bg-[#212121] hover:bg-[#282828] text-[#ececec] border border-[#383838] rounded-lg px-2 py-0.5 text-[10px] font-mono transition-colors max-w-[140px]"
-                          title={`Model aktif: ${activeModelName}. Klik untuk memilih model.`}
-                        >
-                          <span className="truncate">
-                            {agent.model
-                              ? agent.model.split('/').pop()
-                              : `Global (${selectedModel ? selectedModel.split('/').pop() : 'Default'})`}
-                          </span>
-                          <ChevronDown className="w-2.5 h-2.5 text-[#707070] shrink-0" />
-                        </button>
-
-                        {/* Popover Menu Pilihan Model */}
-                        {openAgentModelDropdown === agent.id && (
-                          <div className="absolute top-full left-0 mt-1 w-64 max-h-56 overflow-y-auto rounded-xl bg-[#262626] border border-[#383838] p-1.5 z-50 shadow-2xl space-y-1">
-                            <div className="px-2 py-1 text-[10px] text-[#707070] border-b border-[#303030] font-sans">
-                              Pilih Model untuk {agent.name}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                updateCustomAgent(agent.id, { model: undefined });
-                                setOpenAgentModelDropdown(null);
-                                addToast('info', `Model untuk ${agent.name}: Mengikuti Model Global`);
-                              }}
-                              className={`w-full text-left px-2 py-1.5 rounded-lg text-[11px] font-mono flex items-center justify-between transition-colors ${
-                                !agent.model
-                                  ? 'bg-[#2f2f2f] text-white'
-                                  : 'text-[#b4b4b4] hover:bg-[#212121] hover:text-[#ececec]'
-                              }`}
-                            >
-                              <span className="truncate">
-                                (Global: {selectedModel || 'Belum dipilih'})
-                              </span>
-                              {!agent.model && <Check className="w-3 h-3 text-emerald-400 shrink-0" />}
-                            </button>
-
-                            {availableModels.map((m) => {
-                              const isCur = agent.model === m.id;
-                              return (
-                                <button
-                                  key={m.id}
-                                  type="button"
-                                  onClick={() => {
-                                    updateCustomAgent(agent.id, { model: m.id });
-                                    setOpenAgentModelDropdown(null);
-                                    addToast('info', `Model untuk ${agent.name}: ${m.id}`);
-                                  }}
-                                  className={`w-full text-left px-2 py-1.5 rounded-lg text-[11px] font-mono flex items-center justify-between transition-colors ${
-                                    isCur
-                                      ? 'bg-[#2f2f2f] text-white'
-                                      : 'text-[#b4b4b4] hover:bg-[#212121] hover:text-[#ececec]'
-                                  }`}
-                                >
-                                  <span className="truncate">{m.id}</span>
-                                  {isCur && <Check className="w-3 h-3 text-emerald-400 shrink-0" />}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-              {/* Quick Turn / Auto Controls */}
-              <div className="flex items-center gap-1.5 shrink-0">
-                {buildDiscussion.status === 'running' && (
-                  <>
-                    <button
-                      onClick={handleStepNextTurn}
-                      disabled={isThinkingTurn}
-                      title="Minta agen giliran berikutnya berbicara"
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#212121] hover:bg-[#282828] text-xs font-medium text-[#ececec] border border-[#303030] transition-colors disabled:opacity-50"
-                    >
-                      <ChevronRight className={`w-3.5 h-3.5 ${isThinkingTurn ? 'animate-spin' : ''}`} />
-                      <span>{isThinkingTurn ? 'Berpikir...' : 'Lanjut Giliran'}</span>
-                    </button>
-
-                    <button
-                      onClick={() => setIsAutoLooping(!isAutoLooping)}
-                      title="Mode diskusi otomatis tanpa klik manual"
-                      className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                        isAutoLooping
-                          ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
-                          : 'bg-[#212121] border-[#303030] text-[#b4b4b4] hover:text-[#ececec]'
-                      }`}
-                    >
-                      {isAutoLooping ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-                      <span>{isAutoLooping ? 'Auto: ON' : 'Auto: OFF'}</span>
-                    </button>
-
-                    {/* Review Code Button */}
-                    <button
-                      onClick={() => setCodeReviewModalOpen(true)}
-                      title="Review & terapkan hasil kode yang telah dibuat agen"
-                      className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                        codeSnippetCount > 0
-                          ? 'bg-[#2f2f2f] border-[#404040] text-white hover:bg-[#383838]'
-                          : 'bg-[#212121] border-[#303030] text-[#b4b4b4] hover:text-[#ececec]'
-                      }`}
-                    >
-                      <FileCode className="w-3.5 h-3.5 text-[#ececec]" />
-                      <span>Review Code</span>
-                      {codeSnippetCount > 0 && (
-                        <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-[#ececec] text-black font-semibold">
-                          {codeSnippetCount}
-                        </span>
-                      )}
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setIsAutoLooping(false);
-                        resetBuildDiscussion();
-                      }}
-                      title="Reset Percakapan Tim"
-                      className="p-1.5 rounded-lg bg-[#212121] hover:bg-[#282828] border border-[#303030] text-[#b4b4b4] hover:text-red-400 transition-colors"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Active Project Goal Badge (if running) */}
-            {buildDiscussion.status === 'running' && buildDiscussion.project_goal && (
-              <div className="px-3 py-1.5 rounded-xl bg-[#212121] border border-[#303030] text-xs text-[#b4b4b4] flex items-center justify-between">
-                <span className="truncate">
-                  <strong>Goal:</strong> {buildDiscussion.project_goal}
-                </span>
-                <span className="text-[10px] font-mono text-[#707070] shrink-0 ml-2">
-                  Putaran ke-{buildDiscussion.current_turn_index + 1}
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* 2. Next Speaker Banner (if running) */}
-      {buildDiscussion.status === 'running' && nextAgent && (
-        <div className="px-5 py-1.5 bg-[#16161d] border-b border-[#24242e] flex items-center justify-between text-xs shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="text-[#808090]">Giliran Berikutnya:</span>
-            <div className="flex items-center gap-1.5 font-medium text-[#f4f4f7]">
-              <div
-                className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: nextAgent.avatar_color }}
-              />
-              <span>{nextAgent.name}</span>
-              <span className="text-[10px] text-[#3b82f6] font-mono">({nextAgent.role})</span>
-            </div>
-          </div>
-
-          <div className="text-[11px] font-mono text-[#808090]">
-            Ketik pesan di bawah untuk memberi arahan langsung
-          </div>
-        </div>
-      )}
 
       {/* 3. Discussion Stream Messages */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
@@ -605,6 +343,214 @@ export const MultiAgentDiscussion: React.FC = () => {
         <div className="max-w-3xl mx-auto">
           {/* Main Input Capsule */}
           <div className="relative rounded-3xl bg-[#2f2f2f] border border-[#383838] p-3.5 focus-within:border-[#4f4f4f] transition-colors">
+            {/* Squad Room Header Bar & Quick Controls (Moved inside chat dock) */}
+            <div className="pb-2.5 mb-2 border-b border-[#383838] space-y-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsSquadHeaderCollapsed(!isSquadHeaderCollapsed)}
+                  className="flex items-center gap-2 text-xs font-semibold text-[#ececec] hover:text-white transition-colors group"
+                  title={isSquadHeaderCollapsed ? 'Tampilkan Pengaturan Tim' : 'Sembunyikan Pengaturan Tim'}
+                >
+                  <Users className="w-4 h-4 text-[#ececec]" />
+                  <span>
+                    Multi-Agent Squad Room ({selectedAgentIds.length} Agen Aktif)
+                  </span>
+                  <span className="p-0.5 rounded text-[#707070] group-hover:text-[#ececec] transition-transform">
+                    {isSquadHeaderCollapsed ? (
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    ) : (
+                      <ChevronUp className="w-3.5 h-3.5" />
+                    )}
+                  </span>
+                </button>
+
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {buildDiscussion.status === 'running' && (
+                    <>
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-mono">
+                        Sesi Berjalan
+                      </span>
+                      <button
+                        onClick={handleStepNextTurn}
+                        disabled={isThinkingTurn}
+                        title="Minta agen giliran berikutnya berbicara"
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#212121] hover:bg-[#282828] text-xs font-medium text-[#ececec] border border-[#303030] transition-colors disabled:opacity-50"
+                      >
+                        <ChevronRight className={`w-3.5 h-3.5 ${isThinkingTurn ? 'animate-spin' : ''}`} />
+                        <span>{isThinkingTurn ? 'Berpikir...' : 'Lanjut'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => setIsAutoLooping(!isAutoLooping)}
+                        title="Mode diskusi otomatis tanpa klik manual"
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                          isAutoLooping
+                            ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                            : 'bg-[#212121] border-[#303030] text-[#b4b4b4] hover:text-[#ececec]'
+                        }`}
+                      >
+                        {isAutoLooping ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                        <span>{isAutoLooping ? 'Auto: ON' : 'Auto: OFF'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => setCodeReviewModalOpen(true)}
+                        title="Review dan terapkan hasil kode yang telah dibuat agen"
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                          codeSnippetCount > 0
+                            ? 'bg-[#212121] border-[#404040] text-white hover:bg-[#282828]'
+                            : 'bg-[#212121] border-[#303030] text-[#b4b4b4] hover:text-[#ececec]'
+                        }`}
+                      >
+                        <FileCode className="w-3.5 h-3.5 text-[#ececec]" />
+                        <span>Review</span>
+                        {codeSnippetCount > 0 && (
+                          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-[#ececec] text-black font-semibold">
+                            {codeSnippetCount}
+                          </span>
+                        )}
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setIsAutoLooping(false);
+                          resetBuildDiscussion();
+                        }}
+                        title="Reset Percakapan Tim"
+                        className="p-1 rounded-lg bg-[#212121] hover:bg-[#282828] border border-[#303030] text-[#b4b4b4] hover:text-red-400 transition-colors"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Collapsible squad member pills */}
+              {!isSquadHeaderCollapsed && (
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
+                  {customAgents.length === 0 ? (
+                    <span className="text-xs text-[#707070] italic">
+                      Belum ada agent. Buka mode Agent untuk membuat agen baru.
+                    </span>
+                  ) : (
+                    customAgents.map((agent) => {
+                      const isSelected = selectedAgentIds.includes(agent.id);
+                      const activeModelName = agent.model || selectedModel || 'Default';
+
+                      return (
+                        <div
+                          key={agent.id}
+                          className={`flex items-center gap-2 px-2.5 py-1 rounded-xl border text-xs font-medium transition-colors shrink-0 ${
+                            isSelected
+                              ? 'bg-[#212121] border-[#404040] text-white'
+                              : 'bg-[#212121]/60 border-[#303030] text-[#707070] hover:text-[#b4b4b4]'
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => toggleAgentSelection(agent.id)}
+                            className="flex items-center gap-1.5 focus:outline-none"
+                            title={isSelected ? 'Klik untuk menonaktifkan agen dari tim' : 'Klik untuk mengaktifkan agen'}
+                          >
+                            <div
+                              className="w-2.5 h-2.5 rounded-full"
+                              style={{ backgroundColor: agent.avatar_color }}
+                            />
+                            <span>{agent.name}</span>
+                          </button>
+
+                          {/* Dropdown pemilih model khusus agen ini */}
+                          <div className="relative agent-model-dropdown-container">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenAgentModelDropdown(
+                                  openAgentModelDropdown === agent.id ? null : agent.id
+                                );
+                              }}
+                              className="flex items-center gap-1 bg-[#171717] hover:bg-[#212121] text-[#ececec] border border-[#383838] rounded-lg px-2 py-0.5 text-[10px] font-mono transition-colors max-w-[130px]"
+                              title={`Model aktif: ${activeModelName}. Klik untuk memilih model.`}
+                            >
+                              <span className="truncate">
+                                {agent.model
+                                  ? agent.model.split('/').pop()
+                                  : `Global (${selectedModel ? selectedModel.split('/').pop() : 'Default'})`}
+                              </span>
+                              <ChevronDown className="w-2.5 h-2.5 text-[#707070] shrink-0" />
+                            </button>
+
+                            {openAgentModelDropdown === agent.id && (
+                              <div className="absolute bottom-full left-0 mb-1 w-64 max-h-56 overflow-y-auto rounded-xl bg-[#262626] border border-[#383838] p-1.5 z-50 shadow-2xl space-y-1">
+                                <div className="px-2 py-1 text-[10px] text-[#707070] border-b border-[#303030] font-sans">
+                                  Pilih Model untuk {agent.name}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    updateCustomAgent(agent.id, { model: undefined });
+                                    setOpenAgentModelDropdown(null);
+                                    addToast('info', `Model untuk ${agent.name}: Mengikuti Model Global`);
+                                  }}
+                                  className={`w-full text-left px-2 py-1.5 rounded-lg text-[11px] font-mono flex items-center justify-between transition-colors ${
+                                    !agent.model
+                                      ? 'bg-[#2f2f2f] text-white'
+                                      : 'text-[#b4b4b4] hover:bg-[#212121] hover:text-[#ececec]'
+                                  }`}
+                                >
+                                  <span className="truncate">
+                                    (Global: {selectedModel || 'Belum dipilih'})
+                                  </span>
+                                  {!agent.model && <Check className="w-3 h-3 text-emerald-400 shrink-0" />}
+                                </button>
+
+                                {availableModels.map((m) => {
+                                  const isCur = agent.model === m.id;
+                                  return (
+                                    <button
+                                      key={m.id}
+                                      type="button"
+                                      onClick={() => {
+                                        updateCustomAgent(agent.id, { model: m.id });
+                                        setOpenAgentModelDropdown(null);
+                                        addToast('info', `Model untuk ${agent.name}: ${m.id}`);
+                                      }}
+                                      className={`w-full text-left px-2 py-1.5 rounded-lg text-[11px] font-mono flex items-center justify-between transition-colors ${
+                                        isCur
+                                          ? 'bg-[#2f2f2f] text-white'
+                                          : 'text-[#b4b4b4] hover:bg-[#212121] hover:text-[#ececec]'
+                                      }`}
+                                    >
+                                      <span className="truncate">{m.id}</span>
+                                      {isCur && <Check className="w-3 h-3 text-emerald-400 shrink-0" />}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+
+              {/* Active Project Goal Badge (if running) */}
+              {buildDiscussion.status === 'running' && buildDiscussion.project_goal && (
+                <div className="px-2.5 py-1 rounded-lg bg-[#212121] border border-[#383838] text-[11px] text-[#b4b4b4] flex items-center justify-between">
+                  <span className="truncate">
+                    <strong className="text-[#ececec]">Goal:</strong> {buildDiscussion.project_goal}
+                  </span>
+                  <span className="text-[10px] font-mono text-[#707070] shrink-0 ml-2">
+                    Putaran {buildDiscussion.current_turn_index + 1}
+                  </span>
+                </div>
+              )}
+            </div>
+
             {/* Attachment Preview Chips */}
             <AttachmentChips
               files={attachedFiles}

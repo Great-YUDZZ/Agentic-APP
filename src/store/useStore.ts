@@ -18,11 +18,16 @@ import {
   TerminalLog,
   InstalledSkill,
   CodeReviewItem,
+  StudioTab,
 } from '../types';
 import { parseRobustJson, getChatEndpoint, getModelsEndpoint, formatApiErrorMessage } from '../utils/api';
 import { extractCodeReviewItems } from '../utils/codeExtractor';
 
 interface AppStore {
+  // Studio View Navigation (Build Mode)
+  activeStudioTab: StudioTab;
+  setActiveStudioTab: (tab: StudioTab) => void;
+
   // Code Review Modal
   isCodeReviewModalOpen: boolean;
   setCodeReviewModalOpen: (open: boolean) => void;
@@ -152,6 +157,10 @@ interface AppStore {
 }
 
 export const useStore = create<AppStore>((set, get) => ({
+  // Studio View Navigation (Build Mode)
+  activeStudioTab: 'discussion',
+  setActiveStudioTab: (activeStudioTab) => set({ activeStudioTab }),
+
   // Clean default mode: Chatbot
   currentMode: 'chatbot',
   setMode: (nextMode) => {
