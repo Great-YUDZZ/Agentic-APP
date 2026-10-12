@@ -682,7 +682,7 @@ export const useStore = create<AppStore>((set, get) => ({
   buildDiscussion: {
     id: 'discussion-main',
     project_goal: '',
-    selected_agent_ids: ['agent-architect', 'agent-coder', 'agent-reviewer'],
+    selected_agent_ids: [],
     status: 'idle',
     current_turn_index: 0,
     messages: [],
@@ -938,9 +938,12 @@ ATURAN KOMUNIKASI & TUGAS ANDA SEKARANG:
     if (!content.trim()) return;
 
     const session = s.buildDiscussion;
+    const validSelectedIds = session.selected_agent_ids.filter((id) =>
+      s.customAgents.some((a) => a.id === id)
+    );
     const activeAgentIds =
-      session.selected_agent_ids.length >= 2
-        ? session.selected_agent_ids
+      validSelectedIds.length >= 2
+        ? validSelectedIds
         : s.customAgents.slice(0, 3).map((a) => a.id);
 
     // Jika diskusi belum aktif, mulai dengan goal dari pesan ini
