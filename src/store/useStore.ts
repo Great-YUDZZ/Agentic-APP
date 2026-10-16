@@ -153,7 +153,7 @@ interface AppStore {
 
   // Toasts
   toasts: ToastItem[];
-  addToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void;
+  addToast: (type: 'success' | 'error' | 'info' | 'warning', message: string, duration?: number) => void;
   removeToast: (id: string) => void;
 }
 
@@ -1284,9 +1284,9 @@ ATURAN KOMUNIKASI & TUGAS ANDA SEKARANG:
 
   // Toasts
   toasts: [],
-  addToast: (type, message) => {
+  addToast: (type, message, duration = 2000) => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-    set((s) => ({ toasts: [...s.toasts, { id, type, message }] }));
+    set((s) => ({ toasts: [...s.toasts, { id, type, message, duration }] }));
   },
   removeToast: (id) =>
     set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
