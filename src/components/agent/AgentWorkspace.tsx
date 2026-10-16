@@ -577,9 +577,9 @@ Sebagai agent spesialis, berikan:
 
       {/* Fixed Bottom Input Dock with Daily Dynamic Greeting */}
       <div className="p-4 bg-gradient-to-t from-[#212121] via-[#212121] to-transparent shrink-0">
-        <div className="max-w-4xl mx-auto space-y-3">
+        <div className="max-w-5xl mx-auto w-full space-y-2">
           {/* Dynamic Daily Greeting Headline */}
-          <div className="text-center py-1">
+          <div className="text-center py-0.5">
             <h2 className="text-xl font-medium tracking-tight text-[#ececec]">
               {dailyGreeting}
             </h2>
@@ -591,12 +591,12 @@ Sebagai agent spesialis, berikan:
           {/* 2-Tier Input Dock Container */}
           <div className="space-y-2">
             {/* Top Tier: Main Input Capsule */}
-            <div className="relative rounded-3xl bg-[#2f2f2f] border border-[#383838] p-3.5 focus-within:border-[#4f4f4f] transition-colors">
+            <div className="relative rounded-3xl bg-[#2f2f2f] border border-[#383838] p-2.5 px-3.5 focus-within:border-[#4f4f4f] transition-colors">
               {/* Attachment Chips Preview */}
               <AttachmentChips
                 files={attachedFiles}
                 onRemove={(id) => setAttachedFiles((prev) => prev.filter((f) => f.id !== id))}
-                className="mb-2"
+                className="mb-1.5"
               />
 
               {/* Hidden file input */}
@@ -621,12 +621,12 @@ Sebagai agent spesialis, berikan:
                   }
                 }}
                 placeholder={`Work with ${activeAgent?.name || 'Agent'}... (Enter untuk kirim)`}
-                rows={2}
-                className="w-full bg-transparent border-none text-[#ececec] placeholder-[#707070] text-sm focus:outline-none resize-none px-2 py-1 leading-relaxed font-sans"
+                rows={1}
+                className="w-full bg-transparent border-none text-[#ececec] placeholder-[#707070] text-sm focus:outline-none resize-none px-2 py-0.5 leading-relaxed font-sans min-h-[28px] max-h-40"
               />
 
               {/* Inner Bottom Actions Bar */}
-              <div className="flex items-center justify-between pt-2.5 border-t border-[#383838] mt-1">
+              <div className="flex items-center justify-between pt-2 border-t border-[#383838] mt-1">
                 {/* Left: Plus button & Approval Toggle (Ask for approval vs Strict) */}
                 <div className="flex items-center gap-2">
                   <button

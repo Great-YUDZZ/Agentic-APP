@@ -81,7 +81,7 @@ export const MultiAgentDiscussion: React.FC = () => {
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const [openAgentModelDropdown, setOpenAgentModelDropdown] = useState<string | null>(null);
   const [modelSearchQuery, setModelSearchQuery] = useState('');
-  const [isSquadHeaderCollapsed, setIsSquadHeaderCollapsed] = useState(false);
+  const [isSquadHeaderCollapsed, setIsSquadHeaderCollapsed] = useState(true);
 
   const chatTextareaRef = useRef<HTMLTextAreaElement>(null);
   const modelMenuRef = useRef<HTMLDivElement>(null);
@@ -217,7 +217,7 @@ export const MultiAgentDiscussion: React.FC = () => {
 
 
       {/* 3. Discussion Stream Messages */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 max-w-5xl mx-auto w-full">
         {buildDiscussion.messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-3">
             <div className="w-12 h-12 rounded-2xl bg-[#212121] border border-[#303030] flex items-center justify-center text-[#ececec]">
@@ -340,11 +340,11 @@ export const MultiAgentDiscussion: React.FC = () => {
 
       {/* 4. Interactive Chat & Directive Dock (Bottom) */}
       <div className="p-4 bg-gradient-to-t from-[#212121] via-[#212121] to-transparent shrink-0">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-5xl mx-auto w-full">
           {/* Main Input Capsule */}
-          <div className="relative rounded-3xl bg-[#2f2f2f] border border-[#383838] p-3.5 focus-within:border-[#4f4f4f] transition-colors">
+          <div className="relative rounded-3xl bg-[#2f2f2f] border border-[#383838] p-2.5 px-3.5 focus-within:border-[#4f4f4f] transition-colors">
             {/* Squad Room Header Bar & Quick Controls (Moved inside chat dock) */}
-            <div className="pb-2.5 mb-2 border-b border-[#383838] space-y-2">
+            <div className={`space-y-1.5 ${isSquadHeaderCollapsed ? 'pb-1 mb-1' : 'pb-2 mb-1.5'} border-b border-[#383838]`}>
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <button
                   type="button"
@@ -570,12 +570,12 @@ export const MultiAgentDiscussion: React.FC = () => {
                   ? 'Beri arahan, tanyakan sesuatu, atau minta kode ke tim agent...'
                   : 'Ketik pesan atau target proyek untuk memulai diskusi tim...'
               }
-              rows={2}
-              className="w-full bg-transparent border-none text-[#ececec] placeholder-[#707070] text-sm focus:outline-none resize-none px-2 py-1 leading-relaxed font-sans"
+              rows={1}
+              className="w-full bg-transparent border-none text-[#ececec] placeholder-[#707070] text-sm focus:outline-none resize-none px-2 py-0.5 leading-relaxed font-sans min-h-[28px] max-h-40"
             />
 
             {/* Inner Bottom Actions Bar */}
-            <div className="flex items-center justify-between pt-2.5 border-t border-[#383838] mt-1 flex-wrap gap-2">
+            <div className="flex items-center justify-between pt-2 border-t border-[#383838] mt-1 flex-wrap gap-2">
               {/* Left: Plus button, Mention Target, & Approval Toggle */}
               <div className="flex items-center gap-1.5 flex-wrap">
                 {/* Hidden File Input */}

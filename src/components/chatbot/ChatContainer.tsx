@@ -529,7 +529,7 @@ export const ChatContainer: React.FC = () => {
             return (
               <div
                 key={msg.id}
-                className={`flex gap-3.5 max-w-3xl ${isUser ? 'ml-auto justify-end' : 'mr-auto justify-start w-full'}`}
+                className={`flex gap-3.5 max-w-5xl mx-auto w-full ${isUser ? 'justify-end' : 'justify-start'}`}
               >
                 {!isUser && (
                   <div className="w-7 h-7 rounded-full bg-[#2f2f2f] border border-[#383838] flex items-center justify-center text-[#ececec] shrink-0 mt-0.5">
@@ -555,7 +555,7 @@ export const ChatContainer: React.FC = () => {
         )}
 
         {isGenerating && (
-          <div className="flex gap-3.5 max-w-3xl mr-auto justify-start items-center">
+          <div className="flex gap-3.5 max-w-5xl mx-auto w-full justify-start items-center">
             <div className="w-7 h-7 rounded-full bg-[#2f2f2f] border border-[#383838] flex items-center justify-center text-[#ececec] shrink-0">
               <Bot className="w-3.5 h-3.5" />
             </div>
@@ -571,7 +571,7 @@ export const ChatContainer: React.FC = () => {
 
       {/* Floating Prompt Input Dock with Integrated Model Selector Inside */}
       <div className="p-4 bg-gradient-to-t from-[#212121] via-[#212121] to-transparent shrink-0">
-        <div className="max-w-3xl mx-auto space-y-2">
+        <div className="max-w-5xl mx-auto w-full space-y-2">
           {/* Context Thresholding & Pruning Notice Banner */}
           {isContextCompressed && (
             <div className="px-3.5 py-2 rounded-2xl bg-[#2a2415] border border-[#784e12] flex items-center justify-between gap-3 text-xs text-[#fde047] animate-fadeIn">
@@ -602,7 +602,7 @@ export const ChatContainer: React.FC = () => {
           )}
 
           {/* ChatGPT Capsule Prompt Input Container with Integrated Model Selector & Slash Command Popover */}
-          <div className="relative rounded-3xl bg-[#2f2f2f] border border-[#383838] p-3 focus-within:border-[#4f4f4f] transition-colors">
+          <div className="relative rounded-3xl bg-[#2f2f2f] border border-[#383838] p-2.5 px-3.5 focus-within:border-[#4f4f4f] transition-colors">
             {isSlashOpen && (
               <SlashCommandPopover
                 filter={slashFilter}
@@ -618,8 +618,8 @@ export const ChatContainer: React.FC = () => {
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder="Kirim pesan ke AI atau ketik '/' untuk perintah..."
-              rows={2}
-              className="w-full bg-transparent border-none text-[#ececec] placeholder-[#707070] text-sm focus:outline-none resize-none px-2 py-1 leading-relaxed font-sans"
+              rows={1}
+              className="w-full bg-transparent border-none text-[#ececec] placeholder-[#707070] text-sm focus:outline-none resize-none px-2 py-0.5 leading-relaxed font-sans min-h-[28px] max-h-40"
             />
 
             <div className="flex items-center justify-between pt-2 border-t border-[#383838] mt-1">
