@@ -10,11 +10,11 @@ import {
   Cpu,
   Check,
   Sparkles,
-  ChevronDown,
   Network,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { CustomAgent } from '../../types';
+import { CustomSelect } from '../common/CustomSelect';
 
 interface AgentCreatorModalProps {
   isOpen: boolean;
@@ -250,25 +250,23 @@ export const AgentCreatorModal: React.FC<AgentCreatorModalProps> = ({
                     {agentModel ? 'Model Kustom' : 'Mengikuti Model Global'}
                   </span>
                 </div>
-                <div className="relative">
-                  <select
-                    value={agentModel}
-                    onChange={(e) => setAgentModel(e.target.value)}
-                    className="w-full pl-3 pr-9 py-2 rounded-xl bg-[#212121] border border-[#303030] text-xs font-mono text-[#ececec] focus:outline-none focus:border-[#404040] cursor-pointer appearance-none"
-                  >
-                    <option value="" className="bg-[#212121] text-[#ececec]">
-                      (Default: Mengikuti Model Global {selectedModel ? `[${selectedModel}]` : ''})
-                    </option>
-                    {availableModels.map((m) => (
-                      <option key={`${m.endpoint_id || m.provider}-${m.id}`} value={m.id} className="bg-[#212121] text-[#ececec]">
-                        {m.endpoint_name ? `[${m.endpoint_name}] ${m.id}` : m.id}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[#707070]">
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  </div>
-                </div>
+                <CustomSelect
+                  value={agentModel}
+                  options={[
+                    {
+                      value: '',
+                      label: `(Default: Model Global ${selectedModel ? `[${selectedModel}]` : ''})`,
+                    },
+                    ...availableModels.map((m) => ({
+                      value: m.id,
+                      label: m.endpoint_name ? `[${m.endpoint_name}] ${m.id}` : m.id,
+                    })),
+                  ]}
+                  onChange={(val) => setAgentModel(val)}
+                  className="w-full"
+                  buttonClassName="w-full font-mono text-xs py-2 bg-[#212121] border-[#303030]"
+                  align="left"
+                />
                 <p className="text-[10px] text-[#707070]">
                   {availableModels.length === 0
                     ? 'Belum ada model terdeteksi. Silakan atur API Key di menu Pengaturan.'

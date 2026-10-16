@@ -24,9 +24,9 @@ import {
   Moon,
   ExternalLink,
   RotateCw,
-  ChevronDown,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
+import { CustomSelect } from '../common/CustomSelect';
 
 interface StandardProviderConfig {
   id: string;
@@ -77,6 +77,30 @@ const STANDARD_PROVIDERS: StandardProviderConfig[] = [
 ];
 
 type SettingsSection = 'general' | 'application' | 'appearance' | 'models' | 'skills';
+
+const PERMISSION_OPTIONS = [
+  { value: 'turbo', label: 'Turbo (Auto Execution)', description: 'Agen mengeksekusi semua perintah alat tanpa konfirmasi.' },
+  { value: 'standard', label: 'Standard (Ask for Approval)', description: 'Agen meminta konfirmasi untuk tindakan penting.' },
+  { value: 'strict', label: 'Strict (Ask on All Tools)', description: 'Agen selalu meminta konfirmasi setiap alat.' },
+];
+
+const PLAN_REVIEW_OPTIONS = [
+  { value: 'always_ask', label: 'Always Ask', description: 'Selalu minta review sebelum mengeksekusi rencana.' },
+  { value: 'auto', label: 'Automatic Approval', description: 'Otomatis menyetujui rencana yang dibuat.' },
+  { value: 'never', label: 'Never Ask', description: 'Jalankan rencana langsung tanpa tanya.' },
+];
+
+const BROWSER_JS_OPTIONS = [
+  { value: 'request_review', label: 'Request Review', description: 'Minta review sebelum mengeksekusi script browser.' },
+  { value: 'allow', label: 'Allow Always', description: 'Izinkan semua eksekusi javascript di browser.' },
+  { value: 'block', label: 'Block', description: 'Blokir eksekusi javascript kustom di browser.' },
+];
+
+const DARK_PRESET_OPTIONS = [
+  { value: 'default', label: 'Default Dark (ChatGPT #212121)', description: 'Kanvas standar ChatGPT #212121' },
+  { value: 'charcoal', label: 'Charcoal (#171717)', description: 'Nuansa arang lebih gelap #171717' },
+  { value: 'oled', label: 'OLED Deep Black (#000000)', description: 'Hitam murni pekat hemat energi' },
+];
 
 export const SettingsModal: React.FC = () => {
   const {
@@ -424,22 +448,15 @@ export const SettingsModal: React.FC = () => {
                           Controls the actions the agent can take.
                         </div>
                       </div>
-                      <div className="relative inline-flex items-center">
-                        <select
-                          value={settings.permissionPreset}
-                          onChange={(e) =>
-                            updateSettings({
-                              permissionPreset: e.target.value as 'turbo' | 'standard' | 'strict',
-                            })
-                          }
-                          className="appearance-none bg-[#1e1e1e] hover:bg-[#262626] border border-[#383838] rounded-xl pl-3 pr-8 py-1.5 text-xs text-[#ececec] focus:outline-none focus:border-[#4f4f4f] cursor-pointer transition-colors"
-                        >
-                          <option value="turbo" className="bg-[#212121] text-[#ececec]">Turbo (Auto Execution)</option>
-                          <option value="standard" className="bg-[#212121] text-[#ececec]">Standard (Ask for Approval)</option>
-                          <option value="strict" className="bg-[#212121] text-[#ececec]">Strict (Ask on All Tools)</option>
-                        </select>
-                        <ChevronDown className="w-3.5 h-3.5 text-[#707070] absolute right-2.5 pointer-events-none" />
-                      </div>
+                      <CustomSelect
+                        value={settings.permissionPreset}
+                        options={PERMISSION_OPTIONS}
+                        onChange={(val) =>
+                          updateSettings({
+                            permissionPreset: val as 'turbo' | 'standard' | 'strict',
+                          })
+                        }
+                      />
                     </div>
 
                     {/* Installed Skills (Replaces Tools as requested) */}
@@ -498,22 +515,15 @@ export const SettingsModal: React.FC = () => {
                         Ketik <code className="bg-[#1e1e1e] px-1 py-0.5 rounded">/plan</code> di chat untuk meminta pembuatan rencana.
                       </div>
                     </div>
-                    <div className="relative inline-flex items-center">
-                      <select
-                        value={settings.planReviewPolicy}
-                        onChange={(e) =>
-                          updateSettings({
-                            planReviewPolicy: e.target.value as 'always_ask' | 'auto' | 'never',
-                          })
-                        }
-                        className="appearance-none bg-[#1e1e1e] hover:bg-[#262626] border border-[#383838] rounded-xl pl-3 pr-8 py-1.5 text-xs text-[#ececec] focus:outline-none focus:border-[#4f4f4f] cursor-pointer transition-colors"
-                      >
-                        <option value="always_ask" className="bg-[#212121] text-[#ececec]">Always Ask</option>
-                        <option value="auto" className="bg-[#212121] text-[#ececec]">Automatic Approval</option>
-                        <option value="never" className="bg-[#212121] text-[#ececec]">Never Ask</option>
-                      </select>
-                      <ChevronDown className="w-3.5 h-3.5 text-[#707070] absolute right-2.5 pointer-events-none" />
-                    </div>
+                    <CustomSelect
+                      value={settings.planReviewPolicy}
+                      options={PLAN_REVIEW_OPTIONS}
+                      onChange={(val) =>
+                        updateSettings({
+                          planReviewPolicy: val as 'always_ask' | 'auto' | 'never',
+                        })
+                      }
+                    />
                   </div>
                 </div>
 
@@ -530,22 +540,15 @@ export const SettingsModal: React.FC = () => {
                           Controls whether the agent can run custom JavaScript in browser.
                         </div>
                       </div>
-                      <div className="relative inline-flex items-center">
-                        <select
-                          value={settings.browserJsPolicy}
-                          onChange={(e) =>
-                            updateSettings({
-                              browserJsPolicy: e.target.value as 'request_review' | 'allow' | 'block',
-                            })
-                          }
-                          className="appearance-none bg-[#1e1e1e] hover:bg-[#262626] border border-[#383838] rounded-xl pl-3 pr-8 py-1.5 text-xs text-[#ececec] focus:outline-none focus:border-[#4f4f4f] cursor-pointer transition-colors"
-                        >
-                          <option value="request_review" className="bg-[#212121] text-[#ececec]">Request Review</option>
-                          <option value="allow" className="bg-[#212121] text-[#ececec]">Allow Always</option>
-                          <option value="block" className="bg-[#212121] text-[#ececec]">Block</option>
-                        </select>
-                        <ChevronDown className="w-3.5 h-3.5 text-[#707070] absolute right-2.5 pointer-events-none" />
-                      </div>
+                      <CustomSelect
+                        value={settings.browserJsPolicy}
+                        options={BROWSER_JS_OPTIONS}
+                        onChange={(val) =>
+                          updateSettings({
+                            browserJsPolicy: val as 'request_review' | 'allow' | 'block',
+                          })
+                        }
+                      />
                     </div>
 
                     <div className="p-4 flex items-center justify-between">
@@ -733,22 +736,15 @@ export const SettingsModal: React.FC = () => {
                   <div className="p-4 rounded-2xl bg-[#282828] border border-[#383838] space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-[#ececec]">Preset</span>
-                      <div className="relative inline-flex items-center">
-                        <select
-                          value={settings.darkPreset}
-                          onChange={(e) =>
-                            updateSettings({
-                              darkPreset: e.target.value as 'default' | 'charcoal' | 'oled',
-                            })
-                          }
-                          className="appearance-none bg-[#1e1e1e] hover:bg-[#262626] border border-[#383838] rounded-xl pl-3 pr-8 py-1.5 text-xs text-[#ececec] focus:outline-none focus:border-[#4f4f4f] cursor-pointer transition-colors"
-                        >
-                          <option value="default" className="bg-[#212121] text-[#ececec]">Default Dark (ChatGPT #212121)</option>
-                          <option value="charcoal" className="bg-[#212121] text-[#ececec]">Charcoal (#171717)</option>
-                          <option value="oled" className="bg-[#212121] text-[#ececec]">OLED Deep Black (#000000)</option>
-                        </select>
-                        <ChevronDown className="w-3.5 h-3.5 text-[#707070] absolute right-2.5 pointer-events-none" />
-                      </div>
+                      <CustomSelect
+                        value={settings.darkPreset}
+                        options={DARK_PRESET_OPTIONS}
+                        onChange={(val) =>
+                          updateSettings({
+                            darkPreset: val as 'default' | 'charcoal' | 'oled',
+                          })
+                        }
+                      />
                     </div>
 
                     <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#333333] text-xs">

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { KanbanTask } from '../../types';
+import { CustomSelect } from '../common/CustomSelect';
 
 const COLUMNS: { id: KanbanTask['status']; title: string }[] = [
   { id: 'backlog', title: 'Backlog' },
@@ -188,30 +189,36 @@ export const TaskKanban: React.FC = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-[#b4b4b4]">Ditugaskan Kepada</label>
-                  <select
+                  <CustomSelect
                     value={newAgent}
-                    onChange={(e) => setNewAgent(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[#212121] border border-[#303030] text-[#ececec] focus:outline-none focus:border-[#404040] appearance-none"
-                  >
-                    <option value="Lead Architect" className="bg-[#212121] text-[#ececec]">Lead Architect</option>
-                    <option value="Coder Agent #1" className="bg-[#212121] text-[#ececec]">Coder Agent #1</option>
-                    <option value="Reviewer Agent" className="bg-[#212121] text-[#ececec]">Reviewer Agent</option>
-                    <option value="Security Auditor" className="bg-[#212121] text-[#ececec]">Security Auditor</option>
-                  </select>
+                    options={[
+                      { value: 'Lead Architect', label: 'Lead Architect' },
+                      { value: 'Coder Agent #1', label: 'Coder Agent #1' },
+                      { value: 'Reviewer Agent', label: 'Reviewer Agent' },
+                      { value: 'Security Auditor', label: 'Security Auditor' },
+                    ]}
+                    onChange={(val) => setNewAgent(val)}
+                    className="w-full"
+                    buttonClassName="w-full"
+                    align="left"
+                  />
                 </div>
 
                 <div className="space-y-1">
                   <label className="text-[#b4b4b4]">Prioritas</label>
-                  <select
+                  <CustomSelect
                     value={newPriority}
-                    onChange={(e) => setNewPriority(e.target.value as KanbanTask['priority'])}
-                    className="w-full px-3 py-2 rounded-xl bg-[#212121] border border-[#303030] text-[#ececec] focus:outline-none focus:border-[#404040] appearance-none"
-                  >
-                    <option value="low" className="bg-[#212121] text-[#ececec]">Low</option>
-                    <option value="medium" className="bg-[#212121] text-[#ececec]">Medium</option>
-                    <option value="high" className="bg-[#212121] text-[#ececec]">High</option>
-                    <option value="critical" className="bg-[#212121] text-[#ececec]">Critical</option>
-                  </select>
+                    options={[
+                      { value: 'low', label: 'Low' },
+                      { value: 'medium', label: 'Medium' },
+                      { value: 'high', label: 'High' },
+                      { value: 'critical', label: 'Critical' },
+                    ]}
+                    onChange={(val) => setNewPriority(val as KanbanTask['priority'])}
+                    className="w-full"
+                    buttonClassName="w-full"
+                    align="left"
+                  />
                 </div>
               </div>
 

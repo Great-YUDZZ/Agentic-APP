@@ -28,6 +28,7 @@ import {
   Search,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
+import { CustomSelect } from '../common/CustomSelect';
 import { AttachedFile } from '../../types';
 import { AttachmentChips } from '../common/AttachmentChips';
 import { processSelectedFiles, formatAttachedPrompt } from '../../utils/fileUpload';
@@ -605,24 +606,23 @@ export const MultiAgentDiscussion: React.FC = () => {
                 </button>
 
                 {/* Target Mention Select Pill (Harmonized h-8, matching border & bg) */}
-                <div className="h-8 flex items-center gap-1.5 px-3 rounded-full bg-[#212121] hover:bg-[#262626] border border-[#383838] text-xs text-[#ececec] transition-colors cursor-pointer group">
-                  <AtSign className="w-3.5 h-3.5 text-[#b4b4b4] group-hover:text-[#ececec]" />
-                  <select
-                    value={targetMention}
-                    onChange={(e) => setTargetMention(e.target.value)}
-                    className="bg-transparent border-none text-xs text-[#ececec] focus:outline-none cursor-pointer pr-1 appearance-none"
-                  >
-                    <option value="all" className="bg-[#212121] text-[#ececec]">Semua Tim</option>
-                    {customAgents
+                <CustomSelect
+                  value={targetMention}
+                  options={[
+                    { value: 'all', label: 'Semua Tim' },
+                    ...customAgents
                       .filter((a) => selectedAgentIds.includes(a.id))
-                      .map((agent) => (
-                        <option key={agent.id} value={agent.id} className="bg-[#212121] text-[#ececec]">
-                          @{agent.name}
-                        </option>
-                      ))}
-                  </select>
-                  <ChevronDown className="w-3 h-3 text-[#b4b4b4] group-hover:text-[#ececec] pointer-events-none" />
-                </div>
+                      .map((agent) => ({
+                        value: agent.id,
+                        label: `@${agent.name}`,
+                      })),
+                  ]}
+                  onChange={(val) => setTargetMention(val)}
+                  direction="up"
+                  align="left"
+                  icon={<AtSign className="w-3.5 h-3.5 text-[#b4b4b4]" />}
+                  buttonClassName="h-8 rounded-full bg-[#212121] hover:bg-[#262626] border-[#383838] px-3"
+                />
 
                 {/* Approval Mode Toggle: Ask for approval vs Strict (Harmonized h-8) */}
                 <button
