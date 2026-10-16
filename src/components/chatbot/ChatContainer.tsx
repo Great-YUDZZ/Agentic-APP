@@ -24,6 +24,7 @@ import {
   isModelActive,
   isModelUnavailable,
   getModelCategory,
+  resolveEndpointForModel,
 } from '../../utils/api';
 import { preparePrunedContextMessages } from '../../utils/contextManager';
 import { SlashCommandPopover, SLASH_COMMANDS, SlashCommandItem } from '../common/SlashCommandPopover';
@@ -151,6 +152,7 @@ export const ChatContainer: React.FC = () => {
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const [modelSearchQuery, setModelSearchQuery] = useState('');
   const [modelCategoryFilter, setModelCategoryFilter] = useState<'all' | 'gemini' | 'claude' | 'openrouter' | 'other'>('all');
+  const [expandedEndpoints, setExpandedEndpoints] = useState<Record<string, boolean>>({});
   const modelMenuRef = useRef<HTMLDivElement>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -318,10 +320,9 @@ export const ChatContainer: React.FC = () => {
     setIsSlashOpen(false);
     setIsGenerating(true);
 
-    const customKey = apiKeys.find((k) => k.provider === 'custom');
-    const apiKeyVal = customKey?.api_key || '';
+    const endpointConfig = resolveEndpointForModel(selectedModel, availableModels, apiKeys);
 
-    if (!apiKeyVal.trim()) {
+    if (!endpointConfig.apiKey.trim()) {
       addToast('error', 'API Key belum diatur. Buka menu Pengaturan API di sidebar untuk mengisi kunci.');
       setIsGenerating(false);
       return;
@@ -366,12 +367,12 @@ export const ChatContainer: React.FC = () => {
         temperature: 0.7,
       };
 
-      const chatUrl = getChatEndpoint(customKey?.base_url);
+      const chatUrl = getChatEndpoint(endpointConfig.baseUrl);
       const response = await fetch(chatUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKeyVal}`,
+          Authorization: `Bearer ${endpointConfig.apiKey}`,
         },
         body: JSON.stringify(requestPayload),
       });
@@ -710,8 +711,8 @@ export const ChatContainer: React.FC = () => {
                         ))}
                       </div>
 
-                      {/* Scrollable Model List */}
-                      <div className="flex-1 overflow-y-auto max-h-60 space-y-1 pr-1">
+                      {/* Scrollable Model List grouped by Endpoint with Accordion */}
+                      <div className="flex-1 overflow-y-auto max-h-64 space-y-2 pr-1">
                         {filteredModels.length === 0 ? (
                           <div className="p-4 text-center text-xs text-[#b4b4b4]">
                             {availableModels.length === 0
@@ -719,46 +720,97 @@ export const ChatContainer: React.FC = () => {
                               : 'Tidak ada model yang cocok dengan filter atau pencarian.'}
                           </div>
                         ) : (
-                          filteredModels.map((m) => {
-                            const isSelected = m.id === selectedModel;
-                            const isActive = isModelActive(m.id);
-                            const isUnavailable = isModelUnavailable(m.id);
+                          // Kelompokkan model berdasarkan endpoint_name
+                          Object.entries(
+                            filteredModels.reduce((acc, m) => {
+                              const groupName = m.endpoint_name || 'Custom Endpoint';
+                              if (!acc[groupName]) acc[groupName] = [];
+                              acc[groupName].push(m);
+                              return acc;
+                            }, {} as Record<string, typeof filteredModels>)
+                          ).map(([groupName, groupModels]) => {
+                            const isExpanded = expandedEndpoints[groupName] ?? true;
+                            const hasActiveModelInGroup = groupModels.some((m) => m.id === selectedModel);
 
                             return (
-                              <button
-                                key={m.id}
-                                onClick={() => handleSelectModel(m.id)}
-                                className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${
-                                  isSelected
-                                    ? 'bg-[#2f2f2f] text-white border border-[#404040]'
-                                    : 'hover:bg-[#212121] text-[#b4b4b4] hover:text-[#ececec]'
-                                }`}
-                              >
-                                <div className="truncate pr-2 flex-1 min-w-0">
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className="font-mono font-medium truncate">{m.id}</span>
-                                    {isActive && (
-                                      <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-sans font-medium rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
-                                        ✓ Aktif
-                                      </span>
-                                    )}
-                                    {isUnavailable && (
-                                      <span
-                                        className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-sans font-medium rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 shrink-0"
-                                        title="Model ini merespons error atau tidak ditemukan dari upstream"
-                                      >
-                                        ⚠️ Offline
-                                      </span>
+                              <div key={groupName} className="rounded-xl border border-[#303030] bg-[#1f1f1f] overflow-hidden">
+                                {/* Group Header Accordion Button */}
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setExpandedEndpoints((prev) => ({
+                                      ...prev,
+                                      [groupName]: !isExpanded,
+                                    }))
+                                  }
+                                  className="w-full px-3 py-1.5 flex items-center justify-between text-left bg-[#252525] hover:bg-[#2a2a2a] transition-colors border-b border-[#303030]/60"
+                                >
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <ChevronDown
+                                      className={`w-3.5 h-3.5 text-[#b4b4b4] transition-transform ${
+                                        isExpanded ? 'rotate-0' : '-rotate-90'
+                                      }`}
+                                    />
+                                    <span className="text-xs font-semibold text-[#ececec] truncate">
+                                      {groupName}
+                                    </span>
+                                    {hasActiveModelInGroup && (
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
                                     )}
                                   </div>
-                                  {m.context_length && (
-                                    <div className="text-[10px] text-[#707070]">
-                                      Context: {m.context_length.toLocaleString()} tokens
-                                    </div>
-                                  )}
-                                </div>
-                                {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-emerald-400" />}
-                              </button>
+                                  <span className="text-[10px] font-mono text-[#707070] shrink-0">
+                                    {groupModels.length} model
+                                  </span>
+                                </button>
+
+                                {/* Group Model Items */}
+                                {isExpanded && (
+                                  <div className="p-1 space-y-0.5">
+                                    {groupModels.map((m) => {
+                                      const isSelected = m.id === selectedModel;
+                                      const isActive = isModelActive(m.id);
+                                      const isUnavailable = isModelUnavailable(m.id);
+
+                                      return (
+                                        <button
+                                          key={m.id}
+                                          onClick={() => handleSelectModel(m.id)}
+                                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between transition-colors ${
+                                            isSelected
+                                              ? 'bg-[#2f2f2f] text-white border border-[#404040]'
+                                              : 'hover:bg-[#252525] text-[#b4b4b4] hover:text-[#ececec]'
+                                          }`}
+                                        >
+                                          <div className="truncate pr-2 flex-1 min-w-0">
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                              <span className="font-mono text-[11px] font-medium truncate">{m.id}</span>
+                                              {isActive && (
+                                                <span className="inline-flex items-center px-1.5 py-0.2 text-[9px] font-sans font-medium rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
+                                                  ✓ Aktif
+                                                </span>
+                                              )}
+                                              {isUnavailable && (
+                                                <span
+                                                  className="inline-flex items-center px-1.5 py-0.2 text-[9px] font-sans font-medium rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 shrink-0"
+                                                  title="Model ini offline atau error dari upstream"
+                                                >
+                                                  ⚠️ Offline
+                                                </span>
+                                              )}
+                                            </div>
+                                            {m.context_length && (
+                                              <div className="text-[9px] text-[#707070]">
+                                                Context: {m.context_length.toLocaleString()} tokens
+                                              </div>
+                                            )}
+                                          </div>
+                                          {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-emerald-400" />}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
                             );
                           })
                         )}

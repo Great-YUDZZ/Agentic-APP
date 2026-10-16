@@ -102,6 +102,50 @@ export function getModelsEndpoint(customBaseUrl?: string): string {
 }
 
 /**
+ * Resolves the appropriate base URL and API Key for a selected model
+ * across multiple custom endpoints and standard providers.
+ */
+export function resolveEndpointForModel(
+  modelId: string,
+  availableModels: Array<{ id: string; endpoint_id?: string; provider?: string }>,
+  apiKeys: Array<{ provider: string; api_key: string; base_url?: string; is_active: boolean }>
+): { baseUrl: string; apiKey: string; provider: string } {
+  const matchedModel = availableModels.find((m) => m.id === modelId);
+  const endpointId = matchedModel?.endpoint_id || matchedModel?.provider;
+
+  if (endpointId) {
+    const matchedKey = apiKeys.find((k) => k.provider === endpointId && k.is_active);
+    if (matchedKey && matchedKey.api_key.trim()) {
+      return {
+        baseUrl: matchedKey.base_url || 'http://localhost:20128/v1',
+        apiKey: matchedKey.api_key,
+        provider: matchedKey.provider,
+      };
+    }
+  }
+
+  // Fallback ke endpoint custom pertama yang aktif
+  const firstActiveCustom = apiKeys.find(
+    (k) => (k.provider === 'custom' || k.provider.startsWith('custom_')) && k.is_active && k.api_key.trim().length > 0
+  );
+  if (firstActiveCustom) {
+    return {
+      baseUrl: firstActiveCustom.base_url || 'http://localhost:20128/v1',
+      apiKey: firstActiveCustom.api_key,
+      provider: firstActiveCustom.provider,
+    };
+  }
+
+  // Fallback default
+  const defaultKey = apiKeys.find((k) => k.provider === 'custom');
+  return {
+    baseUrl: defaultKey?.base_url || 'http://localhost:20128/v1',
+    apiKey: defaultKey?.api_key || '',
+    provider: 'custom',
+  };
+}
+
+/**
  * Extracts and formats user-friendly error messages from API gateway and model provider responses.
  */
 export function formatApiErrorMessage(

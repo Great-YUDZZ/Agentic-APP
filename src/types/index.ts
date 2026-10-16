@@ -2,7 +2,8 @@ export type AppMode = 'chatbot' | 'agent' | 'build';
 export type StudioTab = 'discussion' | 'hierarchy' | 'kanban' | 'diff';
 
 export interface ApiKeyRecord {
-  provider: string;
+  provider: string; // 'custom', 'custom_<id>', 'gemini', 'openai', 'claude', 'deepseek', 'ollama'
+  name?: string;     // Label nama ramah pengguna (misal: "Local Proxy", "OpenRouter Personal")
   api_key: string;
   base_url?: string;
   is_active: boolean;
@@ -13,6 +14,8 @@ export interface ModelOption {
   id: string;
   name: string;
   provider: string;
+  endpoint_id?: string;
+  endpoint_name?: string;
   context_length?: number;
 }
 

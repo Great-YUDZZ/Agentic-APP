@@ -20,7 +20,7 @@ import {
   CodeReviewItem,
   StudioTab,
 } from '../types';
-import { parseRobustJson, getChatEndpoint, getModelsEndpoint, formatApiErrorMessage } from '../utils/api';
+import { parseRobustJson, getChatEndpoint, getModelsEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../utils/api';
 import { extractCodeReviewItems } from '../utils/codeExtractor';
 
 interface AppStore {
@@ -90,8 +90,9 @@ interface AppStore {
   apiKeys: ApiKeyRecord[];
   setApiKeys: (keys: ApiKeyRecord[]) => void;
   loadApiKeysFromDb: () => Promise<void>;
-  saveApiKey: (provider: string, apiKey: string, baseUrl?: string) => Promise<void>;
+  saveApiKey: (provider: string, apiKey: string, baseUrl?: string, name?: string) => Promise<void>;
   toggleApiKey: (provider: string) => Promise<void>;
+  deleteApiKey: (provider: string) => Promise<void>;
 
   // Chatbot Mode
   sessions: ChatSession[];
@@ -167,12 +168,8 @@ export const useStore = create<AppStore>((set, get) => ({
     const prevMode = get().currentMode;
     if (prevMode === nextMode) return;
 
-    // Jika beralih ke mode chatbot, tutup terminal demi proteksi isolasi
-    if (nextMode === 'chatbot') {
-      set({ isTerminalOpen: false });
-    }
-
-    set({ currentMode: nextMode, activeSessionId: null, messages: [] });
+    // Selalu tutup terminal saat beralih mode agar memulai dalam keadaan tertutup
+    set({ isTerminalOpen: false, currentMode: nextMode, activeSessionId: null, messages: [] });
   },
   isSidebarOpen: true,
   setSidebarOpen: (isSidebarOpen) => set({ isSidebarOpen }),
@@ -249,68 +246,97 @@ export const useStore = create<AppStore>((set, get) => ({
 
   fetchAvailableModels: async (customUrl, customKey) => {
     const keys = get().apiKeys;
-    const customConfig = keys.find((k) => k.provider === 'custom');
-    const url = customUrl || customConfig?.base_url || 'http://localhost:20128/v1';
-    const key = customKey ?? customConfig?.api_key ?? '';
+    const activeCustoms = keys.filter(
+      (k) => (k.provider === 'custom' || k.provider.startsWith('custom_')) && k.is_active && k.api_key.trim().length > 0
+    );
 
-    // Jika tidak ada API key aktif, kosongkan model dan batalkan deteksi
-    if (!key.trim()) {
-      set({
-        availableModels: [],
-        selectedModel: '',
-        isDetectingModels: false,
-      });
+    // Jika dipanggil dengan parameter eksplisit
+    if (customUrl || customKey) {
+      const url = customUrl || 'http://localhost:20128/v1';
+      const key = customKey || '';
+      if (!key.trim()) return 0;
+
+      set({ isDetectingModels: true });
+      try {
+        const targetModelsUrl = getModelsEndpoint(url);
+        const res = await fetch(targetModelsUrl, {
+          headers: { Authorization: `Bearer ${key.trim()}` },
+        });
+        if (!res.ok) throw new Error(`Status ${res.status}`);
+        const rawText = await res.text();
+        const json = parseRobustJson<any>(rawText);
+        const rawList = Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
+        const detected: ModelOption[] = rawList.map((m: { id: string; context_length?: number }) => ({
+          id: m.id,
+          name: m.id,
+          provider: 'custom',
+          endpoint_id: 'custom',
+          endpoint_name: 'Custom Endpoint',
+          context_length: m.context_length,
+        }));
+
+        set({ isDetectingModels: false });
+        return detected.length;
+      } catch (err) {
+        set({ isDetectingModels: false });
+        throw err;
+      }
+    }
+
+    if (activeCustoms.length === 0) {
+      set({ availableModels: [], selectedModel: '', isDetectingModels: false });
       return 0;
     }
 
     set({ isDetectingModels: true });
-    try {
-      const targetModelsUrl = getModelsEndpoint(url);
-      const headers: Record<string, string> = {
-        Authorization: `Bearer ${key.trim()}`,
-      };
+    const allModels: ModelOption[] = [];
 
-      const res = await fetch(targetModelsUrl, {
-        headers,
-      });
+    for (const endpoint of activeCustoms) {
+      const url = endpoint.base_url || 'http://localhost:20128/v1';
+      const key = endpoint.api_key;
+      const endpointLabel = endpoint.name || (endpoint.provider === 'custom' ? 'Custom Endpoint' : 'Local Proxy');
 
-      if (!res.ok) {
-        throw new Error(`Endpoint returned status ${res.status}`);
-      }
-
-      const rawText = await res.text();
-      const json = parseRobustJson<any>(rawText);
-      const rawList = Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
-      
-      const detected: ModelOption[] = rawList.map((m: { id: string; context_length?: number }) => ({
-        id: m.id,
-        name: m.id,
-        provider: 'custom',
-        context_length: m.context_length,
-      }));
-
-      if (detected.length > 0) {
-        const currentSelected = get().selectedModel;
-        const stillValid = detected.some((d) => d.id === currentSelected);
-        const nextModel = stillValid ? currentSelected : detected[0].id;
-
-        set({
-          availableModels: detected,
-          selectedModel: nextModel,
-          selectedProvider: 'custom',
-          isDetectingModels: false,
+      try {
+        const targetModelsUrl = getModelsEndpoint(url);
+        const res = await fetch(targetModelsUrl, {
+          headers: { Authorization: `Bearer ${key.trim()}` },
         });
-        return detected.length;
+        if (res.ok) {
+          const rawText = await res.text();
+          const json = parseRobustJson<any>(rawText);
+          const rawList = Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
+          rawList.forEach((m: { id: string; context_length?: number }) => {
+            allModels.push({
+              id: m.id,
+              name: m.id,
+              provider: endpoint.provider,
+              endpoint_id: endpoint.provider,
+              endpoint_name: endpointLabel,
+              context_length: m.context_length,
+            });
+          });
+        }
+      } catch (e) {
+        console.warn(`Gagal deteksi model untuk ${endpointLabel}:`, e);
       }
-
-      set({ availableModels: [], selectedModel: '', isDetectingModels: false });
-      return 0;
-    } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      get().addToast('error', `Gagal mendeteksi model: ${errMsg}`);
-      set({ availableModels: [], selectedModel: '', isDetectingModels: false });
-      return 0;
     }
+
+    if (allModels.length > 0) {
+      const currentSelected = get().selectedModel;
+      const stillValid = allModels.some((d) => d.id === currentSelected);
+      const nextModel = stillValid ? currentSelected : allModels[0].id;
+
+      set({
+        availableModels: allModels,
+        selectedModel: nextModel,
+        selectedProvider: 'custom',
+        isDetectingModels: false,
+      });
+      return allModels.length;
+    }
+
+    set({ availableModels: [], selectedModel: '', isDetectingModels: false });
+    return 0;
   },
 
   isSettingsOpen: false,
@@ -319,6 +345,7 @@ export const useStore = create<AppStore>((set, get) => ({
   apiKeys: [
     {
       provider: 'custom',
+      name: 'Custom Endpoint 1',
       api_key: '',
       base_url: 'http://localhost:20128/v1',
       is_active: true,
@@ -369,7 +396,7 @@ export const useStore = create<AppStore>((set, get) => ({
             const found = dbKeys.find((dk) => dk.provider === k.provider);
             return found ? { ...k, ...found } : k;
           });
-          // Tambahkan custom providers yang mungkin ada di DB tapi belum ada di state
+          // Tambahkan custom providers yang ada di DB tapi belum ada di state
           dbKeys.forEach((dk) => {
             if (!merged.some((m) => m.provider === dk.provider)) {
               merged.push(dk);
@@ -378,13 +405,8 @@ export const useStore = create<AppStore>((set, get) => ({
 
           set({ apiKeys: merged });
 
-          // Cek provider custom yang aktif
-          const custom = merged.find((k) => k.provider === 'custom' && k.is_active && k.api_key.trim().length > 0);
-          if (custom) {
-            get().fetchAvailableModels(custom.base_url, custom.api_key);
-          } else {
-            set({ availableModels: [], selectedModel: '' });
-          }
+          // Refresh model untuk seluruh custom endpoint aktif
+          await get().fetchAvailableModels();
           return;
         }
       }
@@ -393,7 +415,7 @@ export const useStore = create<AppStore>((set, get) => ({
     }
   },
 
-  saveApiKey: async (provider, apiKey, baseUrl) => {
+  saveApiKey: async (provider, apiKey, baseUrl, name) => {
     // 1. Simpan ke SQLite Rust Tauri jika tersedia
     if ((window as any).__TAURI_INTERNALS__) {
       try {
@@ -418,6 +440,7 @@ export const useStore = create<AppStore>((set, get) => ({
               ? {
                   ...k,
                   api_key: apiKey,
+                  name: name ?? k.name,
                   base_url: baseUrl ?? k.base_url,
                   is_active: apiKey.trim().length > 0,
                   updated_at: new Date().toISOString(),
@@ -431,6 +454,7 @@ export const useStore = create<AppStore>((set, get) => ({
           ...s.apiKeys,
           {
             provider,
+            name: name || (provider.startsWith('custom') ? 'Custom Endpoint' : provider),
             api_key: apiKey,
             base_url: baseUrl,
             is_active: apiKey.trim().length > 0,
@@ -440,13 +464,9 @@ export const useStore = create<AppStore>((set, get) => ({
       };
     });
 
-    // 3. Refresh ketersediaan model jika custom provider diperbarui
-    if (provider === 'custom') {
-      if (apiKey.trim().length > 0) {
-        await get().fetchAvailableModels(baseUrl, apiKey);
-      } else {
-        set({ availableModels: [], selectedModel: '' });
-      }
+    // 3. Refresh ketersediaan model jika custom endpoint diperbarui
+    if (provider === 'custom' || provider.startsWith('custom_')) {
+      await get().fetchAvailableModels();
     }
   },
 
@@ -473,13 +493,26 @@ export const useStore = create<AppStore>((set, get) => ({
       }
     }
 
-    if (provider === 'custom') {
-      if (nextActive && target?.api_key.trim()) {
-        await get().fetchAvailableModels(target.base_url, target.api_key);
-      } else {
-        set({ availableModels: [], selectedModel: '' });
+    if (provider === 'custom' || provider.startsWith('custom_')) {
+      await get().fetchAvailableModels();
+    }
+  },
+
+  deleteApiKey: async (provider) => {
+    if ((window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('delete_api_key', { provider });
+      } catch (err) {
+        console.warn(`Gagal menghapus api key ${provider} di SQLite:`, err);
       }
     }
+
+    set((s) => ({
+      apiKeys: s.apiKeys.filter((k) => k.provider !== provider),
+    }));
+
+    await get().fetchAvailableModels();
   },
 
   // CLEAN CHAT STATE & PERSISTENCE
@@ -727,13 +760,13 @@ export const useStore = create<AppStore>((set, get) => ({
     if (!currentAgent) return;
 
     // Ambil endpoint dan model spesifik agen (fallback ke model global)
-    const customConfig = state.apiKeys.find((k) => k.provider === 'custom');
-    const baseUrl = customConfig?.base_url || 'http://localhost:20128/v1';
-    const apiKey = customConfig?.api_key || '';
     const model = currentAgent.model || state.selectedModel;
+    const endpointConfig = resolveEndpointForModel(model, state.availableModels, state.apiKeys);
+    const baseUrl = endpointConfig.baseUrl;
+    const apiKey = endpointConfig.apiKey;
 
     if (!apiKey.trim()) {
-      state.addToast('error', `API Key belum diatur. Buka Pengaturan API untuk memasukkan kredensial.`);
+      state.addToast('error', `API Key belum diatur untuk model ${model}. Buka Pengaturan API untuk memasukkan kredensial.`);
       set((s) => ({
         buildDiscussion: {
           ...s.buildDiscussion,
@@ -1035,7 +1068,7 @@ ATURAN KOMUNIKASI & TUGAS ANDA SEKARANG:
   },
 
   // Terminal State Implementation
-  isTerminalOpen: true,
+  isTerminalOpen: false,
   setTerminalOpen: (isTerminalOpen) => set({ isTerminalOpen }),
   terminalHeight: 260,
   setTerminalHeight: (terminalHeight) => set({ terminalHeight }),

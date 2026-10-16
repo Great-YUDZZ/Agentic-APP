@@ -28,7 +28,7 @@ import { CustomAgent, AttachedFile } from '../../types';
 import { AgentCreatorModal } from './AgentCreatorModal';
 import { AttachmentChips } from '../common/AttachmentChips';
 import { processSelectedFiles, formatAttachedPrompt } from '../../utils/fileUpload';
-import { parseRobustJson, getChatEndpoint, formatApiErrorMessage } from '../../utils/api';
+import { parseRobustJson, getChatEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../../utils/api';
 import { getDailyGreeting } from '../../utils/dailyGreetings';
 
 interface ExecutionStep {
@@ -169,10 +169,10 @@ export const AgentWorkspace: React.FC = () => {
     });
 
     try {
-      const customConfig = apiKeys.find((k) => k.provider === 'custom');
-      const baseUrl = customConfig?.base_url || 'http://localhost:20128/v1';
-      const apiKey = customConfig?.api_key || '';
       const effectiveModel = activeAgent.model || selectedModel;
+      const endpointConfig = resolveEndpointForModel(effectiveModel, availableModels, apiKeys);
+      const baseUrl = endpointConfig.baseUrl;
+      const apiKey = endpointConfig.apiKey;
 
       if (!apiKey.trim()) {
         addToast('error', 'API Key belum diatur. Buka Pengaturan API untuk memasukkan kredensial.');

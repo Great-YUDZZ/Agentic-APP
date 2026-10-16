@@ -260,8 +260,8 @@ export const AgentCreatorModal: React.FC<AgentCreatorModalProps> = ({
                       (Default: Mengikuti Model Global {selectedModel ? `[${selectedModel}]` : ''})
                     </option>
                     {availableModels.map((m) => (
-                      <option key={m.id} value={m.id} className="bg-[#212121] text-[#ececec]">
-                        {m.id}
+                      <option key={`${m.endpoint_id || m.provider}-${m.id}`} value={m.id} className="bg-[#212121] text-[#ececec]">
+                        {m.endpoint_name ? `[${m.endpoint_name}] ${m.id}` : m.id}
                       </option>
                     ))}
                   </select>

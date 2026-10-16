@@ -510,7 +510,7 @@ export const MultiAgentDiscussion: React.FC = () => {
                                   const isCur = agent.model === m.id;
                                   return (
                                     <button
-                                      key={m.id}
+                                      key={`${m.endpoint_id || m.provider}-${m.id}`}
                                       type="button"
                                       onClick={() => {
                                         updateCustomAgent(agent.id, { model: m.id });
@@ -523,7 +523,9 @@ export const MultiAgentDiscussion: React.FC = () => {
                                           : 'text-[#b4b4b4] hover:bg-[#212121] hover:text-[#ececec]'
                                       }`}
                                     >
-                                      <span className="truncate">{m.id}</span>
+                                      <span className="truncate">
+                                        {m.endpoint_name ? `[${m.endpoint_name}] ${m.id}` : m.id}
+                                      </span>
                                       {isCur && <Check className="w-3 h-3 text-emerald-400 shrink-0" />}
                                     </button>
                                   );
