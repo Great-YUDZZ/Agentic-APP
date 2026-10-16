@@ -30,6 +30,7 @@ import { AttachmentChips } from '../common/AttachmentChips';
 import { processSelectedFiles, formatAttachedPrompt } from '../../utils/fileUpload';
 import { parseRobustJson, getChatEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../../utils/api';
 import { getDailyGreeting } from '../../utils/dailyGreetings';
+import { getConversationWidthClass } from '../../utils/layout';
 
 interface ExecutionStep {
   id: string;
@@ -64,7 +65,10 @@ export const AgentWorkspace: React.FC = () => {
     setSettingsOpen,
     addToast,
     addLog,
+    settings,
   } = useStore();
+
+  const convWidthClass = getConversationWidthClass(settings?.conversationWidth);
 
   const [isCreatorModalOpen, setIsCreatorModalOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<CustomAgent | null>(null);
@@ -305,7 +309,7 @@ Sebagai agent spesialis, berikan:
   return (
     <div className="flex-1 flex flex-col h-full bg-[#212121] overflow-hidden">
       {/* Scrollable Agent Content Body */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 max-w-5xl mx-auto w-full">
+      <div className={`flex-1 overflow-y-auto p-6 space-y-6 ${convWidthClass} mx-auto w-full`}>
         {/* Top Banner: Title (Clean without right-side model pill) */}
         <div className="flex items-center justify-between pb-3 border-b border-[#262626]">
           <div>
@@ -577,7 +581,7 @@ Sebagai agent spesialis, berikan:
 
       {/* Fixed Bottom Input Dock with Daily Dynamic Greeting */}
       <div className="p-4 bg-gradient-to-t from-[#212121] via-[#212121] to-transparent shrink-0">
-        <div className="max-w-5xl mx-auto w-full space-y-2">
+        <div className={`${convWidthClass} mx-auto w-full space-y-2`}>
           {/* Dynamic Daily Greeting Headline */}
           <div className="text-center py-0.5">
             <h2 className="text-xl font-medium tracking-tight text-[#ececec]">

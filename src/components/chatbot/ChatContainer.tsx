@@ -28,6 +28,7 @@ import {
 } from '../../utils/api';
 import { preparePrunedContextMessages } from '../../utils/contextManager';
 import { SlashCommandPopover, SLASH_COMMANDS, SlashCommandItem } from '../common/SlashCommandPopover';
+import { getConversationWidthClass } from '../../utils/layout';
 
 // Formatted Code and Text component
 const FormattedMessage: React.FC<{ content: string; reasoning?: string }> = ({ content, reasoning }) => {
@@ -136,7 +137,10 @@ export const ChatContainer: React.FC = () => {
     contextUsagePercent,
     setContextCompressed,
     setContextUsagePercent,
+    settings,
   } = useStore();
+
+  const convWidthClass = getConversationWidthClass(settings?.conversationWidth);
 
   const [inputPrompt, setInputPrompt] = useState('');
   const [isWebSearchActive, setIsWebSearchActive] = useState(false);
@@ -529,7 +533,7 @@ export const ChatContainer: React.FC = () => {
             return (
               <div
                 key={msg.id}
-                className={`flex gap-3.5 max-w-5xl mx-auto w-full ${isUser ? 'justify-end' : 'justify-start'}`}
+                className={`flex gap-3.5 ${convWidthClass} mx-auto w-full ${isUser ? 'justify-end' : 'justify-start'}`}
               >
                 {!isUser && (
                   <div className="w-7 h-7 rounded-full bg-[#2f2f2f] border border-[#383838] flex items-center justify-center text-[#ececec] shrink-0 mt-0.5">
@@ -555,7 +559,7 @@ export const ChatContainer: React.FC = () => {
         )}
 
         {isGenerating && (
-          <div className="flex gap-3.5 max-w-5xl mx-auto w-full justify-start items-center">
+          <div className={`flex gap-3.5 ${convWidthClass} mx-auto w-full justify-start items-center`}>
             <div className="w-7 h-7 rounded-full bg-[#2f2f2f] border border-[#383838] flex items-center justify-center text-[#ececec] shrink-0">
               <Bot className="w-3.5 h-3.5" />
             </div>
@@ -571,7 +575,7 @@ export const ChatContainer: React.FC = () => {
 
       {/* Floating Prompt Input Dock with Integrated Model Selector Inside */}
       <div className="p-4 bg-gradient-to-t from-[#212121] via-[#212121] to-transparent shrink-0">
-        <div className="max-w-5xl mx-auto w-full space-y-2">
+        <div className={`${convWidthClass} mx-auto w-full space-y-2`}>
           {/* Context Thresholding & Pruning Notice Banner */}
           {isContextCompressed && (
             <div className="px-3.5 py-2 rounded-2xl bg-[#2a2415] border border-[#784e12] flex items-center justify-between gap-3 text-xs text-[#fde047] animate-fadeIn">

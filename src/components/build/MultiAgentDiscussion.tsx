@@ -33,6 +33,7 @@ import { AttachmentChips } from '../common/AttachmentChips';
 import { processSelectedFiles, formatAttachedPrompt } from '../../utils/fileUpload';
 import { extractCodeReviewItems } from '../../utils/codeExtractor';
 import { getDailyGreeting } from '../../utils/dailyGreetings';
+import { getConversationWidthClass } from '../../utils/layout';
 
 export const MultiAgentDiscussion: React.FC = () => {
   const {
@@ -56,7 +57,10 @@ export const MultiAgentDiscussion: React.FC = () => {
     updateCustomAgent,
     isStrictApprovalMode,
     toggleStrictApprovalMode,
+    settings,
   } = useStore();
+
+  const convWidthClass = getConversationWidthClass(settings?.conversationWidth);
 
   const [chatInput, setChatInput] = useState('');
   const [targetMention, setTargetMention] = useState<string>('all');
@@ -217,7 +221,7 @@ export const MultiAgentDiscussion: React.FC = () => {
 
 
       {/* 3. Discussion Stream Messages */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4 max-w-5xl mx-auto w-full">
+      <div className={`flex-1 overflow-y-auto p-6 space-y-4 ${convWidthClass} mx-auto w-full`}>
         {buildDiscussion.messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-3">
             <div className="w-12 h-12 rounded-2xl bg-[#212121] border border-[#303030] flex items-center justify-center text-[#ececec]">
@@ -340,7 +344,7 @@ export const MultiAgentDiscussion: React.FC = () => {
 
       {/* 4. Interactive Chat & Directive Dock (Bottom) */}
       <div className="p-4 bg-gradient-to-t from-[#212121] via-[#212121] to-transparent shrink-0">
-        <div className="max-w-5xl mx-auto w-full">
+        <div className={`${convWidthClass} mx-auto w-full`}>
           {/* Main Input Capsule */}
           <div className="relative rounded-3xl bg-[#2f2f2f] border border-[#383838] p-2.5 px-3.5 focus-within:border-[#4f4f4f] transition-colors">
             {/* Squad Room Header Bar & Quick Controls (Moved inside chat dock) */}

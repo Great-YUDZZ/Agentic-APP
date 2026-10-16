@@ -170,4 +170,25 @@ export interface AttachedFile {
   isImage: boolean;
 }
 
+export interface AppSettings {
+  // General
+  queuedMessages: 'queue' | 'immediate';
+  permissionPreset: 'turbo' | 'standard' | 'strict';
+  planReviewPolicy: 'always_ask' | 'auto' | 'never';
+  browserJsPolicy: 'request_review' | 'allow' | 'block';
+  networkAccessRules: string[];
 
+  // Application
+  preventSleep: boolean;
+  keepInMenuBar: boolean;
+
+  // Appearance
+  theme: 'system' | 'light' | 'dark';
+  contrast: 'default' | 'strong';
+  darkPreset: 'default' | 'charcoal' | 'oled';
+  bgColor: string;
+  fgColor: string;
+  accentColor: string;
+  verboseAgentChat: boolean;
+  conversationWidth: 'narrow' | 'default' | 'wide';
+}

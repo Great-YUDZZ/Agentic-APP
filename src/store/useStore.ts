@@ -19,6 +19,7 @@ import {
   InstalledSkill,
   CodeReviewItem,
   StudioTab,
+  AppSettings,
 } from '../types';
 import { parseRobustJson, getChatEndpoint, getModelsEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../utils/api';
 import { extractCodeReviewItems } from '../utils/codeExtractor';
@@ -155,7 +156,41 @@ interface AppStore {
   toasts: ToastItem[];
   addToast: (type: 'success' | 'error' | 'info' | 'warning', message: string, duration?: number) => void;
   removeToast: (id: string) => void;
+
+  // Global App Settings
+  settings: AppSettings;
+  updateSettings: (partial: Partial<AppSettings>) => void;
 }
+
+const DEFAULT_SETTINGS: AppSettings = {
+  queuedMessages: 'queue',
+  permissionPreset: 'standard',
+  planReviewPolicy: 'always_ask',
+  browserJsPolicy: 'request_review',
+  networkAccessRules: ['https://*'],
+  preventSleep: true,
+  keepInMenuBar: true,
+  theme: 'dark',
+  contrast: 'default',
+  darkPreset: 'default',
+  bgColor: '#212121',
+  fgColor: '#ececec',
+  accentColor: '#3b82f6',
+  verboseAgentChat: true,
+  conversationWidth: 'default',
+};
+
+const loadSavedSettings = (): AppSettings => {
+  try {
+    const raw = localStorage.getItem('agentic_app_settings');
+    if (raw) {
+      return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    }
+  } catch (e) {
+    console.warn('Failed to load settings:', e);
+  }
+  return DEFAULT_SETTINGS;
+};
 
 export const useStore = create<AppStore>((set, get) => ({
   // Studio View Navigation (Build Mode)
@@ -1290,4 +1325,22 @@ ATURAN KOMUNIKASI & TUGAS ANDA SEKARANG:
   },
   removeToast: (id) =>
     set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+
+  // Global App Settings
+  settings: loadSavedSettings(),
+  updateSettings: (partial) => {
+    set((state) => {
+      const updated = { ...state.settings, ...partial };
+      try {
+        localStorage.setItem('agentic_app_settings', JSON.stringify(updated));
+      } catch (e) {
+        console.warn('Failed to save settings:', e);
+      }
+      let strictMode = state.isStrictApprovalMode;
+      if (partial.permissionPreset) {
+        strictMode = partial.permissionPreset === 'turbo';
+      }
+      return { settings: updated, isStrictApprovalMode: strictMode };
+    });
+  },
 }));
