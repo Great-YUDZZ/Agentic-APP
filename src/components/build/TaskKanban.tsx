@@ -191,12 +191,12 @@ export const TaskKanban: React.FC = () => {
                   <select
                     value={newAgent}
                     onChange={(e) => setNewAgent(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[#212121] border border-[#303030] text-[#ececec] focus:outline-none focus:border-[#404040]"
+                    className="w-full px-3 py-2 rounded-xl bg-[#212121] border border-[#303030] text-[#ececec] focus:outline-none focus:border-[#404040] appearance-none"
                   >
-                    <option value="Lead Architect">Lead Architect</option>
-                    <option value="Coder Agent #1">Coder Agent #1</option>
-                    <option value="Reviewer Agent">Reviewer Agent</option>
-                    <option value="Security Auditor">Security Auditor</option>
+                    <option value="Lead Architect" className="bg-[#212121] text-[#ececec]">Lead Architect</option>
+                    <option value="Coder Agent #1" className="bg-[#212121] text-[#ececec]">Coder Agent #1</option>
+                    <option value="Reviewer Agent" className="bg-[#212121] text-[#ececec]">Reviewer Agent</option>
+                    <option value="Security Auditor" className="bg-[#212121] text-[#ececec]">Security Auditor</option>
                   </select>
                 </div>
 
@@ -205,12 +205,12 @@ export const TaskKanban: React.FC = () => {
                   <select
                     value={newPriority}
                     onChange={(e) => setNewPriority(e.target.value as KanbanTask['priority'])}
-                    className="w-full px-3 py-2 rounded-xl bg-[#212121] border border-[#303030] text-[#ececec] focus:outline-none focus:border-[#404040]"
+                    className="w-full px-3 py-2 rounded-xl bg-[#212121] border border-[#303030] text-[#ececec] focus:outline-none focus:border-[#404040] appearance-none"
                   >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="critical">Critical</option>
+                    <option value="low" className="bg-[#212121] text-[#ececec]">Low</option>
+                    <option value="medium" className="bg-[#212121] text-[#ececec]">Medium</option>
+                    <option value="high" className="bg-[#212121] text-[#ececec]">High</option>
+                    <option value="critical" className="bg-[#212121] text-[#ececec]">Critical</option>
                   </select>
                 </div>
               </div>

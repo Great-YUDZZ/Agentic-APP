@@ -24,6 +24,7 @@ import {
   Moon,
   ExternalLink,
   RotateCw,
+  ChevronDown,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 
@@ -423,19 +424,22 @@ export const SettingsModal: React.FC = () => {
                           Controls the actions the agent can take.
                         </div>
                       </div>
-                      <select
-                        value={settings.permissionPreset}
-                        onChange={(e) =>
-                          updateSettings({
-                            permissionPreset: e.target.value as 'turbo' | 'standard' | 'strict',
-                          })
-                        }
-                        className="bg-[#1e1e1e] border border-[#383838] rounded-xl px-3 py-1.5 text-xs text-[#ececec] focus:outline-none cursor-pointer"
-                      >
-                        <option value="turbo">Turbo (Auto Execution)</option>
-                        <option value="standard">Standard (Ask for Approval)</option>
-                        <option value="strict">Strict (Ask on All Tools)</option>
-                      </select>
+                      <div className="relative inline-flex items-center">
+                        <select
+                          value={settings.permissionPreset}
+                          onChange={(e) =>
+                            updateSettings({
+                              permissionPreset: e.target.value as 'turbo' | 'standard' | 'strict',
+                            })
+                          }
+                          className="appearance-none bg-[#1e1e1e] hover:bg-[#262626] border border-[#383838] rounded-xl pl-3 pr-8 py-1.5 text-xs text-[#ececec] focus:outline-none focus:border-[#4f4f4f] cursor-pointer transition-colors"
+                        >
+                          <option value="turbo" className="bg-[#212121] text-[#ececec]">Turbo (Auto Execution)</option>
+                          <option value="standard" className="bg-[#212121] text-[#ececec]">Standard (Ask for Approval)</option>
+                          <option value="strict" className="bg-[#212121] text-[#ececec]">Strict (Ask on All Tools)</option>
+                        </select>
+                        <ChevronDown className="w-3.5 h-3.5 text-[#707070] absolute right-2.5 pointer-events-none" />
+                      </div>
                     </div>
 
                     {/* Installed Skills (Replaces Tools as requested) */}
@@ -494,19 +498,22 @@ export const SettingsModal: React.FC = () => {
                         Ketik <code className="bg-[#1e1e1e] px-1 py-0.5 rounded">/plan</code> di chat untuk meminta pembuatan rencana.
                       </div>
                     </div>
-                    <select
-                      value={settings.planReviewPolicy}
-                      onChange={(e) =>
-                        updateSettings({
-                          planReviewPolicy: e.target.value as 'always_ask' | 'auto' | 'never',
-                        })
-                      }
-                      className="bg-[#1e1e1e] border border-[#383838] rounded-xl px-3 py-1.5 text-xs text-[#ececec] focus:outline-none cursor-pointer"
-                    >
-                      <option value="always_ask">Always Ask</option>
-                      <option value="auto">Automatic Approval</option>
-                      <option value="never">Never Ask</option>
-                    </select>
+                    <div className="relative inline-flex items-center">
+                      <select
+                        value={settings.planReviewPolicy}
+                        onChange={(e) =>
+                          updateSettings({
+                            planReviewPolicy: e.target.value as 'always_ask' | 'auto' | 'never',
+                          })
+                        }
+                        className="appearance-none bg-[#1e1e1e] hover:bg-[#262626] border border-[#383838] rounded-xl pl-3 pr-8 py-1.5 text-xs text-[#ececec] focus:outline-none focus:border-[#4f4f4f] cursor-pointer transition-colors"
+                      >
+                        <option value="always_ask" className="bg-[#212121] text-[#ececec]">Always Ask</option>
+                        <option value="auto" className="bg-[#212121] text-[#ececec]">Automatic Approval</option>
+                        <option value="never" className="bg-[#212121] text-[#ececec]">Never Ask</option>
+                      </select>
+                      <ChevronDown className="w-3.5 h-3.5 text-[#707070] absolute right-2.5 pointer-events-none" />
+                    </div>
                   </div>
                 </div>
 
@@ -523,19 +530,22 @@ export const SettingsModal: React.FC = () => {
                           Controls whether the agent can run custom JavaScript in browser.
                         </div>
                       </div>
-                      <select
-                        value={settings.browserJsPolicy}
-                        onChange={(e) =>
-                          updateSettings({
-                            browserJsPolicy: e.target.value as 'request_review' | 'allow' | 'block',
-                          })
-                        }
-                        className="bg-[#1e1e1e] border border-[#383838] rounded-xl px-3 py-1.5 text-xs text-[#ececec] focus:outline-none cursor-pointer"
-                      >
-                        <option value="request_review">Request Review</option>
-                        <option value="allow">Allow Always</option>
-                        <option value="block">Block</option>
-                      </select>
+                      <div className="relative inline-flex items-center">
+                        <select
+                          value={settings.browserJsPolicy}
+                          onChange={(e) =>
+                            updateSettings({
+                              browserJsPolicy: e.target.value as 'request_review' | 'allow' | 'block',
+                            })
+                          }
+                          className="appearance-none bg-[#1e1e1e] hover:bg-[#262626] border border-[#383838] rounded-xl pl-3 pr-8 py-1.5 text-xs text-[#ececec] focus:outline-none focus:border-[#4f4f4f] cursor-pointer transition-colors"
+                        >
+                          <option value="request_review" className="bg-[#212121] text-[#ececec]">Request Review</option>
+                          <option value="allow" className="bg-[#212121] text-[#ececec]">Allow Always</option>
+                          <option value="block" className="bg-[#212121] text-[#ececec]">Block</option>
+                        </select>
+                        <ChevronDown className="w-3.5 h-3.5 text-[#707070] absolute right-2.5 pointer-events-none" />
+                      </div>
                     </div>
 
                     <div className="p-4 flex items-center justify-between">
@@ -723,19 +733,22 @@ export const SettingsModal: React.FC = () => {
                   <div className="p-4 rounded-2xl bg-[#282828] border border-[#383838] space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-[#ececec]">Preset</span>
-                      <select
-                        value={settings.darkPreset}
-                        onChange={(e) =>
-                          updateSettings({
-                            darkPreset: e.target.value as 'default' | 'charcoal' | 'oled',
-                          })
-                        }
-                        className="bg-[#1e1e1e] border border-[#383838] rounded-xl px-3 py-1 text-xs text-[#ececec]"
-                      >
-                        <option value="default">Default Dark (ChatGPT #212121)</option>
-                        <option value="charcoal">Charcoal (#171717)</option>
-                        <option value="oled">OLED Deep Black (#000000)</option>
-                      </select>
+                      <div className="relative inline-flex items-center">
+                        <select
+                          value={settings.darkPreset}
+                          onChange={(e) =>
+                            updateSettings({
+                              darkPreset: e.target.value as 'default' | 'charcoal' | 'oled',
+                            })
+                          }
+                          className="appearance-none bg-[#1e1e1e] hover:bg-[#262626] border border-[#383838] rounded-xl pl-3 pr-8 py-1.5 text-xs text-[#ececec] focus:outline-none focus:border-[#4f4f4f] cursor-pointer transition-colors"
+                        >
+                          <option value="default" className="bg-[#212121] text-[#ececec]">Default Dark (ChatGPT #212121)</option>
+                          <option value="charcoal" className="bg-[#212121] text-[#ececec]">Charcoal (#171717)</option>
+                          <option value="oled" className="bg-[#212121] text-[#ececec]">OLED Deep Black (#000000)</option>
+                        </select>
+                        <ChevronDown className="w-3.5 h-3.5 text-[#707070] absolute right-2.5 pointer-events-none" />
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#333333] text-xs">

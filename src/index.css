@@ -25,3 +25,17 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #4a4a4a;
 }
+
+/* Ensure GTK / WebKitGTK does not render white native styling on select elements */
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-color: #1e1e1e;
+  color: #ececec;
+}
+
+select option {
+  background-color: #212121;
+  color: #ececec;
+}
