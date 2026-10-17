@@ -24,9 +24,10 @@ import {
   RotateCw,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import { CustomAgent, AttachedFile } from '../../types';
+import { CustomAgent, AttachedFile, ChatMessage } from '../../types';
 import { AgentCreatorModal } from './AgentCreatorModal';
 import { AttachmentChips } from '../common/AttachmentChips';
+import { FormattedMessage } from '../common/FormattedMessage';
 import { processSelectedFiles, formatAttachedPrompt } from '../../utils/fileUpload';
 import { parseRobustJson, getChatEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../../utils/api';
 import { getDailyGreeting } from '../../utils/dailyGreetings';
@@ -72,6 +73,13 @@ export const AgentWorkspace: React.FC = () => {
     pendingPlanApproval,
     setPendingPlanApproval,
     resolvePlanApproval,
+    messages,
+    activeSessionId,
+    addMessage,
+    saveChatMessageToDb,
+    createNewSession,
+    updateSessionTitle,
+    sessions,
   } = useStore();
 
   const convWidthClass = getConversationWidthClass(settings?.conversationWidth);
@@ -96,6 +104,15 @@ export const AgentWorkspace: React.FC = () => {
   const [modelSearchQuery, setModelSearchQuery] = useState('');
   const modelMenuRef = useRef<HTMLDivElement>(null);
   const taskTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const currentMessages = messages.filter(
+    (m) => !activeSessionId || m.session_id === activeSessionId
+  );
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [currentMessages.length, isExecuting, activeReasoning, agentOutput]);
 
   // File Upload State
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -186,6 +203,20 @@ export const AgentWorkspace: React.FC = () => {
       setTaskInput('');
       setAttachedFiles([]);
     }
+
+    const targetSessionId =
+      activeSessionId || createNewSession(currentTask.slice(0, 35) || 'Sesi Tugas Agent', 'agent');
+
+    const userMsg: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      session_id: targetSessionId,
+      role: 'user',
+      content: fullTaskPrompt,
+      created_at: new Date().toISOString(),
+    };
+    addMessage(userMsg);
+    saveChatMessageToDb(userMsg);
+
     setIsExecuting(true);
     setActiveReasoning('');
     setAgentOutput('');
@@ -257,6 +288,25 @@ Sebagai agent spesialis, berikan:
 
       setActiveReasoning(reasoning);
       setAgentOutput(content);
+
+      const assistantMsg: ChatMessage = {
+        id: `msg-${Date.now() + 1}`,
+        session_id: targetSessionId,
+        role: 'assistant',
+        content,
+        reasoning,
+        created_at: new Date().toISOString(),
+      };
+      addMessage(assistantMsg);
+      saveChatMessageToDb(assistantMsg);
+
+      const currentSession = sessions.find((s) => s.id === targetSessionId);
+      if (currentSession && (currentSession.title === 'Sesi Tugas Agent' || currentSession.title.startsWith('session-'))) {
+        const newTitle = currentTask.trim().slice(0, 35);
+        if (newTitle) {
+          updateSessionTitle(targetSessionId, newTitle);
+        }
+      }
 
       // Simulasi langkah tool yang relevan dengan skills agent
       const generatedSteps: ExecutionStep[] = [];
@@ -434,7 +484,7 @@ Sebagai agent spesialis, berikan:
       </div>
 
       {/* 2. Active Agent Identity Card or Empty State */}
-      {customAgents.length === 0 ? (
+      {customAgents.length === 0 && currentMessages.length === 0 ? (
         <div className="rounded-2xl bg-[#2f2f2f] border border-[#383838] p-8 text-center space-y-4">
           <div className="w-12 h-12 rounded-2xl bg-[#212121] border border-[#383838] flex items-center justify-center mx-auto text-[#ececec]">
             <Bot className="w-6 h-6" />
@@ -454,23 +504,23 @@ Sebagai agent spesialis, berikan:
           </button>
         </div>
       ) : activeAgent ? (
-        <div className="rounded-2xl bg-[#2f2f2f] border border-[#383838] p-5 space-y-4">
+        <div className="rounded-2xl bg-[#2f2f2f] border border-[#383838] p-4 space-y-3">
           <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3.5 flex-1">
+            <div className="flex items-start gap-3.5 flex-1 min-w-0">
               <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0 mt-0.5"
+                className="w-9 h-9 rounded-xl flex items-center justify-center text-white shrink-0 mt-0.5"
                 style={{ backgroundColor: activeAgent.avatar_color }}
               >
                 <Bot className="w-5 h-5" />
               </div>
-              <div className="space-y-1 flex-1">
+              <div className="space-y-0.5 flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-[#ececec]">{activeAgent.name}</h3>
-                  <span className="px-2 py-0.5 rounded-md bg-[#212121] text-[10px] font-mono text-[#b4b4b4]">
+                  <h3 className="text-sm font-semibold text-[#ececec] truncate">{activeAgent.name}</h3>
+                  <span className="px-2 py-0.5 rounded-md bg-[#212121] text-[10px] font-mono text-[#b4b4b4] shrink-0">
                     {activeAgent.role}
                   </span>
                 </div>
-                <p className="text-xs text-[#b4b4b4] leading-relaxed">
+                <p className="text-xs text-[#b4b4b4] leading-relaxed line-clamp-2">
                   {activeAgent.task_description}
                 </p>
               </div>
@@ -496,7 +546,7 @@ Sebagai agent spesialis, berikan:
 
           {/* Skills Badges */}
           <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-[#383838]">
-            <span className="text-[11px] font-semibold text-[#b4b4b4]">Keahlian & Tools:</span>
+            <span className="text-[11px] font-semibold text-[#b4b4b4]">Keahlian:</span>
             {activeAgent.skills.map((skill) => (
               <span
                 key={skill}
@@ -510,10 +560,62 @@ Sebagai agent spesialis, berikan:
         </div>
       ) : null}
 
+      {/* 3. Conversation & Task Execution History Stream */}
+      {currentMessages.length > 0 && (
+        <div className="space-y-4 pt-1">
+          {currentMessages.map((msg) => {
+            const isUser = msg.role === 'user';
+            if (isUser) {
+              return (
+                <div key={msg.id} className="flex justify-end w-full">
+                  <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-[#2f2f2f] border border-[#383838] p-4 text-[#ececec] shadow-sm">
+                    <div className="flex items-center justify-end gap-2 pb-1.5 border-b border-[#383838] mb-2 text-xs">
+                      <span className="text-[10px] text-[#707070] font-mono">
+                        {msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                      </span>
+                      <span className="font-semibold text-[#ececec]">Operator</span>
+                    </div>
+                    <p className="text-xs sm:text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                  </div>
+                </div>
+              );
+            }
 
+            return (
+              <div key={msg.id} className="flex justify-start w-full">
+                <div className="w-full rounded-2xl rounded-tl-sm bg-[#262626] border border-[#383838] p-4 space-y-3 shadow-sm">
+                  <div className="flex items-center justify-between pb-2 border-b border-[#303030]">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0"
+                        style={{ backgroundColor: activeAgent?.avatar_color || '#3b82f6' }}
+                      >
+                        <Bot className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-xs font-semibold text-[#ececec]">{activeAgent?.name || 'Agent'}</span>
+                      <span className="text-[10px] text-[#b4b4b4] font-mono px-1.5 py-0.5 rounded bg-[#1f1f1f]">
+                        {activeAgent?.role || 'Autonomous Specialist'}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-[#707070] font-mono">
+                      {msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                    </span>
+                  </div>
 
-      {/* 4. Reasoning Chain & Output Stream */}
-      {(activeReasoning || agentOutput || isExecuting) && (
+                  <FormattedMessage
+                    content={msg.content}
+                    reasoning={msg.reasoning}
+                    verbose={settings?.verboseAgentChat ?? true}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 4. Active Reasoning Chain & Live Output Stream while executing */}
+      {(isExecuting || (!currentMessages.some((m) => m.content === agentOutput) && (activeReasoning || agentOutput))) && (
         <div className="rounded-2xl bg-[#2f2f2f] border border-[#383838] overflow-hidden">
           <button
             onClick={() => setIsReasoningOpen(!isReasoningOpen)}
@@ -558,8 +660,8 @@ Sebagai agent spesialis, berikan:
 
                 {/* Final Output */}
                 {agentOutput && (
-                  <div className="p-4 rounded-xl bg-[#212121] border border-[#303030] text-xs text-[#ececec] leading-relaxed whitespace-pre-wrap">
-                    {agentOutput}
+                  <div className="p-4 rounded-xl bg-[#212121] border border-[#303030] text-xs text-[#ececec] leading-relaxed">
+                    <FormattedMessage content={agentOutput} verbose={settings?.verboseAgentChat ?? true} />
                   </div>
                 )}
               </motion.div>
@@ -567,6 +669,8 @@ Sebagai agent spesialis, berikan:
           </AnimatePresence>
         </div>
       )}
+
+      <div ref={messagesEndRef} />
 
       {/* 5. Executed Tool Step Badges */}
       {executionSteps.length > 0 && (

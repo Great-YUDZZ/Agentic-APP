@@ -621,11 +621,51 @@ export const useStore = create<AppStore>((set, get) => ({
 
   selectSession: async (id: string) => {
     set({ activeSessionId: id });
+    const targetSession = get().sessions.find((s) => s.id === id);
     if ((window as any).__TAURI_INTERNALS__) {
       try {
         const { invoke } = await import('@tauri-apps/api/core');
         const msgs = (await invoke('get_chat_messages', { sessionId: id })) as ChatMessage[];
-        set({ messages: msgs || [] });
+        const safeMsgs = msgs || [];
+        set({ messages: safeMsgs });
+
+        // Jika sesi bertipe build discussion, sinkronkan ke buildDiscussion.messages
+        if (targetSession?.mode === 'build') {
+          const discussionMsgs: DiscussionMessage[] = safeMsgs.map((m) => {
+            const isOp = m.role === 'user';
+            let agentName = 'Studio Builder Agent';
+            let agentRole = 'Full-Stack Engineer';
+            let content = m.content;
+            if (!isOp) {
+              const match = m.content.match(/^\[(.*?)\s*-\s*(.*?)\]\n([\s\S]*)$/);
+              if (match) {
+                agentName = match[1];
+                agentRole = match[2];
+                content = match[3];
+              }
+            }
+            return {
+              id: m.id,
+              agent_id: isOp ? 'operator' : 'agent-build',
+              agent_name: isOp ? 'Operator (You)' : agentName,
+              agent_role: isOp ? 'Human Director' : agentRole,
+              avatar_color: isOp ? '#ececec' : '#3b82f6',
+              content: content,
+              step_type: isOp ? 'operator_directive' : 'implementation',
+              timestamp: m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+            };
+          });
+
+          set((s) => ({
+            buildDiscussion: {
+              ...s.buildDiscussion,
+              id: id,
+              project_goal: targetSession.title,
+              messages: discussionMsgs,
+              status: discussionMsgs.length > 0 ? 'completed' : 'idle',
+            },
+          }));
+        }
       } catch (err) {
         console.warn(`Gagal memuat pesan untuk sesi ${id}:`, err);
       }
@@ -731,10 +771,36 @@ export const useStore = create<AppStore>((set, get) => ({
     }
   },
 
-  // CUSTOM AGENTS ROSTER (Default zero built-in agents)
-  customAgents: [],
-  selectedAgentId: null,
-  setCustomAgents: (customAgents) => set({ customAgents }),
+  // CUSTOM AGENTS ROSTER (With localStorage persistence)
+  customAgents: (() => {
+    try {
+      const raw = localStorage.getItem('agentic_custom_agents');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.warn('Gagal membaca agentic_custom_agents dari localStorage:', e);
+    }
+    return [
+      {
+        id: 'agent-lead-researcher',
+        name: 'Lead Research Analyst',
+        role: 'Research & Architecture Analyst',
+        task_description: 'Menganalisis arsitektur sistem, membedah dokumen teknis, dan merumuskan spesifikasi desain engineering.',
+        skills: ['Code Analysis', 'System Architecture', 'Security Sandbox Review'],
+        avatar_color: '#3b82f6',
+        created_at: new Date().toISOString(),
+      },
+    ];
+  })(),
+  selectedAgentId: 'agent-lead-researcher',
+  setCustomAgents: (customAgents) => {
+    try {
+      localStorage.setItem('agentic_custom_agents', JSON.stringify(customAgents));
+    } catch (_) {}
+    set({ customAgents });
+  },
   setSelectedAgentId: (selectedAgentId) => set({ selectedAgentId }),
   createCustomAgent: (agentData) => {
     const newId = `agent-${Date.now()}`;
@@ -743,25 +809,36 @@ export const useStore = create<AppStore>((set, get) => ({
       id: newId,
       created_at: new Date().toISOString(),
     };
-    set((s) => ({
-      customAgents: [...s.customAgents, newAgent],
+    const nextAgents = [...get().customAgents, newAgent];
+    try {
+      localStorage.setItem('agentic_custom_agents', JSON.stringify(nextAgents));
+    } catch (_) {}
+    set(() => ({
+      customAgents: nextAgents,
       selectedAgentId: newId,
     }));
     get().addToast('success', `Agent "${newAgent.name}" berhasil dibuat!`);
     return newId;
   },
-  updateCustomAgent: (id, updates) =>
+  updateCustomAgent: (id, updates) => {
+    const nextAgents = get().customAgents.map((a) => (a.id === id ? { ...a, ...updates } : a));
+    try {
+      localStorage.setItem('agentic_custom_agents', JSON.stringify(nextAgents));
+    } catch (_) {}
+    set(() => ({
+      customAgents: nextAgents,
+    }));
+  },
+  deleteCustomAgent: (id) => {
+    const remaining = get().customAgents.filter((a) => a.id !== id);
+    try {
+      localStorage.setItem('agentic_custom_agents', JSON.stringify(remaining));
+    } catch (_) {}
     set((s) => ({
-      customAgents: s.customAgents.map((a) => (a.id === id ? { ...a, ...updates } : a)),
-    })),
-  deleteCustomAgent: (id) =>
-    set((s) => {
-      const remaining = s.customAgents.filter((a) => a.id !== id);
-      return {
-        customAgents: remaining,
-        selectedAgentId: s.selectedAgentId === id ? remaining[0]?.id || null : s.selectedAgentId,
-      };
-    }),
+      customAgents: remaining,
+      selectedAgentId: s.selectedAgentId === id ? remaining[0]?.id || null : s.selectedAgentId,
+    }));
+  },
 
   // MULTI-AGENT BUILD DISCUSSION SESSION
   buildDiscussion: {
@@ -786,6 +863,13 @@ export const useStore = create<AppStore>((set, get) => ({
       s.addToast('warning', 'Tentukan project goal terlebih dahulu!');
       return;
     }
+    const targetSessionId = s.activeSessionId || s.createNewSession(goal.slice(0, 35), 'build');
+    const systemMsgId = `msg-system-${Date.now()}`;
+    const systemContent = `Project Goal ditetapkan: "${goal}".\nTim terdiri dari ${agentIds.length} agen: ${agentIds
+      .map((id) => s.customAgents.find((a) => a.id === id)?.name)
+      .filter(Boolean)
+      .join(', ')}. Diskusi kolaborasi dimulai.`;
+
     set(() => ({
       buildDiscussion: {
         id: `discussion-${Date.now()}`,
@@ -795,21 +879,26 @@ export const useStore = create<AppStore>((set, get) => ({
         current_turn_index: 0,
         messages: [
           {
-            id: `msg-system-${Date.now()}`,
+            id: systemMsgId,
             agent_id: 'system',
             agent_name: 'Coordinator',
             agent_role: 'Orchestrator',
             avatar_color: '#6366f1',
-            content: `Project Goal ditetapkan: "${goal}".\nTim terdiri dari ${agentIds.length} agen: ${agentIds
-              .map((id) => s.customAgents.find((a) => a.id === id)?.name)
-              .filter(Boolean)
-              .join(', ')}. Diskusi kolaborasi dimulai.`,
+            content: systemContent,
             step_type: 'summary',
             timestamp: new Date().toLocaleTimeString(),
           },
         ],
       },
     }));
+
+    s.saveChatMessageToDb({
+      id: systemMsgId,
+      session_id: targetSessionId,
+      role: 'user',
+      content: systemContent,
+      created_at: new Date().toISOString(),
+    });
 
     s.addToast('info', `Diskusi multi-agent dimulai untuk: "${goal.slice(0, 35)}..."`);
     // Otomatis memicu putaran pertama
@@ -999,6 +1088,16 @@ ATURAN KOMUNIKASI & TUGAS ANDA SEKARANG:
         },
       }));
 
+      // Simpan respons agen ke SQLite
+      const targetSessionId = state.activeSessionId || state.createNewSession(session.project_goal || 'Proyek Studio Multi-Agent', 'build');
+      state.saveChatMessageToDb({
+        id: newMsg.id,
+        session_id: targetSessionId,
+        role: 'assistant',
+        content: `[${currentAgent.name} - ${currentAgent.role}]\n${finalContent}`,
+        created_at: new Date().toISOString(),
+      });
+
       // Tambahkan ke log
       state.addLog({
         id: `log-turn-${Date.now()}`,
@@ -1054,6 +1153,16 @@ ATURAN KOMUNIKASI & TUGAS ANDA SEKARANG:
         messages: [...state.buildDiscussion.messages, opMsg],
       },
     }));
+
+    // Simpan pesan operator ke SQLite
+    const targetSessionId = s.activeSessionId || s.createNewSession(content.trim().slice(0, 30), 'build');
+    s.saveChatMessageToDb({
+      id: opMsg.id,
+      session_id: targetSessionId,
+      role: 'user',
+      content: content.trim(),
+      created_at: new Date().toISOString(),
+    });
 
     s.addToast('info', 'Instruksi operator dikirim ke tim agen.');
     await get().advanceDiscussionTurn(targetAgentId);

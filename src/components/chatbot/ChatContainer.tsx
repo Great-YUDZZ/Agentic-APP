@@ -3,11 +3,9 @@ import {
   ArrowUp,
   Globe,
   Paperclip,
-  Copy,
   Check,
   Bot,
   Trash2,
-  ChevronRight,
   ChevronDown,
   RotateCw,
   Search,
@@ -30,98 +28,7 @@ import {
 import { preparePrunedContextMessages } from '../../utils/contextManager';
 import { SlashCommandPopover, SLASH_COMMANDS, SlashCommandItem } from '../common/SlashCommandPopover';
 import { getConversationWidthClass } from '../../utils/layout';
-
-// Formatted Code and Text component
-const FormattedMessage: React.FC<{ content: string; reasoning?: string; verbose?: boolean }> = ({
-  content,
-  reasoning,
-  verbose = true,
-}) => {
-  const [copiedCodeIndex, setCopiedCodeIndex] = useState<number | null>(null);
-
-  const parts = content.split(/(```[\s\S]*?```)/g);
-
-  const handleCopyCode = (codeText: string, index: number) => {
-    navigator.clipboard.writeText(codeText);
-    setCopiedCodeIndex(index);
-    setTimeout(() => setCopiedCodeIndex(null), 2000);
-  };
-
-  return (
-    <div className="space-y-3 leading-relaxed text-sm">
-      {reasoning && (
-        <details
-          key={String(verbose)}
-          open={verbose}
-          className="mb-3 p-3 rounded-xl bg-[#262626] border border-[#303030] text-xs text-[#b4b4b4] group"
-        >
-          <summary className="cursor-pointer font-medium text-xs text-[#b4b4b4] hover:text-[#ececec] select-none flex items-center gap-1.5">
-            <ChevronRight className="w-3.5 h-3.5 transition-transform group-open:rotate-90" />
-            <span>Proses Berpikir Model ({reasoning.length} karakter)</span>
-          </summary>
-          <div className="mt-2 pt-2 border-t border-[#303030] text-[11px] font-mono whitespace-pre-wrap text-[#9e9ea7] max-h-48 overflow-y-auto">
-            {reasoning}
-          </div>
-        </details>
-      )}
-
-      {parts.map((part, index) => {
-        if (part.startsWith('```') && part.endsWith('```')) {
-          const lines = part.slice(3, -3).trim().split('\n');
-          const firstLine = lines[0].trim();
-          const hasLang = /^[a-zA-Z0-9_-]+$/.test(firstLine);
-          const lang = hasLang ? firstLine : 'code';
-          const codeBody = hasLang ? lines.slice(1).join('\n') : lines.join('\n');
-
-          return (
-            <div
-              key={index}
-              className="my-3 rounded-xl overflow-hidden border border-[#303030] bg-[#171717]"
-            >
-              <div className="flex items-center justify-between px-3.5 py-1.5 bg-[#212121] border-b border-[#303030] text-xs">
-                <span className="font-mono text-[#b4b4b4] text-[11px] lowercase">
-                  {lang}
-                </span>
-                <button
-                  onClick={() => handleCopyCode(codeBody, index)}
-                  className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg hover:bg-[#2f2f2f] text-[#b4b4b4] hover:text-[#ececec] transition-colors text-[11px]"
-                >
-                  {copiedCodeIndex === index ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
-                      <span className="text-emerald-400">Copied</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Copy</span>
-                    </>
-                  )}
-                </button>
-              </div>
-              <pre className="p-3.5 overflow-x-auto text-xs font-mono text-[#ececec] leading-relaxed bg-[#171717]">
-                <code>{codeBody}</code>
-              </pre>
-            </div>
-          );
-        }
-
-        return (
-          <div key={index} className="space-y-2 whitespace-pre-wrap">
-            {part.split('\n\n').map((paragraph, pIdx) => {
-              if (!paragraph.trim()) return null;
-              return (
-                <p key={pIdx} className="text-[#ececec]">
-                  {paragraph}
-                </p>
-              );
-            })}
-          </div>
-        );
-      })}
-    </div>
-  );
-};
+import { FormattedMessage } from '../common/FormattedMessage';
 
 export const ChatContainer: React.FC = () => {
   const {

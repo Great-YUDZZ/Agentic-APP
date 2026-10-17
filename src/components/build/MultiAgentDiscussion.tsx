@@ -35,6 +35,7 @@ import { processSelectedFiles, formatAttachedPrompt } from '../../utils/fileUplo
 import { extractCodeReviewItems } from '../../utils/codeExtractor';
 import { getDailyGreeting } from '../../utils/dailyGreetings';
 import { getConversationWidthClass } from '../../utils/layout';
+import { FormattedMessage } from '../common/FormattedMessage';
 
 export const MultiAgentDiscussion: React.FC = () => {
   const {
@@ -364,8 +365,8 @@ export const MultiAgentDiscussion: React.FC = () => {
                   </div>
 
                   {/* Message Body */}
-                  <div className="text-xs text-[#ececec] leading-relaxed whitespace-pre-wrap">
-                    {msg.content}
+                  <div className="text-xs text-[#ececec] leading-relaxed">
+                    <FormattedMessage content={msg.content} verbose={settings?.verboseAgentChat ?? true} />
                   </div>
                 </motion.div>
               </div>
