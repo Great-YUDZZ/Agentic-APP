@@ -1,19 +1,56 @@
 import React, { useState } from 'react';
 import { ChevronRight, Copy, Check } from 'lucide-react';
 import Prism from 'prismjs';
+// Base, Markup & Web
+import 'prismjs/components/prism-markup';
+import 'prismjs/components/prism-css';
+import 'prismjs/components/prism-clike';
 import 'prismjs/components/prism-javascript';
 import 'prismjs/components/prism-typescript';
 import 'prismjs/components/prism-jsx';
 import 'prismjs/components/prism-tsx';
-import 'prismjs/components/prism-markup';
-import 'prismjs/components/prism-css';
+
+// Systems & Backend
+import 'prismjs/components/prism-c';
+import 'prismjs/components/prism-cpp';
+import 'prismjs/components/prism-csharp';
+import 'prismjs/components/prism-java';
+import 'prismjs/components/prism-kotlin';
+import 'prismjs/components/prism-go';
 import 'prismjs/components/prism-rust';
 import 'prismjs/components/prism-python';
+import 'prismjs/components/prism-ruby';
+import 'prismjs/components/prism-swift';
+import 'prismjs/components/prism-dart';
+import 'prismjs/components/prism-scala';
+import 'prismjs/components/prism-zig';
+import 'prismjs/components/prism-lua';
+import 'prismjs/components/prism-r';
+import 'prismjs/components/prism-elixir';
+import 'prismjs/components/prism-erlang';
+import 'prismjs/components/prism-haskell';
+
+// Templating & Modern Web
+import 'prismjs/components/prism-markup-templating';
+import 'prismjs/components/prism-php';
+import 'prismjs/components/prism-scss';
+import 'prismjs/components/prism-less';
+import 'prismjs/components/prism-graphql';
+import 'prismjs/components/prism-wasm';
+import 'prismjs/components/prism-solidity';
+
+// Shell, DevOps & Config
 import 'prismjs/components/prism-bash';
+import 'prismjs/components/prism-powershell';
+import 'prismjs/components/prism-docker';
+import 'prismjs/components/prism-nginx';
 import 'prismjs/components/prism-json';
-import 'prismjs/components/prism-markdown';
-import 'prismjs/components/prism-sql';
 import 'prismjs/components/prism-yaml';
+import 'prismjs/components/prism-toml';
+import 'prismjs/components/prism-ini';
+import 'prismjs/components/prism-sql';
+import 'prismjs/components/prism-markdown';
+import 'prismjs/components/prism-diff';
 
 interface FormattedMessageProps {
   content: string;
@@ -21,53 +58,55 @@ interface FormattedMessageProps {
   verbose?: boolean;
 }
 
+const LANGUAGE_ALIASES: Record<string, string> = {
+  // Web & JS
+  html: 'markup',
+  xml: 'markup',
+  svg: 'markup',
+  vue: 'markup',
+  svelte: 'markup',
+  js: 'javascript',
+  mjs: 'javascript',
+  cjs: 'javascript',
+  ts: 'typescript',
+  mts: 'typescript',
+  cts: 'typescript',
+  // Systems & Languages
+  'c++': 'cpp',
+  'c#': 'csharp',
+  cs: 'csharp',
+  golang: 'go',
+  rs: 'rust',
+  py: 'python',
+  rb: 'ruby',
+  kt: 'kotlin',
+  // Shell, DevOps & Data
+  sh: 'bash',
+  shell: 'bash',
+  zsh: 'bash',
+  ps: 'powershell',
+  ps1: 'powershell',
+  dockerfile: 'docker',
+  containerfile: 'docker',
+  yml: 'yaml',
+  md: 'markdown',
+  sol: 'solidity',
+};
+
 const getPrismGrammar = (lang: string) => {
   const normalized = lang.toLowerCase().trim();
-  switch (normalized) {
-    case 'html':
-    case 'xml':
-    case 'svg':
-    case 'markup':
-      return { grammar: Prism.languages.markup, name: 'markup' };
-    case 'js':
-    case 'javascript':
-      return { grammar: Prism.languages.javascript, name: 'javascript' };
-    case 'ts':
-    case 'typescript':
-      return { grammar: Prism.languages.typescript, name: 'typescript' };
-    case 'jsx':
-      return { grammar: Prism.languages.jsx, name: 'jsx' };
-    case 'tsx':
-      return { grammar: Prism.languages.tsx, name: 'tsx' };
-    case 'css':
-      return { grammar: Prism.languages.css, name: 'css' };
-    case 'rust':
-    case 'rs':
-      return { grammar: Prism.languages.rust, name: 'rust' };
-    case 'python':
-    case 'py':
-      return { grammar: Prism.languages.python, name: 'python' };
-    case 'bash':
-    case 'sh':
-    case 'shell':
-    case 'zsh':
-      return { grammar: Prism.languages.bash, name: 'bash' };
-    case 'json':
-      return { grammar: Prism.languages.json, name: 'json' };
-    case 'yaml':
-    case 'yml':
-      return { grammar: Prism.languages.yaml, name: 'yaml' };
-    case 'sql':
-      return { grammar: Prism.languages.sql, name: 'sql' };
-    case 'md':
-    case 'markdown':
-      return { grammar: Prism.languages.markdown, name: 'markdown' };
-    default:
-      if (Prism.languages[normalized]) {
-        return { grammar: Prism.languages[normalized], name: normalized };
-      }
-      return null;
+  if (['text', 'plain', 'txt', 'output', 'code'].includes(normalized)) {
+    return null;
   }
+  const target = LANGUAGE_ALIASES[normalized] || normalized;
+  if (Prism.languages[target]) {
+    return { grammar: Prism.languages[target], name: target };
+  }
+  // Fallback ke clike untuk bahasa yang belum didaftarkan
+  if (Prism.languages.clike) {
+    return { grammar: Prism.languages.clike, name: 'clike' };
+  }
+  return null;
 };
 
 const renderCodeBlock = (codeBody: string, lang: string) => {
