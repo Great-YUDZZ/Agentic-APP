@@ -30,6 +30,7 @@ import { CustomSelect } from '../common/CustomSelect';
 import { NetworkAccessRulesModal } from './NetworkAccessRulesModal';
 import { BrowserActuationRulesModal } from './BrowserActuationRulesModal';
 import { ShortcutsModal } from './ShortcutsModal';
+import { CreateSkillModal } from './CreateSkillModal';
 
 interface StandardProviderConfig {
   id: string;
@@ -119,6 +120,7 @@ export const SettingsModal: React.FC = () => {
     settings,
     updateSettings,
     installedSkills,
+    uninstallSkill,
     workspaceProjectRoot,
     pickAndSetWorkspaceRoot,
   } = useStore();
@@ -130,6 +132,7 @@ export const SettingsModal: React.FC = () => {
   const [isNetworkModalOpen, setIsNetworkModalOpen] = useState(false);
   const [isBrowserActuationModalOpen, setIsBrowserActuationModalOpen] = useState(false);
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
+  const [isCreateSkillModalOpen, setIsCreateSkillModalOpen] = useState(false);
 
   // API Key Management Form States
   const [visibleKeyId, setVisibleKeyId] = useState<string | null>(null);
@@ -1223,21 +1226,39 @@ export const SettingsModal: React.FC = () => {
                       Kemampuan khusus yang dapat diaktifkan oleh agen otonom.
                     </p>
                   </div>
-                  <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-[#282828] border border-[#383838] text-emerald-400">
-                    {installedSkills.length} Skills Siap Pakai
-                  </span>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-[#282828] border border-[#383838] text-emerald-400">
+                      {installedSkills.length} Terpasang
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsCreateSkillModalOpen(true)}
+                      className="px-3 py-1.5 rounded-xl bg-[#ececec] hover:bg-white text-xs font-medium text-[#171717] transition-colors flex items-center gap-1.5 shadow-sm"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Tambah / Buat Skill</span>
+                    </button>
+                  </div>
                 </div>
 
                 {installedSkills.length === 0 ? (
-                  <div className="p-8 text-center border border-dashed border-[#383838] rounded-2xl text-xs text-[#707070]">
-                    Belum ada skills yang terpasang di proyek ini.
+                  <div className="p-8 text-center border border-dashed border-[#383838] rounded-2xl text-xs text-[#707070] space-y-3">
+                    <p>Belum ada skills yang terpasang di proyek ini.</p>
+                    <button
+                      type="button"
+                      onClick={() => setIsCreateSkillModalOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#262626] hover:bg-[#303030] border border-[#383838] text-xs font-medium text-[#ececec] transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Buat Skill Pertama</span>
+                    </button>
                   </div>
                 ) : (
                   <div className="space-y-2.5">
                     {installedSkills.map((skill) => (
                       <div
                         key={skill.id}
-                        className="p-3.5 rounded-2xl bg-[#282828] border border-[#383838] flex items-start justify-between gap-3"
+                        className="p-3.5 rounded-2xl bg-[#282828] border border-[#383838] flex items-start justify-between gap-3 group"
                       >
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
@@ -1253,6 +1274,15 @@ export const SettingsModal: React.FC = () => {
                             {skill.path}
                           </div>
                         </div>
+
+                        <button
+                          type="button"
+                          onClick={() => uninstallSkill(skill.id)}
+                          className="p-1.5 rounded-lg text-[#707070] hover:text-red-400 hover:bg-[#1e1e1e] transition-colors shrink-0"
+                          title="Hapus skill"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -1275,6 +1305,10 @@ export const SettingsModal: React.FC = () => {
       <ShortcutsModal
         isOpen={isShortcutsModalOpen}
         onClose={() => setIsShortcutsModalOpen(false)}
+      />
+      <CreateSkillModal
+        isOpen={isCreateSkillModalOpen}
+        onClose={() => setIsCreateSkillModalOpen(false)}
       />
     </div>
   );

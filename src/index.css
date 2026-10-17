@@ -40,6 +40,91 @@ body.theme-light,
   color: #0d0d0d;
 }
 
+/* Cascading ChatGPT Flat Light Theme Overrides */
+.theme-light .bg-\[\#212121\],
+.theme-light [class*="bg-[#212121]"] {
+  background-color: #ffffff !important;
+}
+
+.theme-light .bg-\[\#171717\],
+.theme-light [class*="bg-[#171717]"] {
+  background-color: #f9f9f9 !important;
+}
+
+.theme-light .bg-\[\#2f2f2f\],
+.theme-light .bg-\[\#282828\],
+.theme-light .bg-\[\#1e1e1e\],
+.theme-light .bg-\[\#262626\],
+.theme-light .bg-\[\#2a2a2a\],
+.theme-light [class*="bg-[#2f2f2f]"],
+.theme-light [class*="bg-[#282828]"],
+.theme-light [class*="bg-[#1e1e1e]"],
+.theme-light [class*="bg-[#262626]"],
+.theme-light [class*="bg-[#2a2a2a]"] {
+  background-color: #f4f4f4 !important;
+}
+
+.theme-light .text-\[\#ececec\],
+.theme-light [class*="text-[#ececec]"] {
+  color: #0d0d0d !important;
+}
+
+.theme-light .text-\[\#b4b4b4\],
+.theme-light [class*="text-[#b4b4b4]"] {
+  color: #5d5d5d !important;
+}
+
+.theme-light .text-\[\#707070\],
+.theme-light .text-\[\#555\],
+.theme-light [class*="text-[#707070]"] {
+  color: #8e8e8e !important;
+}
+
+.theme-light .border-\[\#303030\],
+.theme-light .border-\[\#383838\],
+.theme-light .border-\[\#262626\],
+.theme-light .border-\[\#2e2e2e\],
+.theme-light .border-\[\#333333\],
+.theme-light [class*="border-[#303030]"],
+.theme-light [class*="border-[#383838]"],
+.theme-light [class*="border-[#262626]"],
+.theme-light [class*="border-[#2e2e2e]"] {
+  border-color: #e5e5e5 !important;
+}
+
+.theme-light .hover\:bg-\[\#2f2f2f\]:hover,
+.theme-light .hover\:bg-\[\#262626\]:hover,
+.theme-light .hover\:bg-\[\#383838\]:hover,
+.theme-light .hover\:bg-\[\#212121\]:hover,
+.theme-light .hover\:bg-\[\#282828\]:hover {
+  background-color: #eaeaea !important;
+}
+
+.theme-light .hover\:text-\[\#ececec\]:hover,
+.theme-light .hover\:text-white:hover {
+  color: #000000 !important;
+}
+
+.theme-light .bg-\[\#252525\],
+.theme-light [class*="bg-[#252525]"] {
+  background-color: #ededed !important;
+}
+
+.theme-light .hover\:bg-\[\#252525\]:hover {
+  background-color: #e5e5e5 !important;
+}
+
+.theme-light input:not([type="checkbox"]):not([type="radio"]),
+.theme-light textarea {
+  color: #0d0d0d !important;
+  background-color: #ffffff !important;
+}
+
+.theme-light input::placeholder,
+.theme-light textarea::placeholder {
+  color: #8e8e8e !important;
+}
+
 /* Contrast Strong Mode: Enhanced borders and contrast */
 .contrast-strong {
   --border: #4a4a4a;
@@ -52,6 +137,14 @@ body.theme-light,
 
 .contrast-strong * {
   border-color: var(--border);
+}
+
+.theme-light.contrast-strong .border-\[\#303030\],
+.theme-light.contrast-strong .border-\[\#383838\],
+.theme-light.contrast-strong .border-\[\#262626\],
+.theme-light.contrast-strong .border-\[\#2e2e2e\],
+.theme-light.contrast-strong [class*="border-"] {
+  border-color: #a3a3a3 !important;
 }
 
 .contrast-strong input,
