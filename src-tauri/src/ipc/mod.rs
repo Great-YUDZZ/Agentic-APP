@@ -880,6 +880,82 @@ pub async fn send_desktop_notification(title: String, body: String) -> Result<()
     }
 }
 
+#[tauri::command]
+pub async fn get_system_theme() -> Result<String, String> {
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(output) = Command::new("gsettings")
+            .args(["get", "org.gnome.desktop.interface", "color-scheme"])
+            .output()
+        {
+            let stdout = String::from_utf8_lossy(&output.stdout).to_lowercase();
+            if stdout.contains("dark") {
+                return Ok("dark".to_string());
+            }
+            if stdout.contains("default") || stdout.contains("light") {
+                if let Ok(gtk_out) = Command::new("gsettings")
+                    .args(["get", "org.gnome.desktop.interface", "gtk-theme"])
+                    .output()
+                {
+                    let gtk_str = String::from_utf8_lossy(&gtk_out.stdout).to_lowercase();
+                    if gtk_str.contains("dark") {
+                        return Ok("dark".to_string());
+                    }
+                }
+                return Ok("light".to_string());
+            }
+        }
+
+        if let Ok(output) = Command::new("dbus-send")
+            .args([
+                "--print-reply=literal",
+                "--dest=org.freedesktop.portal.Desktop",
+                "/org/freedesktop/portal/desktop",
+                "org.freedesktop.portal.Settings.Read",
+                "string:org.freedesktop.appearance",
+                "string:color-scheme",
+            ])
+            .output()
+        {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            if stdout.contains("uint32 1") {
+                return Ok("dark".to_string());
+            } else if stdout.contains("uint32 2") {
+                return Ok("light".to_string());
+            }
+        }
+
+        Ok("dark".to_string())
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let output = Command::new("reg")
+            .args([
+                "query",
+                "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+                "/v",
+                "AppsUseLightTheme",
+            ])
+            .output();
+
+        if let Ok(out) = output {
+            let s = String::from_utf8_lossy(&out.stdout);
+            if s.contains("0x0") {
+                return Ok("dark".to_string());
+            } else if s.contains("0x1") {
+                return Ok("light".to_string());
+            }
+        }
+        Ok("dark".to_string())
+    }
+
+    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+    {
+        Ok("dark".to_string())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -927,6 +1003,21 @@ mod tests {
             )
             .await;
             assert!(valid_res.is_ok());
+        });
+    }
+
+    #[test]
+    fn test_get_system_theme() {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        rt.block_on(async {
+            let res = get_system_theme().await;
+            assert!(res.is_ok());
+            let theme = res.unwrap();
+            assert!(theme == "dark" || theme == "light");
         });
     }
 }

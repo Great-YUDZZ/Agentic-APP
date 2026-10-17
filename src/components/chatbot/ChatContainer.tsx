@@ -697,7 +697,7 @@ export const ChatContainer: React.FC = () => {
       </div>
 
       {/* Floating Prompt Input Dock with Integrated Model Selector Inside */}
-      <div className="p-4 bg-gradient-to-t from-[#212121] via-[#212121] to-transparent shrink-0">
+      <div className="p-4 bg-transparent shrink-0">
         <div className={`${convWidthClass} mx-auto w-full space-y-2`}>
           {/* Queued Messages Indicator */}
           {queuedMessagesBuffer.length > 0 && (
