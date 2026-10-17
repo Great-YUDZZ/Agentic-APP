@@ -20,6 +20,7 @@ import {
   CodeReviewItem,
   StudioTab,
   AppSettings,
+  PlanApprovalRequest,
 } from '../types';
 import { parseRobustJson, getChatEndpoint, getModelsEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../utils/api';
 import { extractCodeReviewItems } from '../utils/codeExtractor';
@@ -152,6 +153,16 @@ interface AppStore {
   acceptDiff: (filename: string) => void;
   rejectDiff: (filename: string) => void;
 
+  // Queued Messages
+  queuedMessagesBuffer: string[];
+  addQueuedMessage: (msg: string) => void;
+  processNextQueuedMessage: () => string | null;
+
+  // Plan Review Approval
+  pendingPlanApproval: PlanApprovalRequest | null;
+  setPendingPlanApproval: (req: PlanApprovalRequest | null) => void;
+  resolvePlanApproval: (approved: boolean) => void;
+
   // Toasts
   toasts: ToastItem[];
   addToast: (type: 'success' | 'error' | 'info' | 'warning', message: string, duration?: number) => void;
@@ -166,10 +177,17 @@ const DEFAULT_SETTINGS: AppSettings = {
   queuedMessages: 'queue',
   permissionPreset: 'standard',
   planReviewPolicy: 'always_ask',
-  browserJsPolicy: 'request_review',
-  networkAccessRules: ['https://*'],
+  browserJsPolicy: 'always_ask',
+  networkRules: {
+    whitelist: ['*.github.com', 'api.openai.com', 'generativelanguage.googleapis.com'],
+    blacklist: ['*.doubleclick.net'],
+  },
+  actuationRules: {
+    whitelist: ['https://github.com/*', 'http://localhost:*'],
+    blacklist: ['https://*.internal/*'],
+  },
   preventSleep: true,
-  keepInMenuBar: true,
+  notifyWhenUnfocused: true,
   theme: 'dark',
   contrast: 'default',
   darkPreset: 'default',
@@ -184,7 +202,31 @@ const loadSavedSettings = (): AppSettings => {
   try {
     const raw = localStorage.getItem('agentic_app_settings');
     if (raw) {
-      return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+      const parsed = JSON.parse(raw);
+      delete parsed.keepInMenuBar;
+      delete parsed.networkAccessRules;
+      delete parsed.browserActuationRules;
+
+      if (parsed.planReviewPolicy === 'auto' || parsed.planReviewPolicy !== 'never_ask') {
+        parsed.planReviewPolicy = 'always_ask';
+      }
+      if (parsed.browserJsPolicy === 'request_review') {
+        parsed.browserJsPolicy = 'always_ask';
+      } else if (parsed.browserJsPolicy === 'allow') {
+        parsed.browserJsPolicy = 'always_proceed';
+      } else if (parsed.browserJsPolicy === 'block') {
+        parsed.browserJsPolicy = 'disable';
+      }
+      if (!parsed.networkRules || Array.isArray(parsed.networkRules)) {
+        parsed.networkRules = DEFAULT_SETTINGS.networkRules;
+      }
+      if (!parsed.actuationRules || Array.isArray(parsed.actuationRules)) {
+        parsed.actuationRules = DEFAULT_SETTINGS.actuationRules;
+      }
+      if (typeof parsed.notifyWhenUnfocused !== 'boolean') {
+        parsed.notifyWhenUnfocused = true;
+      }
+      return { ...DEFAULT_SETTINGS, ...parsed };
     }
   } catch (e) {
     console.warn('Failed to load settings:', e);
@@ -758,7 +800,7 @@ export const useStore = create<AppStore>((set, get) => ({
             agent_name: 'Coordinator',
             agent_role: 'Orchestrator',
             avatar_color: '#6366f1',
-            content: `🎯 Project Goal ditetapkan: "${goal}".\nTim terdiri dari ${agentIds.length} agen: ${agentIds
+            content: `Project Goal ditetapkan: "${goal}".\nTim terdiri dari ${agentIds.length} agen: ${agentIds
               .map((id) => s.customAgents.find((a) => a.id === id)?.name)
               .filter(Boolean)
               .join(', ')}. Diskusi kolaborasi dimulai.`,
@@ -1315,6 +1357,42 @@ ATURAN KOMUNIKASI & TUGAS ANDA SEKARANG:
       installedSkills: [...s.installedSkills, newSkill],
     }));
     get().addToast('success', `Imported "${name}" to ${location} directory!`);
+  },
+
+  // Queued Messages
+  queuedMessagesBuffer: [],
+  addQueuedMessage: (msg: string) => {
+    set((s) => ({ queuedMessagesBuffer: [...s.queuedMessagesBuffer, msg] }));
+  },
+  processNextQueuedMessage: () => {
+    const { queuedMessagesBuffer } = get();
+    if (queuedMessagesBuffer.length === 0) return null;
+    const [next, ...rest] = queuedMessagesBuffer;
+    set({ queuedMessagesBuffer: rest });
+    return next;
+  },
+
+  // Plan Review Approval
+  pendingPlanApproval: null,
+  setPendingPlanApproval: (pendingPlanApproval) => set({ pendingPlanApproval }),
+  resolvePlanApproval: (approved) => {
+    const { pendingPlanApproval } = get();
+    if (pendingPlanApproval) {
+      get().addToast(
+        approved ? 'success' : 'info',
+        approved
+          ? `Rencana disetujui: ${pendingPlanApproval.title}`
+          : `Rencana ditolak: ${pendingPlanApproval.title}`
+      );
+      get().addLog({
+        id: `plan-res-${Date.now()}`,
+        agent_name: 'Operator',
+        level: approved ? 'INFO' : 'WARN',
+        message: `Plan ${pendingPlanApproval.title} ${approved ? 'approved' : 'rejected'} by operator.`,
+        timestamp: new Date().toLocaleTimeString(),
+      });
+    }
+    set({ pendingPlanApproval: null });
   },
 
   // Toasts

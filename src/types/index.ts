@@ -170,17 +170,27 @@ export interface AttachedFile {
   isImage: boolean;
 }
 
+
+export interface PlanApprovalRequest {
+  id: string;
+  title: string;
+  planContent: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+}
+
 export interface AppSettings {
   // General
   queuedMessages: 'queue' | 'immediate';
   permissionPreset: 'turbo' | 'standard' | 'strict';
-  planReviewPolicy: 'always_ask' | 'auto' | 'never';
-  browserJsPolicy: 'request_review' | 'allow' | 'block';
-  networkAccessRules: string[];
+  planReviewPolicy: 'always_ask' | 'never_ask';
+  browserJsPolicy: 'disable' | 'always_ask' | 'always_proceed';
+  networkRules: { whitelist: string[]; blacklist: string[] };
+  actuationRules: { whitelist: string[]; blacklist: string[] };
 
   // Application
   preventSleep: boolean;
-  keepInMenuBar: boolean;
+  notifyWhenUnfocused: boolean;
 
   // Appearance
   theme: 'system' | 'light' | 'dark';
@@ -192,3 +202,4 @@ export interface AppSettings {
   verboseAgentChat: boolean;
   conversationWidth: 'narrow' | 'default' | 'wide';
 }
+

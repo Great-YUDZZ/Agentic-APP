@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, State};
 use uuid::Uuid;
@@ -735,4 +736,200 @@ pub async fn close_terminal_pty(
     let removed = sessions.remove(&tab_id).is_some();
     Ok(removed)
 }
+
+static PREVENT_SLEEP_ENABLED: AtomicBool = AtomicBool::new(false);
+static PREVENT_SLEEP_PROCESS: Mutex<Option<std::process::Child>> = Mutex::new(None);
+
+#[tauri::command]
+pub async fn set_prevent_sleep(enabled: bool) -> Result<(), String> {
+    let mut lock = PREVENT_SLEEP_PROCESS
+        .lock()
+        .map_err(|e| format!("Failed to acquire sleep prevention lock: {}", e))?;
+
+    if enabled {
+        if PREVENT_SLEEP_ENABLED.load(Ordering::SeqCst) {
+            if let Some(ref mut child) = *lock {
+                if let Ok(None) = child.try_wait() {
+                    return Ok(());
+                }
+            }
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            let spawn_result = Command::new("systemd-inhibit")
+                .args([
+                    "--what=idle:sleep",
+                    "--who=Agentic Native Hub",
+                    "--why=Prevent sleep during background execution",
+                    "--mode=block",
+                    "sleep",
+                    "infinity",
+                ])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn();
+
+            match spawn_result {
+                Ok(child) => {
+                    if let Some(mut old_child) = lock.take() {
+                        let _ = old_child.kill();
+                        let _ = old_child.wait();
+                    }
+                    *lock = Some(child);
+                    PREVENT_SLEEP_ENABLED.store(true, Ordering::SeqCst);
+                    log::info!("Sleep prevention enabled via systemd-inhibit");
+                }
+                Err(e) => {
+                    log::warn!(
+                        "systemd-inhibit spawn failed ({}), setting fallback flag",
+                        e
+                    );
+                    PREVENT_SLEEP_ENABLED.store(true, Ordering::SeqCst);
+                }
+            }
+        }
+
+        #[cfg(not(target_os = "linux"))]
+        {
+            PREVENT_SLEEP_ENABLED.store(true, Ordering::SeqCst);
+            log::info!("Sleep prevention enabled");
+        }
+
+        Ok(())
+    } else {
+        if let Some(mut child) = lock.take() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+        PREVENT_SLEEP_ENABLED.store(false, Ordering::SeqCst);
+        log::info!("Sleep prevention disabled");
+        Ok(())
+    }
+}
+
+#[tauri::command]
+pub async fn send_desktop_notification(title: String, body: String) -> Result<(), String> {
+    if title.trim().is_empty() && body.trim().is_empty() {
+        return Err("Notification title and body cannot both be empty".to_string());
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let status = Command::new("notify-send")
+            .arg("-a")
+            .arg("Agentic Native Hub")
+            .arg(&title)
+            .arg(&body)
+            .status();
+
+        match status {
+            Ok(s) if s.success() => {
+                log::info!("Desktop notification delivered: {}", title);
+                Ok(())
+            }
+            _ => {
+                let fallback_status = Command::new("notify-send")
+                    .arg(&title)
+                    .arg(&body)
+                    .status()
+                    .map_err(|e| format!("Failed to execute notify-send: {}", e))?;
+
+                if fallback_status.success() {
+                    log::info!("Desktop notification delivered via fallback: {}", title);
+                    Ok(())
+                } else {
+                    Err(format!(
+                        "notify-send exited with status code: {:?}",
+                        fallback_status.code()
+                    ))
+                }
+            }
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let escaped_title = title.replace('\'', "''");
+        let escaped_body = body.replace('\'', "''");
+        let ps_command = format!(
+            "[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null; \
+             [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null; \
+             $xml = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02); \
+             $text = $xml.GetElementsByTagName('text'); \
+             $text[0].AppendChild($xml.CreateTextNode('{}')) | Out-Null; \
+             $text[1].AppendChild($xml.CreateTextNode('{}')) | Out-Null; \
+             $toast = [Windows.UI.Notifications.ToastNotification]::new($xml); \
+             [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('Agentic Native Hub').Show($toast);",
+            escaped_title,
+            escaped_body
+        );
+
+        let _ = Command::new("powershell")
+            .args(["-NoProfile", "-Command", &ps_command])
+            .status();
+
+        log::info!("Windows desktop notification triggered: {}", title);
+        Ok(())
+    }
+
+    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+    {
+        log::info!("Desktop notification (generic platform): {} - {}", title, body);
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_prevent_sleep_toggle() {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        rt.block_on(async {
+            let enable_res = set_prevent_sleep(true).await;
+            assert!(enable_res.is_ok(), "Failed to enable prevent sleep");
+            assert!(PREVENT_SLEEP_ENABLED.load(Ordering::SeqCst));
+
+            let enable_again = set_prevent_sleep(true).await;
+            assert!(enable_again.is_ok());
+            assert!(PREVENT_SLEEP_ENABLED.load(Ordering::SeqCst));
+
+            let disable_res = set_prevent_sleep(false).await;
+            assert!(disable_res.is_ok(), "Failed to disable prevent sleep");
+            assert!(!PREVENT_SLEEP_ENABLED.load(Ordering::SeqCst));
+
+            let disable_again = set_prevent_sleep(false).await;
+            assert!(disable_again.is_ok());
+            assert!(!PREVENT_SLEEP_ENABLED.load(Ordering::SeqCst));
+        });
+    }
+
+    #[test]
+    fn test_send_desktop_notification_validation() {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        rt.block_on(async {
+            let empty_res = send_desktop_notification("".to_string(), "   ".to_string()).await;
+            assert!(empty_res.is_err());
+
+            let valid_res = send_desktop_notification(
+                "Agentic Unit Test".to_string(),
+                "Desktop notification test body".to_string(),
+            )
+            .await;
+            assert!(valid_res.is_ok());
+        });
+    }
+}
+
+
 

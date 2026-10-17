@@ -190,7 +190,7 @@ export function formatApiErrorMessage(
   ) {
     return `Model ${modelLabel} tidak ditemukan atau belum tersedia di server upstream (HTTP 404).\n\n` +
       `Keterangan server: \`${rawMessage || 'Entity Not Found'}\`\n\n` +
-      `💡 **Rekomendasi Model yang Aktif:**\n` +
+      `**Rekomendasi Model yang Aktif:**\n` +
       `• **Gemini (Aktif)**: \`ag/gemini-3.6-flash-high\` atau \`ag/gemini-3-flash\`\n` +
       `• **Claude (Aktif)**: \`ag/claude-sonnet-4-6\` atau \`claude-code\`\n` +
       `• **OpenRouter (Aktif)**: \`openrouter/openrouter/free\` atau \`openrouter/nvidia/nemotron-3.5-lightning:free\``;
@@ -205,7 +205,7 @@ export function formatApiErrorMessage(
   ) {
     return `Akses ke model ${modelLabel} ditolak oleh provider (HTTP 403 Forbidden).\n\n` +
       `Keterangan server: \`${rawMessage}\`\n\n` +
-      `💡 Paket/langganan API Anda belum mendukung model ini. Silakan beralih ke model lain yang aktif seperti \`ag/gemini-3.6-flash-high\` atau \`openrouter/openrouter/free\`.`;
+      `Paket/langganan API Anda belum mendukung model ini. Silakan beralih ke model lain yang aktif seperti \`ag/gemini-3.6-flash-high\` atau \`openrouter/openrouter/free\`.`;
   }
 
   // 3. 429 Rate Limit / Quota Exceeded
@@ -217,7 +217,7 @@ export function formatApiErrorMessage(
   ) {
     return `Batas frekuensi atau kuota permintaan (Rate Limit) tercapai untuk model ${modelLabel} (HTTP 429).\n\n` +
       `Keterangan: \`${rawMessage}\`\n\n` +
-      `💡 Silakan tunggu beberapa detik atau gunakan model alternatif.`;
+      `Silakan tunggu beberapa detik atau gunakan model alternatif.`;
   }
 
   // 4. 401 Unauthorized

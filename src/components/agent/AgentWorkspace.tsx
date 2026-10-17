@@ -66,6 +66,12 @@ export const AgentWorkspace: React.FC = () => {
     addToast,
     addLog,
     settings,
+    queuedMessagesBuffer,
+    addQueuedMessage,
+    processNextQueuedMessage,
+    pendingPlanApproval,
+    setPendingPlanApproval,
+    resolvePlanApproval,
   } = useStore();
 
   const convWidthClass = getConversationWidthClass(settings?.conversationWidth);
@@ -73,7 +79,14 @@ export const AgentWorkspace: React.FC = () => {
   const [isCreatorModalOpen, setIsCreatorModalOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<CustomAgent | null>(null);
 
-  const [isReasoningOpen, setIsReasoningOpen] = useState(true);
+  const [isReasoningOpen, setIsReasoningOpen] = useState(settings?.verboseAgentChat ?? true);
+  const [isStepsOpen, setIsStepsOpen] = useState(settings?.verboseAgentChat ?? true);
+
+  useEffect(() => {
+    setIsReasoningOpen(settings?.verboseAgentChat ?? true);
+    setIsStepsOpen(settings?.verboseAgentChat ?? true);
+  }, [settings?.verboseAgentChat]);
+
   const [taskInput, setTaskInput] = useState('');
   const [isExecuting, setIsExecuting] = useState(false);
   const [activeReasoning, setActiveReasoning] = useState<string>('');
@@ -150,15 +163,29 @@ export const AgentWorkspace: React.FC = () => {
     }
   };
 
-  const handleRunTask = async () => {
-    if ((!taskInput.trim() && attachedFiles.length === 0) || !activeAgent || isExecuting) return;
+  const handleRunTask = async (explicitTask?: string) => {
+    const currentTask = (explicitTask !== undefined ? explicitTask : taskInput).trim();
+    if ((!currentTask && attachedFiles.length === 0) || !activeAgent) return;
 
-    const currentTask = taskInput.trim();
+    if (isExecuting) {
+      if (settings.queuedMessages === 'queue') {
+        addQueuedMessage(currentTask);
+        if (explicitTask === undefined) {
+          setTaskInput('');
+          setAttachedFiles([]);
+        }
+        addToast('info', 'Tugas agent ditambahkan ke antrean.');
+        return;
+      }
+    }
+
     const filesToAttach = [...attachedFiles];
     const fullTaskPrompt = formatAttachedPrompt(currentTask, filesToAttach);
 
-    setTaskInput('');
-    setAttachedFiles([]);
+    if (explicitTask === undefined) {
+      setTaskInput('');
+      setAttachedFiles([]);
+    }
     setIsExecuting(true);
     setActiveReasoning('');
     setAgentOutput('');
@@ -294,9 +321,55 @@ Sebagai agent spesialis, berikan:
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
       addToast('error', `Gagal menjalankan tugas: ${errMsg}`);
-      setAgentOutput(`⚠️ Kendala eksekusi: ${errMsg}`);
+      setAgentOutput(`Kendala eksekusi: ${errMsg}`);
     } finally {
       setIsExecuting(false);
+
+      // Check planReviewPolicy if task was a plan
+      const isPlan = currentTask.startsWith('/plan');
+      if (isPlan) {
+        if (settings.planReviewPolicy === 'always_ask') {
+          setPendingPlanApproval({
+            id: `plan-${Date.now()}`,
+            title: currentTask.replace(/^\/plan\s*/, '').slice(0, 40) || 'Agent Task Plan',
+            planContent: agentOutput || 'Rencana dihasilkan oleh agent.',
+            status: 'pending',
+            createdAt: new Date().toISOString(),
+          });
+          addToast('info', 'Rencana arsitektur dibuat oleh agent. Menunggu persetujuan operator.');
+        } else {
+          addToast('success', 'Rencana disetujui otomatis sesuai kebijakan never_ask.');
+          addLog({
+            id: `plan-auto-${Date.now()}`,
+            agent_name: activeAgent.name,
+            level: 'INFO',
+            message: `Plan policy is never_ask. Automatically approved plan: ${currentTask.slice(0, 40)}`,
+            timestamp: new Date().toLocaleTimeString(),
+          });
+        }
+      }
+
+      // Notify when unfocused
+      if (
+        document.hidden &&
+        settings.notifyWhenUnfocused &&
+        'Notification' in window &&
+        Notification.permission === 'granted'
+      ) {
+        new Notification('Agentic Engine', {
+          body: `Tugas ${activeAgent.name} telah selesai.`,
+        });
+      }
+
+      // Auto-trigger next queued message if settings.queuedMessages === 'queue'
+      if (settings.queuedMessages === 'queue') {
+        const nextTask = processNextQueuedMessage();
+        if (nextTask) {
+          setTimeout(() => {
+            handleRunTask(nextTask);
+          }, 100);
+        }
+      }
     }
   };
 
@@ -497,37 +570,56 @@ Sebagai agent spesialis, berikan:
 
       {/* 5. Executed Tool Step Badges */}
       {executionSteps.length > 0 && (
-        <div className="rounded-2xl bg-[#2f2f2f] border border-[#383838] p-5 space-y-3">
-          <div className="flex items-center justify-between">
+        <div className="rounded-2xl bg-[#2f2f2f] border border-[#383838] overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setIsStepsOpen(!isStepsOpen)}
+            className="w-full p-4 flex items-center justify-between text-left hover:bg-[#383838] transition-colors"
+          >
             <span className="text-xs font-semibold text-[#ececec]">
               Tool Steps yang Dijalankan ({executionSteps.length})
             </span>
-          </div>
+            {isStepsOpen ? (
+              <ChevronUp className="w-4 h-4 text-[#b4b4b4]" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-[#b4b4b4]" />
+            )}
+          </button>
 
-          <div className="space-y-2">
-            {executionSteps.map((step) => (
-              <div
-                key={step.id}
-                className="flex items-center justify-between p-3 rounded-xl bg-[#212121] border border-[#303030] text-xs"
+          <AnimatePresence>
+            {isStepsOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="p-5 pt-0 space-y-2"
               >
-                <div className="flex items-center gap-2.5">
-                  <div className="p-1 rounded-lg bg-[#2f2f2f]">{getToolIcon(step.tool)}</div>
-                  <span className="font-mono text-[#ececec] font-medium">{step.tool}</span>
-                  <span className="text-[#707070] font-mono text-[11px]">
-                    {JSON.stringify(step.params)}
-                  </span>
-                </div>
+                {executionSteps.map((step) => (
+                  <div
+                    key={step.id}
+                    className="flex items-center justify-between p-3 rounded-xl bg-[#212121] border border-[#303030] text-xs"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1 rounded-lg bg-[#2f2f2f]">{getToolIcon(step.tool)}</div>
+                      <span className="font-mono text-[#ececec] font-medium">{step.tool}</span>
+                      <span className="text-[#707070] font-mono text-[11px]">
+                        {JSON.stringify(step.params)}
+                      </span>
+                    </div>
 
-                <div className="flex items-center gap-3 text-[11px] text-[#707070] font-mono">
-                  <span>{step.duration}</span>
-                  <span className="flex items-center gap-1 text-emerald-400">
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Done</span>
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+                    <div className="flex items-center gap-3 text-[11px] text-[#707070] font-mono">
+                      <span>{step.duration}</span>
+                      <span className="flex items-center gap-1 text-emerald-400">
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Done</span>
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       )}
 
@@ -576,12 +668,74 @@ Sebagai agent spesialis, berikan:
             </div>
           </motion.div>
         )}
+
+        {/* 7. Plan Review Approval Card */}
+        {pendingPlanApproval && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="rounded-2xl border-2 border-blue-500/50 bg-[#141a24] p-5 space-y-4 shadow-xl"
+          >
+            <div className="flex items-start gap-3">
+              <Sparkles className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-xs font-semibold text-blue-200 uppercase tracking-wide">
+                  Operator Plan Clearance Diperlukan (HITL Safety Gate)
+                </h4>
+                <p className="text-xs text-[#ececec] font-medium mt-1">
+                  {pendingPlanApproval.title}
+                </p>
+                <div className="mt-2 p-2.5 rounded-lg bg-black/40 border border-blue-500/30 text-[11px] font-mono text-[#b4b4b4] max-h-36 overflow-y-auto whitespace-pre-wrap">
+                  {pendingPlanApproval.planContent}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-blue-500/20">
+              <button
+                onClick={() => resolvePlanApproval(false)}
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl border border-red-500/40 text-red-400 hover:bg-red-500/10 text-xs font-medium transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Tolak Rencana</span>
+              </button>
+              <button
+                onClick={() => {
+                  const title = pendingPlanApproval.title;
+                  resolvePlanApproval(true);
+                  handleRunTask(`Lanjutkan eksekusi rencana: "${title}".`);
+                }}
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-colors"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>Beri Izin Rencana</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence>
       </div>
 
       {/* Fixed Bottom Input Dock with Daily Dynamic Greeting */}
       <div className="p-4 bg-gradient-to-t from-[#212121] via-[#212121] to-transparent shrink-0">
         <div className={`${convWidthClass} mx-auto w-full space-y-2`}>
+          {/* Queued Messages Indicator */}
+          {queuedMessagesBuffer.length > 0 && (
+            <div className="flex items-center justify-between px-3.5 py-1.5 rounded-xl bg-[#282828] border border-[#383838] text-xs text-[#b4b4b4]">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                <span className="font-medium text-[#ececec]">
+                  Antrean Tugas ({queuedMessagesBuffer.length}):
+                </span>
+                <span className="truncate max-w-xs text-[#b4b4b4]">
+                  &quot;{queuedMessagesBuffer[0]}&quot;
+                </span>
+              </div>
+              <span className="text-[11px] text-[#707070]">Diproses berurutan</span>
+            </div>
+          )}
+
           {/* Dynamic Daily Greeting Headline */}
           <div className="text-center py-0.5">
             <h2 className="text-xl font-medium tracking-tight text-[#ececec]">
@@ -619,7 +773,7 @@ Sebagai agent spesialis, berikan:
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    if ((taskInput.trim() || attachedFiles.length > 0) && !isExecuting) {
+                    if (taskInput.trim() || attachedFiles.length > 0) {
                       handleRunTask();
                     }
                   }
@@ -788,14 +942,18 @@ Sebagai agent spesialis, berikan:
 
                   {/* Iconic Send Button */}
                   <button
-                    onClick={handleRunTask}
-                    disabled={(!taskInput.trim() && attachedFiles.length === 0) || isExecuting}
+                    onClick={() => handleRunTask()}
+                    disabled={!taskInput.trim() && attachedFiles.length === 0}
                     className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shrink-0 ${
-                      (taskInput.trim() || attachedFiles.length > 0) && !isExecuting
+                      taskInput.trim() || attachedFiles.length > 0
                         ? 'bg-[#ececec] text-[#171717] hover:bg-white'
                         : 'bg-[#383838] text-[#707070] cursor-not-allowed'
                     }`}
-                    title="Jalankan tugas [Enter]"
+                    title={
+                      isExecuting && settings.queuedMessages === 'queue'
+                        ? 'Masukkan ke antrean tugas [Enter]'
+                        : 'Jalankan tugas [Enter]'
+                    }
                   >
                     <ArrowUp className="w-4 h-4 stroke-[2.5]" />
                   </button>

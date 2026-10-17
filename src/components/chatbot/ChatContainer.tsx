@@ -13,6 +13,7 @@ import {
   Search,
   Sparkles,
   AlertTriangle,
+  X,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { ChatMessage } from '../../types';
@@ -31,7 +32,11 @@ import { SlashCommandPopover, SLASH_COMMANDS, SlashCommandItem } from '../common
 import { getConversationWidthClass } from '../../utils/layout';
 
 // Formatted Code and Text component
-const FormattedMessage: React.FC<{ content: string; reasoning?: string }> = ({ content, reasoning }) => {
+const FormattedMessage: React.FC<{ content: string; reasoning?: string; verbose?: boolean }> = ({
+  content,
+  reasoning,
+  verbose = true,
+}) => {
   const [copiedCodeIndex, setCopiedCodeIndex] = useState<number | null>(null);
 
   const parts = content.split(/(```[\s\S]*?```)/g);
@@ -45,7 +50,11 @@ const FormattedMessage: React.FC<{ content: string; reasoning?: string }> = ({ c
   return (
     <div className="space-y-3 leading-relaxed text-sm">
       {reasoning && (
-        <details className="mb-3 p-3 rounded-xl bg-[#262626] border border-[#303030] text-xs text-[#b4b4b4] group">
+        <details
+          key={String(verbose)}
+          open={verbose}
+          className="mb-3 p-3 rounded-xl bg-[#262626] border border-[#303030] text-xs text-[#b4b4b4] group"
+        >
           <summary className="cursor-pointer font-medium text-xs text-[#b4b4b4] hover:text-[#ececec] select-none flex items-center gap-1.5">
             <ChevronRight className="w-3.5 h-3.5 transition-transform group-open:rotate-90" />
             <span>Proses Berpikir Model ({reasoning.length} karakter)</span>
@@ -131,6 +140,7 @@ export const ChatContainer: React.FC = () => {
     apiKeys,
     setMessages,
     addToast,
+    addLog,
     setSkillsModalOpen,
     setSettingsOpen,
     isContextCompressed,
@@ -138,6 +148,12 @@ export const ChatContainer: React.FC = () => {
     setContextCompressed,
     setContextUsagePercent,
     settings,
+    queuedMessagesBuffer,
+    addQueuedMessage,
+    processNextQueuedMessage,
+    pendingPlanApproval,
+    setPendingPlanApproval,
+    resolvePlanApproval,
   } = useStore();
 
   const convWidthClass = getConversationWidthClass(settings?.conversationWidth);
@@ -292,8 +308,21 @@ export const ChatContainer: React.FC = () => {
     }
   };
 
-  const handleSendMessage = async () => {
-    if (!inputPrompt.trim() || isGenerating) return;
+  const handleSendMessage = async (explicitText?: string) => {
+    const rawText = (explicitText !== undefined ? explicitText : inputPrompt).trim();
+    if (!rawText) return;
+
+    if (isGenerating) {
+      if (settings.queuedMessages === 'queue') {
+        addQueuedMessage(rawText);
+        if (explicitText === undefined) {
+          setInputPrompt('');
+          setIsSlashOpen(false);
+        }
+        addToast('info', 'Pesan ditambahkan ke antrean.');
+        return;
+      }
+    }
 
     let targetSessionId = activeSessionId;
     if (!targetSessionId) {
@@ -305,9 +334,9 @@ export const ChatContainer: React.FC = () => {
       id: userMsgId,
       session_id: targetSessionId,
       role: 'user',
-      content: inputPrompt.trim(),
+      content: rawText,
       created_at: new Date().toISOString(),
-      token_count: Math.ceil(inputPrompt.length / 4),
+      token_count: Math.ceil(rawText.length / 4),
     };
 
     addMessage(userMsg);
@@ -320,8 +349,10 @@ export const ChatContainer: React.FC = () => {
       updateSessionTitle(targetSessionId, summaryTitle);
     }
 
-    setInputPrompt('');
-    setIsSlashOpen(false);
+    if (explicitText === undefined) {
+      setInputPrompt('');
+      setIsSlashOpen(false);
+    }
     setIsGenerating(true);
 
     const endpointConfig = resolveEndpointForModel(selectedModel, availableModels, apiKeys);
@@ -461,14 +492,14 @@ export const ChatContainer: React.FC = () => {
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       console.error('Chat error:', errorMsg);
-      addToast('error', `Gagal mendapatkan respon AI`);
+      addToast('error', 'Gagal mendapatkan respon AI');
 
       useStore.setState((state) => ({
         messages: state.messages.map((m) =>
           m.id === assistantMsgId
             ? {
                 ...m,
-                content: `⚠️ **Terjadi kendala saat menghubungi model:**\n\n${errorMsg}`,
+                content: `**Terjadi kendala saat menghubungi model:**\n\n${errorMsg}`,
               }
             : m
         ),
@@ -479,6 +510,53 @@ export const ChatContainer: React.FC = () => {
       const finalMsg = useStore.getState().messages.find((m) => m.id === assistantMsgId);
       if (finalMsg && (finalMsg.content || finalMsg.reasoning)) {
         saveChatMessageToDb(finalMsg);
+      }
+
+      // Check planReviewPolicy when /plan command runs
+      const isPlan = userMsg.content.trim().startsWith('/plan');
+      if (isPlan) {
+        const finalContent = finalMsg?.content || '';
+        if (settings.planReviewPolicy === 'always_ask') {
+          setPendingPlanApproval({
+            id: `plan-${Date.now()}`,
+            title: userMsg.content.replace(/^\/plan\s*/, '').slice(0, 40) || 'Implementation Plan',
+            planContent: finalContent,
+            status: 'pending',
+            createdAt: new Date().toISOString(),
+          });
+          addToast('info', 'Rencana arsitektur dibuat. Menunggu persetujuan operator.');
+        } else {
+          addToast('success', 'Rencana disetujui otomatis sesuai kebijakan never_ask.');
+          addLog({
+            id: `plan-auto-${Date.now()}`,
+            agent_name: 'Engine',
+            level: 'INFO',
+            message: `Plan policy is never_ask. Automatically approved plan: ${userMsg.content.slice(0, 40)}`,
+            timestamp: new Date().toLocaleTimeString(),
+          });
+        }
+      }
+
+      // Notify when unfocused
+      if (
+        document.hidden &&
+        settings.notifyWhenUnfocused &&
+        'Notification' in window &&
+        Notification.permission === 'granted'
+      ) {
+        new Notification('Agentic Engine', {
+          body: isPlan ? 'Rencana arsitektur siap ditinjau.' : 'Respons model telah selesai.',
+        });
+      }
+
+      // Auto-trigger next queued message if settings.queuedMessages === 'queue'
+      if (settings.queuedMessages === 'queue') {
+        const nextMsg = processNextQueuedMessage();
+        if (nextMsg) {
+          setTimeout(() => {
+            handleSendMessage(nextMsg);
+          }, 100);
+        }
       }
     }
   };
@@ -549,7 +627,11 @@ export const ChatContainer: React.FC = () => {
                     </div>
                   ) : (
                     <div className="text-[#ececec] py-1">
-                      <FormattedMessage content={msg.content} reasoning={msg.reasoning} />
+                      <FormattedMessage
+                        content={msg.content}
+                        reasoning={msg.reasoning}
+                        verbose={settings.verboseAgentChat}
+                      />
                     </div>
                   )}
                 </div>
@@ -570,12 +652,68 @@ export const ChatContainer: React.FC = () => {
           </div>
         )}
 
+        {pendingPlanApproval && (
+          <div
+            className={`p-4 rounded-2xl bg-[#1e222d] border border-blue-500/40 text-xs text-[#ececec] space-y-3 ${convWidthClass} mx-auto w-full`}
+          >
+            <div className="flex items-start gap-3">
+              <Sparkles className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <span className="font-semibold text-blue-200 uppercase tracking-wide text-[11px] block">
+                  Plan Review Required (HITL)
+                </span>
+                <span className="font-medium text-[#ececec] block">
+                  {pendingPlanApproval.title}
+                </span>
+                <p className="text-[11px] text-[#b4b4b4]">
+                  Kebijakan peninjauan rencana saat ini adalah always_ask. Berikan persetujuan untuk mengeksekusi rencana arsitektur ini.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#2a3040]">
+              <button
+                type="button"
+                onClick={() => resolvePlanApproval(false)}
+                className="px-3 py-1.5 rounded-xl border border-[#404040] hover:bg-[#282828] text-xs font-medium text-[#b4b4b4] hover:text-[#ececec] transition-colors"
+              >
+                Tolak Rencana
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const title = pendingPlanApproval.title;
+                  resolvePlanApproval(true);
+                  handleSendMessage(`Lanjutkan eksekusi rencana arsitektur: "${title}".`);
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors"
+              >
+                Setujui dan Eksekusi
+              </button>
+            </div>
+          </div>
+        )}
+
         <div ref={messagesEndRef} />
       </div>
 
       {/* Floating Prompt Input Dock with Integrated Model Selector Inside */}
       <div className="p-4 bg-gradient-to-t from-[#212121] via-[#212121] to-transparent shrink-0">
         <div className={`${convWidthClass} mx-auto w-full space-y-2`}>
+          {/* Queued Messages Indicator */}
+          {queuedMessagesBuffer.length > 0 && (
+            <div className="flex items-center justify-between px-3.5 py-1.5 rounded-xl bg-[#282828] border border-[#383838] text-xs text-[#b4b4b4]">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                <span className="font-medium text-[#ececec]">
+                  Antrean Pesan ({queuedMessagesBuffer.length}):
+                </span>
+                <span className="truncate max-w-xs text-[#b4b4b4]">
+                  &quot;{queuedMessagesBuffer[0]}&quot;
+                </span>
+              </div>
+              <span className="text-[11px] text-[#707070]">Diproses berurutan</span>
+            </div>
+          )}
           {/* Context Thresholding & Pruning Notice Banner */}
           {isContextCompressed && (
             <div className="px-3.5 py-2 rounded-2xl bg-[#2a2415] border border-[#784e12] flex items-center justify-between gap-3 text-xs text-[#fde047] animate-fadeIn">
@@ -599,7 +737,7 @@ export const ChatContainer: React.FC = () => {
                   className="text-[#a16207] hover:text-[#fde047] transition-colors p-1"
                   title="Tutup Peringatan"
                 >
-                  ✕
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
@@ -789,16 +927,18 @@ export const ChatContainer: React.FC = () => {
                                             <div className="flex items-center gap-1.5 flex-wrap">
                                               <span className="font-mono text-[11px] font-medium truncate">{m.id}</span>
                                               {isActive && (
-                                                <span className="inline-flex items-center px-1.5 py-0.2 text-[9px] font-sans font-medium rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
-                                                  ✓ Aktif
+                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.2 text-[9px] font-sans font-medium rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
+                                                  <Check className="w-2.5 h-2.5" />
+                                                  <span>Aktif</span>
                                                 </span>
                                               )}
                                               {isUnavailable && (
                                                 <span
-                                                  className="inline-flex items-center px-1.5 py-0.2 text-[9px] font-sans font-medium rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 shrink-0"
+                                                  className="inline-flex items-center gap-1 px-1.5 py-0.2 text-[9px] font-sans font-medium rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 shrink-0"
                                                   title="Model ini offline atau error dari upstream"
                                                 >
-                                                  ⚠️ Offline
+                                                  <AlertTriangle className="w-2.5 h-2.5" />
+                                                  <span>Offline</span>
                                                 </span>
                                               )}
                                             </div>
@@ -852,7 +992,7 @@ export const ChatContainer: React.FC = () => {
 
               {/* ChatGPT Iconic Round Arrow Send Button */}
               <button
-                onClick={handleSendMessage}
+                onClick={() => handleSendMessage()}
                 disabled={!inputPrompt.trim() || isGenerating}
                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
                   inputPrompt.trim() && !isGenerating

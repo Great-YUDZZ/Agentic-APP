@@ -2,6 +2,65 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --canvas: #212121;
+  --sidebar: #171717;
+  --surface: #2f2f2f;
+  --border: #303030;
+  --text: #ececec;
+  --text-muted: #b4b4b4;
+  --text-subtle: #707070;
+}
+
+/* Default Dark Theme (#212121) */
+.theme-dark {
+  --canvas: #212121;
+  --sidebar: #171717;
+  --surface: #2f2f2f;
+  --border: #303030;
+  --text: #ececec;
+  --text-muted: #b4b4b4;
+  --text-subtle: #707070;
+}
+
+/* ChatGPT Light Flat Theme */
+.theme-light {
+  --canvas: #ffffff;
+  --sidebar: #f9f9f9;
+  --surface: #f4f4f4;
+  --border: #e5e5e5;
+  --text: #0d0d0d;
+  --text-muted: #5d5d5d;
+  --text-subtle: #8e8e8e;
+}
+
+body.theme-light,
+.theme-light body {
+  background-color: #ffffff;
+  color: #0d0d0d;
+}
+
+/* Contrast Strong Mode: Enhanced borders and contrast */
+.contrast-strong {
+  --border: #4a4a4a;
+}
+
+.theme-light.contrast-strong,
+.contrast-strong.theme-light {
+  --border: #a3a3a3;
+}
+
+.contrast-strong * {
+  border-color: var(--border);
+}
+
+.contrast-strong input,
+.contrast-strong textarea,
+.contrast-strong select,
+.contrast-strong button {
+  border-color: var(--border) !important;
+}
+
 @layer base {
   body {
     background-color: #212121;
@@ -26,6 +85,13 @@
   background: #4a4a4a;
 }
 
+.theme-light ::-webkit-scrollbar-thumb {
+  background: #d4d4d4;
+}
+.theme-light ::-webkit-scrollbar-thumb:hover {
+  background: #a3a3a3;
+}
+
 /* Ensure GTK / WebKitGTK does not render white native styling on select elements */
 select {
   -webkit-appearance: none;
@@ -38,4 +104,14 @@ select {
 select option {
   background-color: #212121;
   color: #ececec;
+}
+
+.theme-light select {
+  background-color: #f4f4f4;
+  color: #0d0d0d;
+}
+
+.theme-light select option {
+  background-color: #ffffff;
+  color: #0d0d0d;
 }

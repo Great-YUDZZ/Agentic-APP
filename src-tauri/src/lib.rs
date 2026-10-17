@@ -60,6 +60,8 @@ pub fn run() {
             ipc::terminal_pty_write,
             ipc::terminal_pty_resize,
             ipc::close_terminal_pty,
+            ipc::set_prevent_sleep,
+            ipc::send_desktop_notification,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

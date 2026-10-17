@@ -59,6 +59,9 @@ export const MultiAgentDiscussion: React.FC = () => {
     isStrictApprovalMode,
     toggleStrictApprovalMode,
     settings,
+    queuedMessagesBuffer,
+    addQueuedMessage,
+    processNextQueuedMessage,
   } = useStore();
 
   const convWidthClass = getConversationWidthClass(settings?.conversationWidth);
@@ -162,22 +165,59 @@ export const MultiAgentDiscussion: React.FC = () => {
     }
   };
 
-  const handleSendChat = async () => {
-    if ((!chatInput.trim() && attachedFiles.length === 0) || isThinkingTurn) return;
+  const handleSendChat = async (explicitChat?: string) => {
+    const chatText = (explicitChat !== undefined ? explicitChat : chatInput).trim();
+    if (!chatText && attachedFiles.length === 0) return;
 
     const finalContent = formatAttachedPrompt(
-      chatInput.trim() || 'Mohon tinjau file yang saya lampirkan untuk diskusi tim.',
-      attachedFiles
+      chatText || 'Mohon tinjau file yang saya lampirkan untuk diskusi tim.',
+      explicitChat !== undefined ? [] : attachedFiles
     );
 
-    setChatInput('');
-    setAttachedFiles([]);
+    if (isThinkingTurn) {
+      if (settings.queuedMessages === 'queue') {
+        addQueuedMessage(finalContent);
+        if (explicitChat === undefined) {
+          setChatInput('');
+          setAttachedFiles([]);
+        }
+        addToast('info', 'Pesan operator dimasukkan ke antrean.');
+        return;
+      }
+    }
+
+    if (explicitChat === undefined) {
+      setChatInput('');
+      setAttachedFiles([]);
+    }
     setIsThinkingTurn(true);
 
-    const specificAgentId = targetMention === 'all' ? undefined : targetMention;
-    await sendOperatorMessage(finalContent, specificAgentId);
+    try {
+      const specificAgentId = targetMention === 'all' ? undefined : targetMention;
+      await sendOperatorMessage(finalContent, specificAgentId);
+    } finally {
+      setIsThinkingTurn(false);
 
-    setIsThinkingTurn(false);
+      if (
+        document.hidden &&
+        settings.notifyWhenUnfocused &&
+        'Notification' in window &&
+        Notification.permission === 'granted'
+      ) {
+        new Notification('Agentic Engine', {
+          body: 'Giliran diskusi multi-agent telah selesai.',
+        });
+      }
+
+      if (settings.queuedMessages === 'queue') {
+        const nextChat = processNextQueuedMessage();
+        if (nextChat) {
+          setTimeout(() => {
+            handleSendChat(nextChat);
+          }, 100);
+        }
+      }
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -190,8 +230,20 @@ export const MultiAgentDiscussion: React.FC = () => {
   const handleStepNextTurn = async () => {
     if (isThinkingTurn) return;
     setIsThinkingTurn(true);
-    await advanceDiscussionTurn();
-    setIsThinkingTurn(false);
+    try {
+      await advanceDiscussionTurn();
+    } finally {
+      setIsThinkingTurn(false);
+
+      if (settings.queuedMessages === 'queue') {
+        const nextChat = processNextQueuedMessage();
+        if (nextChat) {
+          setTimeout(() => {
+            handleSendChat(nextChat);
+          }, 100);
+        }
+      }
+    }
   };
 
   // Hitung giliran berikutnya
@@ -345,7 +397,23 @@ export const MultiAgentDiscussion: React.FC = () => {
 
       {/* 4. Interactive Chat & Directive Dock (Bottom) */}
       <div className="p-4 bg-gradient-to-t from-[#212121] via-[#212121] to-transparent shrink-0">
-        <div className={`${convWidthClass} mx-auto w-full`}>
+        <div className={`${convWidthClass} mx-auto w-full space-y-2`}>
+          {/* Queued Messages Indicator */}
+          {queuedMessagesBuffer.length > 0 && (
+            <div className="flex items-center justify-between px-3.5 py-1.5 rounded-xl bg-[#282828] border border-[#383838] text-xs text-[#b4b4b4]">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                <span className="font-medium text-[#ececec]">
+                  Antrean Pesan Operator ({queuedMessagesBuffer.length}):
+                </span>
+                <span className="truncate max-w-xs text-[#b4b4b4]">
+                  &quot;{queuedMessagesBuffer[0]}&quot;
+                </span>
+              </div>
+              <span className="text-[11px] text-[#707070]">Diproses berurutan</span>
+            </div>
+          )}
+
           {/* Main Input Capsule */}
           <div className="relative rounded-3xl bg-[#2f2f2f] border border-[#383838] p-2.5 px-3.5 focus-within:border-[#4f4f4f] transition-colors">
             {/* Squad Room Header Bar & Quick Controls (Moved inside chat dock) */}
@@ -766,14 +834,18 @@ export const MultiAgentDiscussion: React.FC = () => {
 
                 {/* Iconic Send Button (Harmonized h-8 w-8) */}
                 <button
-                  onClick={handleSendChat}
-                  disabled={(!chatInput.trim() && attachedFiles.length === 0) || isThinkingTurn}
+                  onClick={() => handleSendChat()}
+                  disabled={!chatInput.trim() && attachedFiles.length === 0}
                   className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shrink-0 ${
-                    (chatInput.trim() || attachedFiles.length > 0) && !isThinkingTurn
+                    chatInput.trim() || attachedFiles.length > 0
                       ? 'bg-[#ececec] text-[#171717] hover:bg-white'
                       : 'bg-[#383838] text-[#707070] cursor-not-allowed'
                   }`}
-                  title="Kirim pesan [Enter]"
+                  title={
+                    isThinkingTurn && settings.queuedMessages === 'queue'
+                      ? 'Masukkan pesan operator ke antrean [Enter]'
+                      : 'Kirim pesan [Enter]'
+                  }
                 >
                   <ArrowUp className="w-4 h-4 stroke-[2.5]" />
                 </button>

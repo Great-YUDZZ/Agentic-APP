@@ -29,7 +29,7 @@ Dokumen ini adalah **Design Master Specification** untuk seluruh antarmuka aplik
 
 ## 2. Color Palette Specification
 
-### 🎨 Dark Mode Palette (ChatGPT Standard)
+### Dark Mode Palette (ChatGPT Standard)
 
 | Peran Token | Nilai Hex | Tailwind Class Rekomendasi | Penggunaan Utama |
 | :--- | :--- | :--- | :--- |
@@ -45,7 +45,7 @@ Dokumen ini adalah **Design Master Specification** untuk seluruh antarmuka aplik
 | **Focus Border** | `#4f4f4f` | `border-[#4f4f4f]` | Border saat elemen aktif/fokus (*focus-within*). |
 | **Active / Accent Pill** | `#404040` | `bg-[#404040]` | Tab aktif, pill terseleksi. |
 
-### 🟢 Status & Accent Tokens
+### Status & Accent Tokens
 
 | Status | Latar (Subtle) | Border | Teks |
 | :--- | :--- | :--- | :--- |
@@ -118,13 +118,13 @@ Menggunakan pill kapsul dengan warna kontras halus:
 
 ## 5. Do's and Don'ts (Pedoman Kepatuhan)
 
-### ✅ Lakukan (DO)
+### Lakukan (DO)
 1. **Gunakan warna solid:** Selalu gunakan `#212121` untuk body, `#171717` untuk sidebar/header, dan `#2f2f2f` untuk card/input.
 2. **Jaga kelonggaran kanvas:** Berikan ruang lega (*breathing room*) minimal padding 16px - 24px di sekeliling konten percakapan.
 3. **Posisikan input di bawah:** Area input harus berada di bagian bawah (`fixed bottom dock`) agar konsisten dengan kebiasaan pengguna.
 4. **Fasilitasi navigasi keyboard:** Berikan indikator visual halus saat elemen menerima fokus keyboard.
 
-### ❌ Hindari (DON'T)
+### Hindari (DON'T)
 1. **Dilarang memakai gradien warna-warni murah:** Jangan gunakan gradien ungu-biru (*purple-to-blue gradient slop*).
 2. **Dilarang menggunakan shadow tebal:** Hindari `shadow-2xl` atau colored neon shadows. Struktur kedalaman harus ditentukan oleh kontras warna permukaan dan border 1px.
 3. **Dilarang menaruh tombol redundan:** Jangan letakkan tombol aksi ganda di header jika fungsi yang sama telah ada di dalam kapsul input.

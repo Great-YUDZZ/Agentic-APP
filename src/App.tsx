@@ -11,9 +11,25 @@ import { CodeReviewModal } from './components/build/CodeReviewModal';
 import { ToastFeedback } from './components/common/ToastFeedback';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { useStore } from './store/useStore';
+import { applyTheme } from './utils/theme';
 
 export const App: React.FC = () => {
-  const { currentMode, loadApiKeysFromDb, loadSessionsFromDb } = useStore();
+  const { currentMode, settings, setSettingsOpen, loadApiKeysFromDb, loadSessionsFromDb } = useStore();
+
+  React.useEffect(() => {
+    applyTheme(settings.theme, settings.contrast);
+  }, [settings.theme, settings.contrast]);
+
+  React.useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === ',') {
+        e.preventDefault();
+        setSettingsOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [setSettingsOpen]);
 
   React.useEffect(() => {
     loadApiKeysFromDb();

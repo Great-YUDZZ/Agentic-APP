@@ -27,6 +27,9 @@ import {
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { CustomSelect } from '../common/CustomSelect';
+import { NetworkAccessRulesModal } from './NetworkAccessRulesModal';
+import { BrowserActuationRulesModal } from './BrowserActuationRulesModal';
+import { ShortcutsModal } from './ShortcutsModal';
 
 interface StandardProviderConfig {
   id: string;
@@ -86,14 +89,13 @@ const PERMISSION_OPTIONS = [
 
 const PLAN_REVIEW_OPTIONS = [
   { value: 'always_ask', label: 'Always Ask', description: 'Selalu minta review sebelum mengeksekusi rencana.' },
-  { value: 'auto', label: 'Automatic Approval', description: 'Otomatis menyetujui rencana yang dibuat.' },
-  { value: 'never', label: 'Never Ask', description: 'Jalankan rencana langsung tanpa tanya.' },
+  { value: 'never_ask', label: 'Never Ask', description: 'Jalankan rencana langsung tanpa konfirmasi.' },
 ];
 
 const BROWSER_JS_OPTIONS = [
-  { value: 'request_review', label: 'Request Review', description: 'Minta review sebelum mengeksekusi script browser.' },
-  { value: 'allow', label: 'Allow Always', description: 'Izinkan semua eksekusi javascript di browser.' },
-  { value: 'block', label: 'Block', description: 'Blokir eksekusi javascript kustom di browser.' },
+  { value: 'disable', label: 'Disable', description: 'Blokir eksekusi javascript kustom di browser.' },
+  { value: 'always_ask', label: 'Always Ask', description: 'Minta review sebelum mengeksekusi script browser.' },
+  { value: 'always_proceed', label: 'Always Proceed', description: 'Izinkan semua eksekusi javascript di browser.' },
 ];
 
 const DARK_PRESET_OPTIONS = [
@@ -123,6 +125,11 @@ export const SettingsModal: React.FC = () => {
 
   const [activeSection, setActiveSection] = useState<SettingsSection>('general');
   const [activeModelTab, setActiveModelTab] = useState<'custom' | 'standard'>('custom');
+
+  // Sub-modal Dialog States
+  const [isNetworkModalOpen, setIsNetworkModalOpen] = useState(false);
+  const [isBrowserActuationModalOpen, setIsBrowserActuationModalOpen] = useState(false);
+  const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
 
   // API Key Management Form States
   const [visibleKeyId, setVisibleKeyId] = useState<string | null>(null);
@@ -344,9 +351,7 @@ export const SettingsModal: React.FC = () => {
           <div className="pt-2 border-t border-[#262626] space-y-0.5">
             <button
               type="button"
-              onClick={() => {
-                addToast('info', 'Pintasan: Ctrl+C (Emergency Stop), / (Slash Command), Enter (Kirim)');
-              }}
+              onClick={() => setIsShortcutsModalOpen(true)}
               className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-[#707070] hover:text-[#ececec] transition-colors rounded-lg hover:bg-[#212121]"
             >
               <Command className="w-3.5 h-3.5" />
@@ -486,15 +491,15 @@ export const SettingsModal: React.FC = () => {
                       <div>
                         <div className="text-sm font-medium text-[#ececec]">Network Access Rules</div>
                         <div className="text-xs text-[#707070] mt-0.5">
-                          Configure allowed and denied URLs for reading.
+                          Configure allowed and denied domains for outbound requests.
                         </div>
                       </div>
                       <button
                         type="button"
-                        onClick={() => addToast('info', 'Network rules: Semua domain web diizinkan secara default.')}
+                        onClick={() => setIsNetworkModalOpen(true)}
                         className="px-3.5 py-1.5 rounded-xl bg-[#212121] hover:bg-[#303030] border border-[#383838] text-xs font-medium text-[#ececec] transition-colors"
                       >
-                        Open
+                        Configure Rules
                       </button>
                     </div>
                   </div>
@@ -512,7 +517,7 @@ export const SettingsModal: React.FC = () => {
                         Whether the agent asks you to review its documents.
                       </div>
                       <div className="text-[10px] text-[#707070] mt-1 font-mono">
-                        Ketik <code className="bg-[#1e1e1e] px-1 py-0.5 rounded">/plan</code> di chat untuk meminta pembuatan rencana.
+                        Type <code className="bg-[#1e1e1e] px-1 py-0.5 rounded">/plan</code> in chat to generate an execution plan.
                       </div>
                     </div>
                     <CustomSelect
@@ -520,7 +525,7 @@ export const SettingsModal: React.FC = () => {
                       options={PLAN_REVIEW_OPTIONS}
                       onChange={(val) =>
                         updateSettings({
-                          planReviewPolicy: val as 'always_ask' | 'auto' | 'never',
+                          planReviewPolicy: val as 'always_ask' | 'never_ask',
                         })
                       }
                     />
@@ -545,7 +550,7 @@ export const SettingsModal: React.FC = () => {
                         options={BROWSER_JS_OPTIONS}
                         onChange={(val) =>
                           updateSettings({
-                            browserJsPolicy: val as 'request_review' | 'allow' | 'block',
+                            browserJsPolicy: val as 'disable' | 'always_ask' | 'always_proceed',
                           })
                         }
                       />
@@ -560,10 +565,10 @@ export const SettingsModal: React.FC = () => {
                       </div>
                       <button
                         type="button"
-                        onClick={() => addToast('info', 'Actuation rules: Default allow.')}
+                        onClick={() => setIsBrowserActuationModalOpen(true)}
                         className="px-3.5 py-1.5 rounded-xl bg-[#212121] hover:bg-[#303030] border border-[#383838] text-xs font-medium text-[#ececec] transition-colors"
                       >
-                        Edit
+                        Configure Rules
                       </button>
                     </div>
                   </div>
@@ -603,21 +608,21 @@ export const SettingsModal: React.FC = () => {
 
                     <div className="p-4 flex items-center justify-between">
                       <div>
-                        <div className="text-sm font-medium text-[#ececec]">Keep In Menu Bar</div>
+                        <div className="text-sm font-medium text-[#ececec]">Notify When Unfocused</div>
                         <div className="text-xs text-[#707070] mt-0.5">
-                          Keep the app accessible from tray and running in background when closed.
+                          Receive desktop notifications when background tasks complete while window is unfocused.
                         </div>
                       </div>
                       <button
                         type="button"
-                        onClick={() => updateSettings({ keepInMenuBar: !settings.keepInMenuBar })}
+                        onClick={() => updateSettings({ notifyWhenUnfocused: !settings.notifyWhenUnfocused })}
                         className={`w-11 h-6 rounded-full transition-colors relative p-0.5 ${
-                          settings.keepInMenuBar ? 'bg-blue-600' : 'bg-[#383838]'
+                          settings.notifyWhenUnfocused ? 'bg-blue-600' : 'bg-[#383838]'
                         }`}
                       >
                         <div
                           className={`w-5 h-5 rounded-full bg-white transition-transform ${
-                            settings.keepInMenuBar ? 'translate-x-5' : 'translate-x-0'
+                            settings.notifyWhenUnfocused ? 'translate-x-5' : 'translate-x-0'
                           }`}
                         />
                       </button>
@@ -633,15 +638,32 @@ export const SettingsModal: React.FC = () => {
                     <div>
                       <div className="text-sm font-medium text-[#ececec]">Notification Settings</div>
                       <div className="text-xs text-[#707070] mt-0.5">
-                        To modify notification settings, open your operating system preferences.
+                        Test and verify system notifications for task completion alerts.
                       </div>
                     </div>
                     <button
                       type="button"
-                      onClick={() => addToast('info', 'Notifikasi desktop aktif dan auto-dismiss 2 detik.')}
+                      onClick={() => {
+                        if (typeof window !== 'undefined' && 'Notification' in window) {
+                          if (Notification.permission === 'granted') {
+                            new Notification('Agentic Native Hub', {
+                              body: 'Desktop notifications are working correctly.',
+                            });
+                          } else if (Notification.permission !== 'denied') {
+                            Notification.requestPermission().then((permission) => {
+                              if (permission === 'granted') {
+                                new Notification('Agentic Native Hub', {
+                                  body: 'Desktop notifications are working correctly.',
+                                });
+                              }
+                            });
+                          }
+                        }
+                        addToast('info', 'Test notification triggered.');
+                      }}
                       className="px-3.5 py-1.5 rounded-xl bg-[#212121] hover:bg-[#303030] border border-[#383838] text-xs font-medium text-[#ececec] transition-colors"
                     >
-                      Open System Preferences
+                      Trigger Test Notification
                     </button>
                   </div>
                 </div>
@@ -1240,6 +1262,20 @@ export const SettingsModal: React.FC = () => {
           </div>
         </div>
       </motion.div>
+
+      {/* Sub-modals */}
+      <NetworkAccessRulesModal
+        isOpen={isNetworkModalOpen}
+        onClose={() => setIsNetworkModalOpen(false)}
+      />
+      <BrowserActuationRulesModal
+        isOpen={isBrowserActuationModalOpen}
+        onClose={() => setIsBrowserActuationModalOpen(false)}
+      />
+      <ShortcutsModal
+        isOpen={isShortcutsModalOpen}
+        onClose={() => setIsShortcutsModalOpen(false)}
+      />
     </div>
   );
 };

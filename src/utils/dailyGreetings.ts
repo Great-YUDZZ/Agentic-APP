@@ -25,7 +25,7 @@ const GREETINGS_BY_DAY: Record<number, string[]> = {
   // 3: Rabu
   3: [
     'What should we architect today?',
-    'Midweek momentum — what are we building?',
+    'Midweek momentum - what are we building?',
     'What task shall we conquer today?',
   ],
   // 4: Kamis
@@ -43,7 +43,7 @@ const GREETINGS_BY_DAY: Record<number, string[]> = {
   // 6: Sabtu
   6: [
     'What shall we experiment with today?',
-    'Weekend sandbox — what should we create?',
+    'Weekend sandbox - what should we create?',
     'What passion project are we building?',
   ],
 };
