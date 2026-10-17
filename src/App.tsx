@@ -17,8 +17,8 @@ export const App: React.FC = () => {
   const { currentMode, settings, setSettingsOpen, loadApiKeysFromDb, loadSessionsFromDb } = useStore();
 
   React.useEffect(() => {
-    applyTheme(settings.theme, settings.contrast);
-  }, [settings.theme, settings.contrast]);
+    applyTheme(settings.theme, settings.contrast, settings.darkPreset);
+  }, [settings.theme, settings.contrast, settings.darkPreset]);
 
   React.useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {

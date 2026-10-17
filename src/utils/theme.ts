@@ -1,11 +1,13 @@
 export type AppTheme = 'system' | 'light' | 'dark';
 export type AppContrast = 'default' | 'strong';
+export type DarkPreset = 'default' | 'charcoal' | 'oled';
 
 let mediaQueryListener: ((e: MediaQueryListEvent) => void) | null = null;
 let currentMediaQuery: MediaQueryList | null = null;
 let systemPollTimer: number | null = null;
 let currentActiveTheme: AppTheme = 'system';
 let currentActiveContrast: AppContrast = 'default';
+let currentActiveDarkPreset: DarkPreset = 'default';
 
 async function queryNativeSystemTheme(): Promise<'dark' | 'light'> {
   try {
@@ -25,21 +27,25 @@ async function queryNativeSystemTheme(): Promise<'dark' | 'light'> {
   return 'dark';
 }
 
-function syncDomClasses(isDark: boolean, contrast: AppContrast): void {
+function syncDomClasses(isDark: boolean, contrast: AppContrast, darkPreset: DarkPreset): void {
   if (typeof document === 'undefined') return;
 
   const root = document.documentElement;
   const body = document.body;
 
+  // Clean previous preset classes
+  root.classList.remove('preset-default', 'preset-charcoal', 'preset-oled');
+  body.classList.remove('preset-default', 'preset-charcoal', 'preset-oled');
+
   if (isDark) {
     root.classList.remove('theme-light');
-    root.classList.add('theme-dark', 'dark');
+    root.classList.add('theme-dark', 'dark', `preset-${darkPreset}`);
     body.classList.remove('theme-light');
-    body.classList.add('theme-dark', 'dark');
+    body.classList.add('theme-dark', 'dark', `preset-${darkPreset}`);
   } else {
-    root.classList.remove('theme-dark', 'dark');
+    root.classList.remove('theme-dark', 'dark', 'preset-default', 'preset-charcoal', 'preset-oled');
     root.classList.add('theme-light');
-    body.classList.remove('theme-dark', 'dark');
+    body.classList.remove('theme-dark', 'dark', 'preset-default', 'preset-charcoal', 'preset-oled');
     body.classList.add('theme-light');
   }
 
@@ -56,11 +62,16 @@ function syncDomClasses(isDark: boolean, contrast: AppContrast): void {
  * Applies active theme and contrast classes to the document root and body elements.
  * When theme is 'system', queries native OS color-scheme via Tauri IPC and falls back to matchMedia.
  */
-export function applyTheme(theme: AppTheme, contrast: AppContrast): void {
+export function applyTheme(
+  theme: AppTheme,
+  contrast: AppContrast,
+  darkPreset: DarkPreset = 'default'
+): void {
   if (typeof document === 'undefined') return;
 
   currentActiveTheme = theme;
   currentActiveContrast = contrast;
+  currentActiveDarkPreset = darkPreset;
 
   // Clean up any existing listeners/intervals
   if (systemPollTimer !== null) {
@@ -83,7 +94,7 @@ export function applyTheme(theme: AppTheme, contrast: AppContrast): void {
     // 1. Immediate detection via native IPC / matchMedia
     queryNativeSystemTheme().then((mode) => {
       if (currentActiveTheme === 'system') {
-        syncDomClasses(mode === 'dark', contrast);
+        syncDomClasses(mode === 'dark', contrast, darkPreset);
       }
     });
 
@@ -93,7 +104,7 @@ export function applyTheme(theme: AppTheme, contrast: AppContrast): void {
       mediaQueryListener = async () => {
         if (currentActiveTheme === 'system') {
           const mode = await queryNativeSystemTheme();
-          syncDomClasses(mode === 'dark', currentActiveContrast);
+          syncDomClasses(mode === 'dark', currentActiveContrast, currentActiveDarkPreset);
         }
       };
 
@@ -110,11 +121,11 @@ export function applyTheme(theme: AppTheme, contrast: AppContrast): void {
       systemPollTimer = window.setInterval(async () => {
         if (currentActiveTheme === 'system') {
           const mode = await queryNativeSystemTheme();
-          syncDomClasses(mode === 'dark', currentActiveContrast);
+          syncDomClasses(mode === 'dark', currentActiveContrast, currentActiveDarkPreset);
         }
       }, 1500);
     }
   } else {
-    syncDomClasses(theme === 'dark', contrast);
+    syncDomClasses(theme === 'dark', contrast, darkPreset);
   }
 }

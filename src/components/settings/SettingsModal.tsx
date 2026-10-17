@@ -753,56 +753,85 @@ export const SettingsModal: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Dark Theme Colors & Live Preview */}
-                <div>
-                  <h3 className="text-xs font-semibold text-[#b4b4b4] uppercase tracking-wider mb-2">
-                    Dark Theme Palette
-                  </h3>
-                  <div className="p-4 rounded-2xl bg-[#282828] border border-[#383838] space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-[#ececec]">Preset</span>
-                      <CustomSelect
-                        value={settings.darkPreset}
-                        options={DARK_PRESET_OPTIONS}
-                        onChange={(val) =>
-                          updateSettings({
-                            darkPreset: val as 'default' | 'charcoal' | 'oled',
-                          })
-                        }
-                      />
-                    </div>
+                {/* Dark Theme Colors & Live Preview - Only shown when dark theme is active */}
+                {settings.theme === 'dark' && (
+                  <div>
+                    <h3 className="text-xs font-semibold text-[#b4b4b4] uppercase tracking-wider mb-2">
+                      Dark Theme Palette
+                    </h3>
+                    <div className="p-4 rounded-2xl bg-[#282828] border border-[#383838] space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-[#ececec]">Preset</span>
+                        <CustomSelect
+                          value={settings.darkPreset}
+                          options={DARK_PRESET_OPTIONS}
+                          onChange={(val) =>
+                            updateSettings({
+                              darkPreset: val as 'default' | 'charcoal' | 'oled',
+                            })
+                          }
+                        />
+                      </div>
 
-                    <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#333333] text-xs">
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 rounded bg-[#212121] border border-[#444]" />
-                        <span className="text-[#b4b4b4]">BG: #212121</span>
+                      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#333333] text-xs">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-4 h-4 rounded border border-[#444]"
+                            style={{
+                              backgroundColor:
+                                settings.darkPreset === 'oled'
+                                  ? '#000000'
+                                  : settings.darkPreset === 'charcoal'
+                                  ? '#171717'
+                                  : '#212121',
+                            }}
+                          />
+                          <span className="text-[#b4b4b4]">
+                            BG:{' '}
+                            {settings.darkPreset === 'oled'
+                              ? '#000000'
+                              : settings.darkPreset === 'charcoal'
+                              ? '#171717'
+                              : '#212121'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 rounded bg-[#ececec] border border-[#444]" />
+                          <span className="text-[#b4b4b4]">FG: #ECECEC</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 rounded bg-[#3b82f6] border border-[#444]" />
+                          <span className="text-[#b4b4b4]">Accent: #3B82F6</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 rounded bg-[#ececec] border border-[#444]" />
-                        <span className="text-[#b4b4b4]">FG: #ECECEC</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 rounded bg-[#3b82f6] border border-[#444]" />
-                        <span className="text-[#b4b4b4]">Accent: #3B82F6</span>
-                      </div>
-                    </div>
 
-                    {/* Live Syntax Code Preview Card */}
-                    <div className="mt-3 p-3.5 rounded-xl bg-[#171717] border border-[#333333] font-mono text-xs leading-relaxed">
-                      <span className="text-[#707070]">// Greet a user by name</span>
-                      <br />
-                      <span className="text-blue-400">const</span>{' '}
-                      <span className="text-emerald-400">greet</span> = (
-                      <span className="text-amber-300">name</span>: <span className="text-cyan-300">string</span>
-                      ) =&gt; &#123;
-                      <br />
-                      &nbsp;&nbsp;<span className="text-rose-400">return</span>{' '}
-                      <span className="text-emerald-300">`Hello, $&#123;name&#125;!`</span>;
-                      <br />
-                      &#125;;
+                      {/* Live Syntax Code Preview Card */}
+                      <div
+                        className="mt-3 p-3.5 rounded-xl border border-[#333333] font-mono text-xs leading-relaxed transition-colors"
+                        style={{
+                          backgroundColor:
+                            settings.darkPreset === 'oled'
+                              ? '#080808'
+                              : settings.darkPreset === 'charcoal'
+                              ? '#111111'
+                              : '#171717',
+                        }}
+                      >
+                        <span className="text-[#707070]">// Greet a user by name</span>
+                        <br />
+                        <span className="text-blue-400">const</span>{' '}
+                        <span className="text-emerald-400">greet</span> = (
+                        <span className="text-amber-300">name</span>: <span className="text-cyan-300">string</span>
+                        ) =&gt; &#123;
+                        <br />
+                        &nbsp;&nbsp;<span className="text-rose-400">return</span>{' '}
+                        <span className="text-emerald-300">`Hello, $&#123;name&#125;!`</span>;
+                        <br />
+                        &#125;;
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Chat Settings Section */}
                 <div>

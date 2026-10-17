@@ -154,6 +154,98 @@ body.theme-light,
   border-color: var(--border) !important;
 }
 
+/* Charcoal Dark Preset (#171717 canvas, #111111 sidebar, #222222 surface) */
+.preset-charcoal.theme-dark,
+.preset-charcoal body,
+body.preset-charcoal {
+  background-color: #171717;
+}
+
+.preset-charcoal .bg-\[\#212121\],
+.preset-charcoal [class*="bg-[#212121]"] {
+  background-color: #171717 !important;
+}
+
+.preset-charcoal .bg-\[\#171717\],
+.preset-charcoal [class*="bg-[#171717]"] {
+  background-color: #111111 !important;
+}
+
+.preset-charcoal .bg-\[\#2f2f2f\],
+.preset-charcoal .bg-\[\#282828\],
+.preset-charcoal .bg-\[\#1e1e1e\],
+.preset-charcoal .bg-\[\#262626\],
+.preset-charcoal [class*="bg-[#2f2f2f]"],
+.preset-charcoal [class*="bg-[#282828]"],
+.preset-charcoal [class*="bg-[#1e1e1e]"],
+.preset-charcoal [class*="bg-[#262626]"] {
+  background-color: #222222 !important;
+}
+
+.preset-charcoal .border-\[\#303030\],
+.preset-charcoal .border-\[\#383838\],
+.preset-charcoal .border-\[\#262626\],
+.preset-charcoal .border-\[\#2e2e2e\],
+.preset-charcoal [class*="border-[#303030]"],
+.preset-charcoal [class*="border-[#383838]"],
+.preset-charcoal [class*="border-[#262626]"] {
+  border-color: #2a2a2a !important;
+}
+
+.preset-charcoal .hover\:bg-\[\#2f2f2f\]:hover,
+.preset-charcoal .hover\:bg-\[\#262626\]:hover,
+.preset-charcoal .hover\:bg-\[\#383838\]:hover,
+.preset-charcoal .hover\:bg-\[\#212121\]:hover,
+.preset-charcoal .hover\:bg-\[\#282828\]:hover {
+  background-color: #1c1c1c !important;
+}
+
+/* OLED Deep Black Preset (#000000 canvas, #080808 sidebar, #121212 surface) */
+.preset-oled.theme-dark,
+.preset-oled body,
+body.preset-oled {
+  background-color: #000000;
+}
+
+.preset-oled .bg-\[\#212121\],
+.preset-oled [class*="bg-[#212121]"] {
+  background-color: #000000 !important;
+}
+
+.preset-oled .bg-\[\#171717\],
+.preset-oled [class*="bg-[#171717]"] {
+  background-color: #080808 !important;
+}
+
+.preset-oled .bg-\[\#2f2f2f\],
+.preset-oled .bg-\[\#282828\],
+.preset-oled .bg-\[\#1e1e1e\],
+.preset-oled .bg-\[\#262626\],
+.preset-oled [class*="bg-[#2f2f2f]"],
+.preset-oled [class*="bg-[#282828]"],
+.preset-oled [class*="bg-[#1e1e1e]"],
+.preset-oled [class*="bg-[#262626]"] {
+  background-color: #121212 !important;
+}
+
+.preset-oled .border-\[\#303030\],
+.preset-oled .border-\[\#383838\],
+.preset-oled .border-\[\#262626\],
+.preset-oled .border-\[\#2e2e2e\],
+.preset-oled [class*="border-[#303030]"],
+.preset-oled [class*="border-[#383838]"],
+.preset-oled [class*="border-[#262626]"] {
+  border-color: #202020 !important;
+}
+
+.preset-oled .hover\:bg-\[\#2f2f2f\]:hover,
+.preset-oled .hover\:bg-\[\#262626\]:hover,
+.preset-oled .hover\:bg-\[\#383838\]:hover,
+.preset-oled .hover\:bg-\[\#212121\]:hover,
+.preset-oled .hover\:bg-\[\#282828\]:hover {
+  background-color: #151515 !important;
+}
+
 @layer base {
   body {
     background-color: #212121;
