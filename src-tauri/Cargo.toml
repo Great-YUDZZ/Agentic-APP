@@ -34,3 +34,14 @@ anyhow = "1.0.104"
 regex = "1.13.1"
 log = "0.4.34"
 portable-pty = "0.9.0"
+
+[profile.dev]
+debug = 1
+incremental = true
+
+[profile.release]
+debug = 0
+strip = true
+lto = "thin"
+codegen-units = 1
+panic = "abort"
