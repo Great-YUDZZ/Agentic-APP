@@ -47,3 +47,11 @@ lerna-debug.log*
 PLAN.md
 AGENTS.md
 GEMINI.md
+
+# Test run artifacts
+landing_page_output/
+web-showcase-demo/
+raw_web_generated.txt
+test_results_summary.json
+arsitektur_agentic.md
+ringkasan_arsitektur_agentic.md
