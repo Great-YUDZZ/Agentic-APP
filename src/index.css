@@ -125,35 +125,6 @@ body.theme-light,
   color: #8e8e8e !important;
 }
 
-/* Contrast Strong Mode: Enhanced borders and contrast */
-.contrast-strong {
-  --border: #4a4a4a;
-}
-
-.theme-light.contrast-strong,
-.contrast-strong.theme-light {
-  --border: #a3a3a3;
-}
-
-.contrast-strong * {
-  border-color: var(--border);
-}
-
-.theme-light.contrast-strong .border-\[\#303030\],
-.theme-light.contrast-strong .border-\[\#383838\],
-.theme-light.contrast-strong .border-\[\#262626\],
-.theme-light.contrast-strong .border-\[\#2e2e2e\],
-.theme-light.contrast-strong [class*="border-"] {
-  border-color: #a3a3a3 !important;
-}
-
-.contrast-strong input,
-.contrast-strong textarea,
-.contrast-strong select,
-.contrast-strong button {
-  border-color: var(--border) !important;
-}
-
 /* Charcoal Dark Preset (#171717 canvas, #111111 sidebar, #222222 surface) */
 .preset-charcoal.theme-dark,
 .preset-charcoal body,
@@ -182,13 +153,13 @@ body.preset-charcoal {
   background-color: #222222 !important;
 }
 
-.preset-charcoal .border-\[\#303030\],
-.preset-charcoal .border-\[\#383838\],
-.preset-charcoal .border-\[\#262626\],
-.preset-charcoal .border-\[\#2e2e2e\],
-.preset-charcoal [class*="border-[#303030]"],
-.preset-charcoal [class*="border-[#383838]"],
-.preset-charcoal [class*="border-[#262626]"] {
+.preset-charcoal:not(.contrast-strong) .border-\[\#303030\],
+.preset-charcoal:not(.contrast-strong) .border-\[\#383838\],
+.preset-charcoal:not(.contrast-strong) .border-\[\#262626\],
+.preset-charcoal:not(.contrast-strong) .border-\[\#2e2e2e\],
+.preset-charcoal:not(.contrast-strong) [class*="border-[#303030]"],
+.preset-charcoal:not(.contrast-strong) [class*="border-[#383838]"],
+.preset-charcoal:not(.contrast-strong) [class*="border-[#262626]"] {
   border-color: #2a2a2a !important;
 }
 
@@ -228,13 +199,13 @@ body.preset-oled {
   background-color: #121212 !important;
 }
 
-.preset-oled .border-\[\#303030\],
-.preset-oled .border-\[\#383838\],
-.preset-oled .border-\[\#262626\],
-.preset-oled .border-\[\#2e2e2e\],
-.preset-oled [class*="border-[#303030]"],
-.preset-oled [class*="border-[#383838]"],
-.preset-oled [class*="border-[#262626]"] {
+.preset-oled:not(.contrast-strong) .border-\[\#303030\],
+.preset-oled:not(.contrast-strong) .border-\[\#383838\],
+.preset-oled:not(.contrast-strong) .border-\[\#262626\],
+.preset-oled:not(.contrast-strong) .border-\[\#2e2e2e\],
+.preset-oled:not(.contrast-strong) [class*="border-[#303030]"],
+.preset-oled:not(.contrast-strong) [class*="border-[#383838]"],
+.preset-oled:not(.contrast-strong) [class*="border-[#262626]"] {
   border-color: #202020 !important;
 }
 
@@ -244,6 +215,76 @@ body.preset-oled {
 .preset-oled .hover\:bg-\[\#212121\]:hover,
 .preset-oled .hover\:bg-\[\#282828\]:hover {
   background-color: #151515 !important;
+}
+
+/* Contrast Strong Mode: Enhanced borders and contrast across all themes and presets */
+.contrast-strong {
+  --border: #525252;
+}
+
+.contrast-strong.theme-dark,
+.theme-dark.contrast-strong,
+.contrast-strong.preset-charcoal,
+.contrast-strong.preset-oled,
+.preset-charcoal.contrast-strong,
+.preset-oled.contrast-strong {
+  --border: #555555;
+}
+
+.theme-light.contrast-strong,
+.contrast-strong.theme-light {
+  --border: #a3a3a3;
+}
+
+.contrast-strong * {
+  border-color: var(--border);
+}
+
+/* Force border color in contrast-strong mode across any dark theme preset */
+.contrast-strong .border-\[\#303030\],
+.contrast-strong .border-\[\#383838\],
+.contrast-strong .border-\[\#262626\],
+.contrast-strong .border-\[\#2e2e2e\],
+.contrast-strong .border-\[\#333333\],
+.contrast-strong .border-\[\#404040\],
+.contrast-strong [class*="border-[#303030]"],
+.contrast-strong [class*="border-[#383838]"],
+.contrast-strong [class*="border-[#262626]"],
+.contrast-strong [class*="border-[#2e2e2e]"],
+.contrast-strong.preset-charcoal [class*="border-"],
+.contrast-strong.preset-oled [class*="border-"],
+.preset-charcoal.contrast-strong [class*="border-"],
+.preset-oled.contrast-strong [class*="border-"] {
+  border-color: var(--border) !important;
+}
+
+.contrast-strong input,
+.contrast-strong textarea,
+.contrast-strong select,
+.contrast-strong button {
+  border-color: var(--border) !important;
+}
+
+/* Enhanced text contrast in contrast-strong mode */
+.contrast-strong.theme-dark .text-\[\#b4b4b4\],
+.theme-dark.contrast-strong .text-\[\#b4b4b4\],
+.contrast-strong.theme-dark [class*="text-[#b4b4b4]"],
+.theme-dark.contrast-strong [class*="text-[#b4b4b4]"] {
+  color: #dcdcdc !important;
+}
+
+.contrast-strong.theme-dark .text-\[\#707070\],
+.theme-dark.contrast-strong .text-\[\#707070\],
+.contrast-strong.theme-dark [class*="text-[#707070]"],
+.theme-dark.contrast-strong [class*="text-[#707070]"] {
+  color: #9e9e9e !important;
+}
+
+.contrast-strong.theme-light .text-\[\#5d5d5d\],
+.theme-light.contrast-strong .text-\[\#5d5d5d\],
+.contrast-strong.theme-light [class*="text-[#5d5d5d]"],
+.theme-light.contrast-strong [class*="text-[#5d5d5d]"] {
+  color: #2b2b2b !important;
 }
 
 @layer base {
