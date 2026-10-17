@@ -843,7 +843,7 @@ export const useStore = create<AppStore>((set, get) => ({
     const apiKey = endpointConfig.apiKey;
 
     if (!apiKey.trim()) {
-      state.addToast('error', `API Key belum diatur untuk model ${model}. Buka Pengaturan API untuk memasukkan kredensial.`);
+      state.addToast('error', `API Key belum diatur untuk model ${model}. Buka menu Setting untuk memasukkan kredensial.`);
       set((s) => ({
         buildDiscussion: {
           ...s.buildDiscussion,

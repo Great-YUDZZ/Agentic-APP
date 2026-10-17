@@ -206,7 +206,7 @@ export const AgentWorkspace: React.FC = () => {
       const apiKey = endpointConfig.apiKey;
 
       if (!apiKey.trim()) {
-        addToast('error', 'API Key belum diatur. Buka Pengaturan API untuk memasukkan kredensial.');
+        addToast('error', 'API Key belum diatur. Buka menu Setting untuk memasukkan kredensial.');
         setIsExecuting(false);
         return;
       }

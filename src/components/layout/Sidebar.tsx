@@ -189,7 +189,7 @@ export const Sidebar: React.FC = () => {
         >
           <div className="flex items-center gap-2">
             <Settings className="w-4 h-4" />
-            <span>Pengaturan API</span>
+            <span>Setting</span>
           </div>
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#212121] border border-[#303030] text-[#ececec]">
             {activeKeyCount} Aktif

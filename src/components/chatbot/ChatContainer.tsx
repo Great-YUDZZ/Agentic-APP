@@ -358,7 +358,7 @@ export const ChatContainer: React.FC = () => {
     const endpointConfig = resolveEndpointForModel(selectedModel, availableModels, apiKeys);
 
     if (!endpointConfig.apiKey.trim()) {
-      addToast('error', 'API Key belum diatur. Buka menu Pengaturan API di sidebar untuk mengisi kunci.');
+      addToast('error', 'API Key belum diatur. Buka menu Setting di sidebar untuk mengisi kunci.');
       setIsGenerating(false);
       return;
     }
