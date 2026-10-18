@@ -85,9 +85,9 @@ export const ChatContainer: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const promptInputRef = useRef<HTMLTextAreaElement>(null);
 
-  const currentMessages = messages.filter(
-    (m) => !activeSessionId || m.session_id === activeSessionId
-  );
+  const currentMessages = activeSessionId
+    ? messages.filter((m) => m.session_id === activeSessionId)
+    : [];
 
   // Auto-fetch models on component mount if empty
   useEffect(() => {

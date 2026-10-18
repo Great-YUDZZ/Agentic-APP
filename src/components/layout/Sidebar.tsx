@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Plus,
   Settings,
@@ -14,7 +14,6 @@ export const Sidebar: React.FC = () => {
     sessions,
     activeSessionId,
     selectSession,
-    createNewSession,
     deleteSession,
     isSettingsOpen,
     setSettingsOpen,
@@ -30,16 +29,6 @@ export const Sidebar: React.FC = () => {
 
   // Filter sesi berdasarkan mode yang sedang aktif
   const modeSessions = sessions.filter((s) => (s.mode || 'chatbot') === currentMode);
-
-  // Auto-select sesi aktif jika belum terpilih untuk mode ini
-  useEffect(() => {
-    const currentModeSession = sessions.find(
-      (s) => s.id === activeSessionId && (s.mode || 'chatbot') === currentMode
-    );
-    if (!currentModeSession && modeSessions.length > 0) {
-      selectSession(modeSessions[0].id);
-    }
-  }, [currentMode, activeSessionId, modeSessions.length]);
 
   const filteredSessions = modeSessions.filter((s) =>
     s.title.toLowerCase().includes(searchFilter.toLowerCase())
@@ -59,7 +48,10 @@ export const Sidebar: React.FC = () => {
   const modeLabel = getModeLabel();
 
   const handleCreateNew = () => {
-    createNewSession();
+    useStore.setState({ activeSessionId: null, messages: [] });
+    if (currentMode === 'build') {
+      useStore.getState().resetBuildDiscussion();
+    }
   };
 
   const handleDeleteSession = (e: React.MouseEvent, id: string) => {

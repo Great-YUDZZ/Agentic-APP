@@ -106,9 +106,9 @@ export const AgentWorkspace: React.FC = () => {
   const taskTextareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const currentMessages = messages.filter(
-    (m) => !activeSessionId || m.session_id === activeSessionId
-  );
+  const currentMessages = activeSessionId
+    ? messages.filter((m) => m.session_id === activeSessionId)
+    : [];
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

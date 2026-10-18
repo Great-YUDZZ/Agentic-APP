@@ -611,7 +611,19 @@ export const useStore = create<AppStore>((set, get) => ({
         const { invoke } = await import('@tauri-apps/api/core');
         const loadedSessions = (await invoke('get_chat_sessions')) as ChatSession[];
         if (loadedSessions && loadedSessions.length > 0) {
-          set({ sessions: loadedSessions, activeSessionId: null, messages: [] });
+          set({
+            sessions: loadedSessions,
+            activeSessionId: null,
+            messages: [],
+            buildDiscussion: {
+              id: 'discussion-main',
+              project_goal: '',
+              selected_agent_ids: [],
+              status: 'idle',
+              current_turn_index: 0,
+              messages: [],
+            },
+          });
         }
       } catch (err) {
         console.warn('Gagal memuat sesi obrolan dari SQLite:', err);
@@ -741,24 +753,16 @@ export const useStore = create<AppStore>((set, get) => ({
   deleteSession: async (id: string) => {
     const remaining = get().sessions.filter((sess) => sess.id !== id);
     const remainingMsgs = get().messages.filter((m) => m.session_id !== id);
-    const currentMode = get().currentMode;
-    const remainingModeSessions = remaining.filter((s) => (s.mode || 'chatbot') === currentMode);
-    const nextActive =
-      get().activeSessionId === id
-        ? remainingModeSessions[0]?.id || null
-        : get().activeSessionId;
+    const isCurrentActive = get().activeSessionId === id;
 
     set({
       sessions: remaining,
-      messages: remainingMsgs,
-      activeSessionId: nextActive,
+      messages: isCurrentActive ? [] : remainingMsgs,
+      activeSessionId: isCurrentActive ? null : get().activeSessionId,
     });
 
-    if (nextActive) {
-      await get().selectSession(nextActive);
-    } else {
-      // Jika semua sesi mode ini habis terhapus, buat sesi baru
-      get().createNewSession(undefined, currentMode);
+    if (isCurrentActive && get().currentMode === 'build') {
+      get().resetBuildDiscussion();
     }
 
     if ((window as any).__TAURI_INTERNALS__) {
