@@ -1,93 +1,111 @@
-# Agentic Native Hub
+# Autonomous AI Desktop Platform
 
-> **Autonomous AI Native Hub**: Platform desktop modern untuk orkestrasi agen AI mandiri, kolaborasi tim multi-agen (*multi-agent squad*), dan asisten rekayasa kode pintar yang dibangun dengan **Tauri 2.0**, **React 19**, dan **Rust Tokio Async Engine**.
-
----
-
-## Tentang Aplikasi Ini
-
-**Agentic Native Hub** adalah ruang kerja (*workspace*) desktop AI yang dirancang sebagai pusat kendali untuk mengoperasikan berbagai model kecerdasan buatan (LLM) secara mandiri, terstruktur, dan aman di lingkungan lokal komputer Anda.
-
-Aplikasi ini melampaui antarmuka obrolan konvensional dengan menghadirkan **studio rekayasa multi-agen otonom**. Anda dapat mendelegasikan tugas perangkat lunak yang kompleks (seperti perencanaan arsitektur, pembuatan kode program, pengujian bug, peninjauan perbedaan kode, hingga eksekusi perintah terminal) kepada agen-agen AI spesialis yang dapat berdiskusi dan berkoordinasi secara otomatis untuk menuntaskan tujuan proyek (*project goal*).
-
-Aplikasi ini mendukung berbagai penyedia model AI secara fleksibel: **Google Gemini**, **OpenAI**, **Anthropic Claude**, model lokal offline via **Ollama**, serta endpoint kustom mandiri (*OpenAI-compatible proxy*).
+Platform desktop native untuk orkestrasi agen AI mandiri, kolaborasi tim multi-agen paralel, dan manajemen basis pengetahuan universal berbasis konteks, yang dibangun di atas fondasi Tauri 2.0, React 19, dan mesin asynchronous Rust Tokio.
 
 ---
 
-## Fitur Utama Aplikasi
+## 1. Gambaran Umum
 
-### 1. Mode Clean Chatbot (Asisten Percakapan Cepat)
-Mode percakapan langsung untuk tanya jawab cepat, brainstorming, atau analisis teks dan kode:
-- **Deteksi Model Otomatis**: Mendeteksi seluruh daftar model AI yang tersedia dari endpoint aktif secara dinamis tanpa perlu memasukkan konfigurasi manual berulang kali.
-- **Dynamic Model Selector Pill**: Pemilih model interaktif yang terpasang rapi di atas kolom chat, dilengkapi kotak pencarian instan untuk beralih antar-model dalam hitungan detik.
-- **Streaming Response**: Menampilkan jawaban kata per kata secara halus (token-by-token) dengan perender sintaksis Markdown dan blok kode terformat rapi.
-- **Penyematan Berkas & Gambar (Context Attachment)**: Unggah dokumen teks, berkas kode sumber, atau gambar langsung via tombol Plus (+) dengan pratinjau chip visual sebelum dikirimkan ke model.
+Aplikasi ini dirancang dari kebutuhan nyata akan sebuah pusat kerja desktop yang mampu mengoperasikan berbagai model kecerdasan buatan secara mandiri, terstruktur, dan tetap berada dalam kendali penuh pengguna di lingkungan komputer lokal.
 
----
+Saat ini interaksi dengan model bahasa besar sering kali terbatas pada kolom obrolan konvensional yang pasif, di mana pengguna harus menyalin hasil kode, mengeksekusinya secara manual di terminal, dan bolak-balik memeriksa kesalahan sintaksis. Aplikasi ini hadir untuk menjembatani keterbatasan tersebut dengan menghadirkan studio rekayasa perangkat lunak mandiri. Di dalamnya, beberapa agen AI spesialis dapat bekerja secara simultan, merumuskan perencanaan bersama, menulis kode, memvalidasi perbedaan perubahan berkas, hingga menjalankan perintah terminal secara aman melalui mekanisme izin bertingkat.
 
-### 2. Mode Autonomous Single Agent (Agen Mandiri & HITL)
-Mode kerja otonom di mana satu agen spesialis fokus memecahkan target proyek langkah demi langkah:
-- **Rantai Penalaran Transparan (Chain of Thought)**: Panel akordeon interaktif yang menampilkan proses berpikir agen, langkah logis yang diambil, serta indikator penggunaan token secara transparan.
-- **Human-in-the-Loop (HITL) Clearance Gate**: Mekanisme pengamanan di mana aksi sensitif agen (seperti menjalankan perintah terminal atau memodifikasi berkas) wajib mendapatkan persetujuan pengguna terlebih dahulu melalui alert khusus sebelum dieksekusi.
-- **Mode Eksekusi Bertingkat**: Pilihan fleksibel antara mode *Ask for approval* (meminta izin untuk aksi berbahaya) atau mode *Strict* (otonomi penuh terkontrol).
-- **Custom Agent Creator**: Formulir pembuatan agen khusus dengan nama, peran unik, instruksi sistem kustom, dan pembagian keahlian (*skills*).
+Selain kemampuan eksekusi kode, aplikasi ini mengintegrasikan sistem basis pengetahuan berbasis markdown dengan filosofi Universal Context Vault, sehingga setiap catatan, konteks instruksi, dan dokumentasi arsitektur proyek dapat saling terhubung dan terbaca oleh AI tanpa kehilangan konteks kerja.
 
 ---
 
-### 3. Mode Build Studio (Multi-Agent Squad Room)
-Studio kolaborasi paralel di mana sekelompok agen spesialis bekerja bersama layaknya tim rekayasa perangkat lunak:
-- **Multi-Agent Group Discussion**: Ruang diskusi kolaboratif di mana agen (misalnya Arsitek, Coder, Reviewer, dan Tester) berbicara secara bergantian (*turn-taking*) merumuskan solusi, membagi tugas, dan saling meninjau hasil sebelum kode ditulis.
-- **Visual DAG Hierarchy Tree**: Diagram hierarki visual interaktif yang menampilkan rantai komando dari Lead Architect hingga subagen pekerja, lengkap dengan cincin status operasional (Idle, Thinking, Working, Complete).
-- **Task Kanban Board**: Papan manajemen tugas 4 kolom (*Backlog*, *In Progress*, *In Review*, *Done*) yang diperbarui otomatis secara real-time berdasarkan progres kerja tim agen.
-- **Interactive Terminal Drawer**: Laci terminal bash bawaan yang memungkinkan Anda menjalankan perintah shell secara langsung, melihat log eksekusi agen dengan badge berwarna (INFO, EXEC, WARN), multi-tab, riwayat perintah, dan fitur auto-scroll.
-- **Code Review & Diff Viewer**: Peninjau visual perbedaan kode (side-by-side dan unified diff) yang otomatis membedah blok kode dari hasil diskusi agen, dilengkapi tombol satu-klik **Apply to File** untuk langsung memperbarui berkas proyek fisik.
-- **Collapsible Squad Panel**: Panel daftar agen (*squad room*) dapat disembunyikan (*hide ke atas*) untuk memberikan ruang kerja kanvas obrolan yang jauh lebih luas dan bebas distraksi.
+## 2. Tiga Mode Kerja Utama
+
+Aplikasi ini membagi alur kerja ke dalam tiga mode terpadu yang dapat diakses langsung dari antarmuka:
+
+### Mode 1: Clean Chatbot (Asisten Percakapan Cepat)
+Mode ini difokuskan untuk tanya jawab kilat, analisis teks, atau eksplorasi ide tanpa beban konfigurasi yang rumit:
+- **Deteksi Model Otomatis**: Mendeteksi seluruh model yang tersedia dari endpoint aktif secara dinamis, baik dari penyedia layanan cloud maupun server lokal.
+- **Dynamic Model Selector**: Pemilih model interaktif yang terpasang di atas kolom input dengan fitur pencarian instan, memudahkan peralihan antar-model tanpa harus masuk ke menu pengaturan.
+- **Streaming Token Halus**: Jawaban dari model ditampilkan kata per kata dengan perender format Markdown dan blok kode bersintaksis rapi.
+- **Penyematan Konteks**: Mendukung penambahan dokumen teks, berkas kode sumber, serta gambar secara langsung melalui tombol lampiran sebelum pesan dikirimkan.
+
+### Mode 2: Autonomous Agent (Agen Mandiri dengan Human-in-the-Loop)
+Mode kerja otonom yang mendelegasikan satu target spesifik kepada satu agen khusus:
+- **Rantai Penalaran Transparan**: Akordeon penalaran yang memperlihatkan alur berpikir agen, langkah teknis yang direncanakan, dan kalkulasi penggunaan token.
+- **Gerbang Keamanan Human-in-the-Loop**: Tindakan sensitif seperti penulisan berkas baru atau eksekusi perintah shell wajib melewati persetujuan eksplisit pengguna sebelum benar-benar dijalankan.
+- **Mode Eksekusi Bertingkat**: Pengguna dapat memilih mode meminta izin untuk tindakan berisiko atau mode otonom penuh bagi lingkungan pengujian yang terisolasi.
+- **Pembuat Agen Kustom**: Fasilitas untuk merancang agen khusus dengan peran, instruksi sistem, dan keterampilan unik sesuai kebutuhan spesifik proyek.
+
+### Mode 3: Build Studio (Multi-Agent Squad Room)
+Studio kolaborasi rekayasa perangkat lunak paralel di mana beberapa agen bekerja bersama layaknya sebuah tim developer:
+- **Diskusi Tim Multi-Agen**: Ruang kolaborasi di mana Lead Architect, Coder Agent, Reviewer Agent, dan Tester Subagent berdiskusi secara bergiliran menyusun rencana, membagi tugas ke dalam subtugas, dan saling mengaudit hasil kerja.
+- **Hierarki Pohon Visual DAG**: Representasi grafis visual yang menampilkan garis komando orkestrator dan status operasional masing-masing agen pekerja.
+- **Papan Manajemen Tugas Kanban**: Papan pemantauan tugas empat kolom (Backlog, In Progress, In Review, Done) yang bergerak secara otomatis mengikuti kemajuan kerja tim.
+- **Terminal Shell Interaktif**: Laci terminal terintegrasi berbasis shell lokal untuk meninjau log keluaran agen dan menjalankan perintah verifikasi secara langsung.
+- **Peninjau Kode & Diff Viewer**: Penampil perbedaan kode berdampingan (side-by-side diff) yang memungkinkan pengguna meninjau baris kode yang diubah sebelum menerapkan perubahan fisik ke berkas proyek.
 
 ---
 
-### 4. Ekosistem Pendukung & Alat Produktivitas
-- **Skills Hub Management**: Pusat pengelolaan keahlian agen untuk memasang, mengaktifkan, atau mengimpor modul keterampilan (*skills*) baru, baik dalam cakupan lokal proyek maupun global sistem.
-- **Interactive Slash Commands (`/`)**: Menu pintasan cepat yang muncul saat mengetik garis miring di kolom input (seperti `/plan`, `/review`, `/test`, `/terminal`, `/skills`, `/clear`, `/help`) dengan navigasi keyboard penuh.
-- **Multi-Provider & API Key Manager**: Pengelola kredensial mandiri untuk menyimpan kunci API Gemini, OpenAI, Claude, DeepSeek, dan Ollama secara aman pada basis data SQLite lokal, dilengkapi fitur uji latensi koneksi (*Ping Tester*).
-- **Sandbox Path Confinement**: Mesin eksekutor di lapisan Rust native yang mengisolasi seluruh operasi baca/tulis berkas agar tetap terkunci di dalam direktori kerja proyek, mencegah directory traversal ke berkas sistem di luar izin.
-- **Project Picker & Workspace Selector**: Pengalih direktori kerja aktif dengan pemindaian otomatis proyek lokal pada sistem penyimpanan Anda.
+## 3. Fitur Unggulan: Universal Context Vault
+
+Konsep basis pengetahuan universal yang mengadopsi standar keterhubungan wikilink ala Obsidian untuk mengelola seluruh memori dan konteks proyek:
+
+- **Visualisasi D3 Wikilink Graph**: Kanvas graf interaktif berkecepatan tinggi yang memetakan jejaring relasi antar-catatan markdown dan tag, dilengkapi pengelompokan warna semantik (Hub, Arsitektur, UI, Safety, Multi-Agent, Vault) serta pengungkapan judul bertahap yang hanya muncul saat pengguna memperbesar tampilan (zoom in).
+- **Jejak Audit Berkas (.audit.jsonl)**: Pencatatan otomatis setiap kali berkas dibuat, dimodifikasi, dipindahkan, atau dihapus oleh agen, memberikan transparansi riwayat mutasi berkas secara kronologis.
+- **Tempat Sampah (.trash/) & Kebijakan Retensi**: Berkas yang disetujui untuk dihapus tidak langsung dimusnahkan secara permanen dari sistem berkas, melainkan dipindahkan ke folder sampah terisolasi dan dapat dipulihkan kapan saja.
+- **Panel Persetujuan Hapus (Approval Panel)**: Panel verifikasi khusus untuk meninjau permintaan penghapusan berkas dari agen AI, lengkap dengan pratinjau isi dokumen dan alasan penghapusan.
+- **Navigasi Sisi Kiri Terpadu**: Seluruh menu navigasi Context Vault diletakkan pada bilah sisi kiri vertikal, menjaga area kanvas di atas tetap bersih dan lapang.
 
 ---
 
-## Struktur Direktori Proyek
+## 4. Arsitektur Teknis & Standar Rekayasa
+
+Pengembangan aplikasi ini mengedepankan aspek keandalan, efisiensi konsumsi memori, dan keamanan eksekusi lokal:
+
+- **Desktop Runtime**: Menggunakan framework Tauri 2.0 yang memanfaatkan webview native sistem operasi, menghasilkan ukuran binari yang sangat kecil dan konsumsi memori RAM yang jauh lebih hemat dibandingkan platform berbasis Chromium tradisional.
+- **Mesin Backend Rust & Tokio**: Seluruh penanganan proses latar belakang, koneksi jaringan asinkron, pemantauan sistem berkas, dan komunikasi antar-proses (IPC) dikelola menggunakan bahasa Rust dengan runtime Tokio.
+- **Isolasi Keamanan Sandbox**: Jalur akses berkas dibatasi secara ketat di dalam ruang lingkup direktori kerja proyek (workspace confinement), secara aktif mencegah upaya manipulasi direktori keluar dari batas yang diizinkan (directory traversal).
+- **Frontend Modern & Anti-Slop Design**: Dibangun menggunakan React 19, TypeScript, dan Tailwind CSS dengan mematuhi prinsip Flat Design Master. Tampilan menggunakan permukaan solid dengan kontras netral yang rapi, tanpa gradien warna-warni yang berlebihan, tanpa efek blur layar penuh yang memberatkan kartu grafis, dan tanpa bayangan tebal.
+- **Persistensi Data SQLite Lokal**: Seluruh sesi percakapan, kunci API terenkripsi, catatan riwayat tugas, dan konfigurasi preferensi pengguna disimpan pada basis data SQLite thread-safe di komputer lokal pengguna.
+
+---
+
+## 5. Struktur Direktori Proyek
 
 ```
 Agentic/
-├── src-tauri/                     # Backend Desktop Native (Tauri 2.0 & Rust Tokio)
+├── src-tauri/                     # Lapisan Backend Desktop Native (Rust & Tokio)
 │   ├── Cargo.toml
 │   ├── tauri.conf.json
 │   └── src/
 │       ├── main.rs
 │       ├── lib.rs
-│       ├── db/                    # Persistensi SQLite thread-safe lokal
-│       ├── providers/             # Jembatan API provider (Gemini, Claude, OpenAI, Ollama)
-│       ├── engine/                # Mesin orkestrasi multi-agen & sandbox runner aman
-│       └── ipc/                   # Jembatan perintah Tauri IPC
-└── src/                           # Frontend Antarmuka (React 19 + TypeScript + Tailwind)
+│       ├── db/                    # Skema basis data SQLite dan kueri persistensi
+│       ├── providers/             # Klien penyedia API (Gemini, Claude, OpenAI, Ollama)
+│       ├── engine/                # Runtime orkestrasi agen, sandbox tools, dan IPC
+│       └── vault/                 # Modul audit, graf wikilink, dan pengelola trash
+└── src/                           # Lapisan Antarmuka Pengguna (React 19 + TypeScript)
     ├── package.json
     ├── vite.config.ts
     └── src/
         ├── App.tsx
         ├── components/
-        │   ├── chatbot/           # Modul Chatbot & Dynamic Model Pill Selector
-        │   ├── agent/             # Modul Single Agent & Approval Alert HITL
-        │   ├── build/             # Modul Build Studio (Discussion, Kanban, DAG Tree, Diff Viewer)
-        │   ├── layout/            # Komponen TitleBar & Sidebar navigasi
-        │   ├── terminal/          # Terminal drawer interaktif (bash)
-        │   ├── skills/            # Modal Hub manajemen skills agen
-        │   └── common/            # State boundary (Skeleton, Empty State, Error, Toast)
-        └── store/                 # Pengelola state reaktif (Zustand)
+        │   ├── chatbot/           # Antarmuka Chatbot dan pemilih model dinamis
+        │   ├── agent/             # Antarmuka Single Agent dengan panel HITL
+        │   ├── build/             # Antarmuka Build Studio (Diskusi, Kanban, Pohon DAG, Diff)
+        │   ├── vault/             # Komponen Context Vault (Grafik D3, Audit, Trash, Approvals)
+        │   ├── layout/            # Bilah TitleBar dan Sidebar navigasi vertikal
+        │   ├── terminal/          # Panel laci terminal interaktif
+        │   ├── settings/          # Pengaturan sistem dan pengelola kunci API
+        │   └── common/            # Empat status batas (Skeleton, Empty, Error, Toast)
+        ├── store/                 # Pengelola state aplikasi reaktif (Zustand)
+        └── types/                 # Definisi tipe TypeScript yang ketat
 ```
+
+---
+
+## 6. Catatan Rekayasa & Keseimbangan Desain
+
+Dalam membangun platform rekayasa berbasis AI native seperti ini, selalu ada titik keseimbangan yang perlu dijaga antara tingkat otonomi agen dan kepastian kontrol pengguna. Menyerahkan seluruh wewenang penulisan berkas dan eksekusi terminal secara otomatis memang mempercepat alur kerja, namun risiko kesalahan modifikasi kode juga meningkat. Oleh karena itu, arsitektur aplikasi ini sengaja menempatkan gerbang persetujuan Human-in-the-Loop dan pelindung folder tempat sampah sebagai pengaman utama, sehingga pengguna dapat menikmati kenyamanan kolaborasi agen tanpa khawatir kehilangan berkas penting atau mengalami kerusakan repositori.
 
 ---
 
 ## Lisensi
 
-Didistribusikan di bawah ketentuan lisensi [MIT](LICENSE).
-
-Hak Cipta (c) [Great-YUDZZ](https://github.com/Great-YUDZZ).
+Didistribusikan di bawah lisensi resmi [MIT](LICENSE).

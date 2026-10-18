@@ -47,6 +47,7 @@ lerna-debug.log*
 PLAN.md
 AGENTS.md
 GEMINI.md
+DESIGN_MASTER.md
 
 # Test run artifacts
 landing_page_output/
