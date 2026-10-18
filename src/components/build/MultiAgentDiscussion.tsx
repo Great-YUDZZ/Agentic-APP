@@ -63,6 +63,7 @@ export const MultiAgentDiscussion: React.FC = () => {
     queuedMessagesBuffer,
     addQueuedMessage,
     processNextQueuedMessage,
+    setBuildSubMode,
   } = useStore();
 
   const convWidthClass = getConversationWidthClass(settings?.conversationWidth);
@@ -169,6 +170,14 @@ export const MultiAgentDiscussion: React.FC = () => {
   const handleSendChat = async (explicitChat?: string) => {
     const chatText = (explicitChat !== undefined ? explicitChat : chatInput).trim();
     if (!chatText && attachedFiles.length === 0) return;
+
+    if (chatText.toLowerCase() === '/plan') {
+      setChatInput('');
+      setAttachedFiles([]);
+      setBuildSubMode('plan');
+      addToast('info', 'Beralih ke Sesi Perencanaan Lead Orchestrator.');
+      return;
+    }
 
     const finalContent = formatAttachedPrompt(
       chatText || 'Mohon tinjau file yang saya lampirkan untuk diskusi tim.',
@@ -720,6 +729,23 @@ export const MultiAgentDiscussion: React.FC = () => {
                     </>
                   )}
                 </button>
+
+                {/* Phase Toggle Pill: Plan | Build */}
+                <div className="flex items-center p-0.5 rounded-full bg-[#212121] border border-[#383838] h-8">
+                  <button
+                    type="button"
+                    onClick={() => setBuildSubMode('plan')}
+                    className="px-2.5 py-1 rounded-full text-xs font-medium text-[#707070] hover:text-[#ececec] transition-colors"
+                  >
+                    Plan
+                  </button>
+                  <button
+                    type="button"
+                    className="px-2.5 py-1 rounded-full text-xs font-medium bg-[#383838] text-[#ececec]"
+                  >
+                    Build
+                  </button>
+                </div>
               </div>
 
               {/* Right: Model Selector Pill, Mic, and Iconic Send Button */}

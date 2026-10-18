@@ -12,6 +12,7 @@ import {
   Sparkles,
   AlertTriangle,
   X,
+  Cpu,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { ChatMessage } from '../../types';
@@ -55,6 +56,10 @@ export const ChatContainer: React.FC = () => {
     setContextCompressed,
     setContextUsagePercent,
     settings,
+    updateSettings,
+    isStreaming,
+    setIsStreaming,
+    isWorking,
     queuedMessagesBuffer,
     addQueuedMessage,
     processNextQueuedMessage,
@@ -219,16 +224,16 @@ export const ChatContainer: React.FC = () => {
     const rawText = (explicitText !== undefined ? explicitText : inputPrompt).trim();
     if (!rawText) return;
 
-    if (isGenerating) {
+    const isBusy = isGenerating || isStreaming || isWorking;
+    if (isBusy && explicitText === undefined) {
       if (settings.queuedMessages === 'queue') {
         addQueuedMessage(rawText);
-        if (explicitText === undefined) {
-          setInputPrompt('');
-          setIsSlashOpen(false);
-        }
+        setInputPrompt('');
+        setIsSlashOpen(false);
         addToast('info', 'Pesan ditambahkan ke antrean.');
         return;
       }
+      // When settings.queuedMessages === 'immediate', send immediately without queuing
     }
 
     let targetSessionId = activeSessionId;
@@ -261,18 +266,21 @@ export const ChatContainer: React.FC = () => {
       setIsSlashOpen(false);
     }
     setIsGenerating(true);
+    setIsStreaming(true);
 
     const endpointConfig = resolveEndpointForModel(selectedModel, availableModels, apiKeys);
 
     if (!endpointConfig.apiKey.trim()) {
       addToast('error', 'API Key belum diatur. Buka menu Setting di sidebar untuk mengisi kunci.');
       setIsGenerating(false);
+      setIsStreaming(false);
       return;
     }
 
     if (!selectedModel.trim()) {
       addToast('error', 'Belum ada model AI yang dipilih. Pastikan API Key aktif dan pilih model di dock bawah.');
       setIsGenerating(false);
+      setIsStreaming(false);
       return;
     }
 
@@ -413,6 +421,7 @@ export const ChatContainer: React.FC = () => {
       }));
     } finally {
       setIsGenerating(false);
+      setIsStreaming(false);
       // Simpan pesan asisten yang telah selesai ke database SQLite
       const finalMsg = useStore.getState().messages.find((m) => m.id === assistantMsgId);
       if (finalMsg && (finalMsg.content || finalMsg.reasoning)) {
@@ -441,6 +450,10 @@ export const ChatContainer: React.FC = () => {
             message: `Plan policy is never_ask. Automatically approved plan: ${userMsg.content.slice(0, 40)}`,
             timestamp: new Date().toLocaleTimeString(),
           });
+          const planTitle = userMsg.content.replace(/^\/plan\s*/, '').slice(0, 40) || 'Implementation Plan';
+          setTimeout(() => {
+            handleSendMessage(`Lanjutkan eksekusi rencana arsitektur: "${planTitle}".`);
+          }, 300);
         }
       }
 
@@ -491,14 +504,29 @@ export const ChatContainer: React.FC = () => {
           </span>
         </div>
 
-        <button
-          onClick={handleClearChat}
-          title="Bersihkan pesan di sesi ini"
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs text-[#b4b4b4] hover:text-red-400 hover:bg-[#282828] border border-[#303030] transition-colors"
-        >
-          <Trash2 className="w-3 h-3" />
-          <span>Bersihkan</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => updateSettings({ verboseAgentChat: !settings.verboseAgentChat })}
+            title={settings.verboseAgentChat ? 'Sembunyikan langkah pemikiran rinci' : 'Tampilkan langkah pemikiran rinci'}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs border transition-colors ${
+              settings.verboseAgentChat
+                ? 'bg-blue-600/15 border-blue-500/40 text-blue-400'
+                : 'text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#282828] border-[#303030]'
+            }`}
+          >
+            <Cpu className="w-3 h-3" />
+            <span>Verbose {settings.verboseAgentChat ? 'ON' : 'OFF'}</span>
+          </button>
+
+          <button
+            onClick={handleClearChat}
+            title="Bersihkan pesan di sesi ini"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs text-[#b4b4b4] hover:text-red-400 hover:bg-[#282828] border border-[#303030] transition-colors"
+          >
+            <Trash2 className="w-3 h-3" />
+            <span>Bersihkan</span>
+          </button>
+        </div>
       </div>
 
       {/* Message Stream */}

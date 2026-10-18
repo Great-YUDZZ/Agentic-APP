@@ -15,7 +15,14 @@ import { useStore } from './store/useStore';
 import { applyTheme } from './utils/theme';
 
 export const App: React.FC = () => {
-  const { currentMode, settings, setSettingsOpen, loadApiKeysFromDb, loadSessionsFromDb } = useStore();
+  const {
+    currentMode,
+    settings,
+    setSettingsOpen,
+    toggleBuildSubMode,
+    loadApiKeysFromDb,
+    loadSessionsFromDb,
+  } = useStore();
 
   React.useEffect(() => {
     applyTheme(settings.theme, settings.contrast, settings.darkPreset);
@@ -27,10 +34,14 @@ export const App: React.FC = () => {
         e.preventDefault();
         setSettingsOpen(true);
       }
+      if (e.ctrlKey && e.key === 'Tab' && currentMode === 'build') {
+        e.preventDefault();
+        toggleBuildSubMode();
+      }
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [setSettingsOpen]);
+  }, [setSettingsOpen, toggleBuildSubMode, currentMode]);
 
   React.useEffect(() => {
     loadApiKeysFromDb();

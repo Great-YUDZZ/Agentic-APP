@@ -113,6 +113,21 @@ export interface DiscussionMessage {
   timestamp: string;
 }
 
+export interface DraftPlanTask {
+  id: string;
+  title: string;
+  role_needed: string;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+}
+
+export interface RecommendedSquadAgent {
+  name: string;
+  role: string;
+  task_description: string;
+  skills: string[];
+  avatar_color: string;
+}
+
 export interface BuildDiscussionSession {
   id: string;
   project_goal: string;
@@ -120,6 +135,10 @@ export interface BuildDiscussionSession {
   status: 'idle' | 'running' | 'paused' | 'completed';
   current_turn_index: number;
   messages: DiscussionMessage[];
+  buildSubMode: 'plan' | 'build';
+  planningMessages: DiscussionMessage[];
+  draftPlanTasks?: DraftPlanTask[];
+  recommendedSquad?: RecommendedSquadAgent[];
 }
 
 export interface TerminalLog {

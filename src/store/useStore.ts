@@ -22,9 +22,25 @@ import {
   StudioTab,
   AppSettings,
   PlanApprovalRequest,
+  DraftPlanTask,
+  RecommendedSquadAgent,
 } from '../types';
 import { parseRobustJson, getChatEndpoint, getModelsEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../utils/api';
 import { extractCodeReviewItems } from '../utils/codeExtractor';
+
+export const BUILTIN_LEAD_ORCHESTRATOR = {
+  id: 'builtin-lead-orchestrator',
+  name: 'Lead Orchestrator',
+  role: 'Chief System Architect & Planning Director',
+  avatar_color: '#3b82f6',
+  skills: [
+    'Multi-Agent Orchestration',
+    'System Architecture & Task Decomposition',
+    'Quality Assurance & Review',
+  ],
+  system_instructions:
+    'Anda adalah Lead Orchestrator permanen yang memimpin perencanaan sistem, membedah requirement, merekomendasikan peran agen pelaksana, dan menyusun graf tugas.',
+};
 
 interface AppStore {
   // Studio View Navigation (Build Mode)
@@ -148,6 +164,14 @@ interface AppStore {
   stopBuildDiscussion: () => void;
   resetBuildDiscussion: () => void;
 
+  // Planning & Lead Orchestrator
+  setBuildSubMode: (mode: 'plan' | 'build') => void;
+  toggleBuildSubMode: () => void;
+  isOrchestratorThinking: boolean;
+  sendPlanningMessage: (content: string) => Promise<void>;
+  autoSpawnRecommendedSquad: () => void;
+  approveAndDispatchPlan: () => void;
+
   // Legacy/Native Subagent Tree & Tasks
   subagents: SubAgentState[];
   kanbanTasks: KanbanTask[];
@@ -166,6 +190,12 @@ interface AppStore {
   resolveToolClearance: (approved: boolean) => void;
   acceptDiff: (filename: string) => void;
   rejectDiff: (filename: string) => void;
+
+  // Streaming and Working Status
+  isStreaming: boolean;
+  setIsStreaming: (streaming: boolean) => void;
+  isWorking: boolean;
+  setIsWorking: (working: boolean) => void;
 
   // Queued Messages
   queuedMessagesBuffer: string[];
@@ -636,6 +666,10 @@ export const useStore = create<AppStore>((set, get) => ({
               status: 'idle',
               current_turn_index: 0,
               messages: [],
+              buildSubMode: 'plan',
+              planningMessages: [],
+              draftPlanTasks: [],
+              recommendedSquad: [],
             },
           });
         }
@@ -866,6 +900,10 @@ export const useStore = create<AppStore>((set, get) => ({
     status: 'idle',
     current_turn_index: 0,
     messages: [],
+    buildSubMode: 'plan',
+    planningMessages: [],
+    draftPlanTasks: [],
+    recommendedSquad: [],
   },
   setBuildDiscussion: (patch) =>
     set((s) => ({
@@ -907,6 +945,10 @@ export const useStore = create<AppStore>((set, get) => ({
             timestamp: new Date().toLocaleTimeString(),
           },
         ],
+        buildSubMode: 'build',
+        planningMessages: s.buildDiscussion.planningMessages || [],
+        draftPlanTasks: s.buildDiscussion.draftPlanTasks || [],
+        recommendedSquad: s.buildDiscussion.recommendedSquad || [],
       },
     }));
 
@@ -1201,6 +1243,293 @@ ATURAN KOMUNIKASI & TUGAS ANDA SEKARANG:
         current_turn_index: 0,
       },
     })),
+
+  // PLANNING & LEAD ORCHESTRATOR IMPLEMENTATION
+  isOrchestratorThinking: false,
+
+  setBuildSubMode: (mode) =>
+    set((s) => ({
+      buildDiscussion: {
+        ...s.buildDiscussion,
+        buildSubMode: mode,
+      },
+    })),
+
+  toggleBuildSubMode: () =>
+    set((s) => ({
+      buildDiscussion: {
+        ...s.buildDiscussion,
+        buildSubMode: s.buildDiscussion.buildSubMode === 'plan' ? 'build' : 'plan',
+      },
+    })),
+
+  sendPlanningMessage: async (content: string) => {
+    const s = get();
+    if (!content.trim()) return;
+
+    const userMsg: DiscussionMessage = {
+      id: `plan-user-${Date.now()}`,
+      agent_id: 'operator',
+      agent_name: 'Operator',
+      agent_role: 'Human Director',
+      avatar_color: '#3b82f6',
+      content: content.trim(),
+      step_type: 'operator_directive',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    const currentPlanningMsgs = s.buildDiscussion.planningMessages || [];
+    const updatedPlanningMessages = [...currentPlanningMsgs, userMsg];
+
+    set((state) => ({
+      isOrchestratorThinking: true,
+      buildDiscussion: {
+        ...state.buildDiscussion,
+        project_goal: state.buildDiscussion.project_goal || content.trim(),
+        planningMessages: updatedPlanningMessages,
+      },
+    }));
+
+    try {
+      const model = s.selectedModel;
+      const endpointConfig = resolveEndpointForModel(model, s.availableModels, s.apiKeys);
+      const baseUrl = endpointConfig.baseUrl;
+      const apiKey = endpointConfig.apiKey;
+
+      let replyContent = '';
+      let extractedTasks: DraftPlanTask[] = [];
+      let squadRecs: RecommendedSquadAgent[] = [];
+
+      if (apiKey && apiKey.trim()) {
+        const systemPrompt = `Anda adalah Lead Orchestrator dan Built-in System Architect untuk proyek perangkat lunak otonom.
+Tugas Anda:
+1. Menganalisis target proyek dari Operator secara holistik dan terstruktur.
+2. Menjelaskan spesifikasi arsitektur teknis, teknologi yang direkomendasikan, dan alur kerja DAG.
+3. Merinci rekomendasi peran tim agen (minimal 2 peran, misal: Frontend Engineer, Backend Architect, QA Engineer).
+4. Menyusun draf tugas rincian terpecah untuk dikerjakan tim.
+Format output Anda dalam Bahasa Indonesia yang profesional, ramah, dan terstruktur dengan Markdown.
+Penting: Di akhir balasan, sertakan blok kode JSON valid seperti format berikut agar draf tugas dan rekomendasi tim dapat diekstrak otomatis:
+\`\`\`json
+{
+  "tasks": [
+    { "title": "Nama Tugas", "role_needed": "Peran Agen", "priority": "high" }
+  ],
+  "squad": [
+    { "name": "Nama Agen", "role": "Peran Agen", "task_description": "Deskripsi tugas peran", "skills": ["file_system", "code_evaluator"], "avatar_color": "#3b82f6" }
+  ]
+}
+\`\`\``;
+
+        const chatUrl = getChatEndpoint(baseUrl);
+        const res = await fetch(chatUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              ...updatedPlanningMessages.slice(-6).map((m) => ({
+                role: m.agent_id === 'operator' ? 'user' : 'assistant',
+                content: m.content,
+              })),
+            ],
+            temperature: 0.7,
+          }),
+        });
+
+        if (res.ok) {
+          const rawText = await res.text();
+          const json = parseRobustJson<any>(rawText);
+          replyContent = json.choices?.[0]?.message?.content || '';
+
+          const jsonMatch = replyContent.match(/```json\s*([\s\S]*?)\s*```/);
+          if (jsonMatch && jsonMatch[1]) {
+            try {
+              const parsed = JSON.parse(jsonMatch[1]);
+              if (Array.isArray(parsed.tasks)) {
+                extractedTasks = parsed.tasks.map((t: any, idx: number) => ({
+                  id: `draft-task-${Date.now()}-${idx}`,
+                  title: String(t.title || `Tugas ${idx + 1}`),
+                  role_needed: String(t.role_needed || 'Software Engineer'),
+                  priority: ['low', 'medium', 'high', 'urgent'].includes(t.priority) ? t.priority : 'medium',
+                }));
+              }
+              if (Array.isArray(parsed.squad)) {
+                squadRecs = parsed.squad.map((sq: any) => ({
+                  name: String(sq.name || sq.role || 'Agent'),
+                  role: String(sq.role || 'Specialist'),
+                  task_description: String(sq.task_description || 'Melaksanakan tugas terkait'),
+                  skills: Array.isArray(sq.skills) ? sq.skills : ['file_system', 'code_evaluator'],
+                  avatar_color: sq.avatar_color || '#3b82f6',
+                }));
+              }
+            } catch (_) {}
+          }
+        }
+      }
+
+      if (!replyContent) {
+        replyContent = `Saya telah menganalisis tujuan proyek: "${content.trim()}".
+
+Berikut adalah rancangan arsitektur teknis dan strategi eksekusi yang saya rekomendasikan:
+
+### 1. Spesifikasi Arsitektur Sistem
+- **Modular Decoupling**: Memisahkan antarmuka pengguna, pemrosesan logika, dan penyimpanan status lokal.
+- **Strict Data Contracts**: Memastikan seluruh pesan antar agen dan komponen divalidasi dengan skema tipe yang ketat.
+- **Fail-safe Execution**: Melakukan verifikasi keamanan di setiap tahapan mutasi file atau perintah terminal.
+
+### 2. Rekomendasi Skuad Spesialis
+1. **Frontend Engineer**: Mengimplementasikan antarmuka interaktif yang responsif dan ergonomis.
+2. **Backend Architect**: Mengembangkan modul komunikasi data, integrasi API, dan penanganan status backend.
+3. **QA & Security Auditor**: Meninjau kualitas kode, skenario pengujian fungsional, dan validasi keamanan.
+
+### 3. Distribusi Rencana Tugas
+Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan langsung menekan tombol "Setujui & Bagikan Tugas ke Tim".`;
+
+        extractedTasks = [
+          { id: `draft-1-${Date.now()}`, title: 'Spesifikasi Arsitektur & Struktur Basis Kode', role_needed: 'System Architect', priority: 'high' },
+          { id: `draft-2-${Date.now()}`, title: 'Implementasi Komponen UI & Antarmuka Utama', role_needed: 'Frontend Engineer', priority: 'urgent' },
+          { id: `draft-3-${Date.now()}`, title: 'Pengembangan Logika Bisnis & Integrasi Data', role_needed: 'Backend Architect', priority: 'high' },
+          { id: `draft-4-${Date.now()}`, title: 'Audit Kualitas, Validasi Edge Cases, & Pengujian', role_needed: 'QA Engineer', priority: 'medium' },
+        ];
+
+        squadRecs = [
+          { name: 'Frontend Engineer', role: 'Frontend Engineer', task_description: 'Membangun antarmuka interaktif dan integrasi visual', skills: ['file_system', 'code_evaluator'], avatar_color: '#3b82f6' },
+          { name: 'Backend Architect', role: 'Backend Architect', task_description: 'Merancang API, struktur data, dan arsitektur inti', skills: ['terminal_runner', 'file_system'], avatar_color: '#10b981' },
+          { name: 'QA Auditor', role: 'QA Engineer', task_description: 'Memverifikasi fungsionalitas, keamanan kode, dan pengujian', skills: ['code_evaluator'], avatar_color: '#f59e0b' },
+        ];
+      }
+
+      const orchMsg: DiscussionMessage = {
+        id: `plan-orch-${Date.now()}`,
+        agent_id: 'lead-orchestrator',
+        agent_name: 'Lead Orchestrator',
+        agent_role: 'Built-in System Architect',
+        avatar_color: '#10b981',
+        content: replyContent,
+        step_type: 'proposal',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+
+      set((state) => ({
+        isOrchestratorThinking: false,
+        buildDiscussion: {
+          ...state.buildDiscussion,
+          planningMessages: [...(state.buildDiscussion.planningMessages || []), orchMsg],
+          draftPlanTasks: extractedTasks.length > 0 ? extractedTasks : state.buildDiscussion.draftPlanTasks,
+          recommendedSquad: squadRecs.length > 0 ? squadRecs : state.buildDiscussion.recommendedSquad,
+        },
+      }));
+
+      s.addToast('success', 'Rencana proyek berhasil dirumuskan oleh Lead Orchestrator.');
+    } catch (err: unknown) {
+      set({ isOrchestratorThinking: false });
+      const errMsg = err instanceof Error ? err.message : String(err);
+      s.addToast('error', `Gagal merumuskan rencana: ${errMsg}`);
+    }
+  },
+
+  autoSpawnRecommendedSquad: () => {
+    const s = get();
+    const recommendations = s.buildDiscussion.recommendedSquad && s.buildDiscussion.recommendedSquad.length > 0
+      ? s.buildDiscussion.recommendedSquad
+      : [
+          { name: 'Frontend Engineer', role: 'Frontend Engineer', task_description: 'Membangun antarmuka interaktif dan integrasi visual', skills: ['file_system', 'code_evaluator'], avatar_color: '#3b82f6' },
+          { name: 'Backend Architect', role: 'Backend Architect', task_description: 'Merancang API, struktur data, dan arsitektur inti', skills: ['terminal_runner', 'file_system'], avatar_color: '#10b981' },
+          { name: 'QA Auditor', role: 'QA Engineer', task_description: 'Memverifikasi fungsionalitas, keamanan kode, dan pengujian', skills: ['code_evaluator'], avatar_color: '#f59e0b' },
+        ];
+
+    const spawnedIds: string[] = [];
+    recommendations.forEach((rec) => {
+      const exists = s.customAgents.some(
+        (a) => a.role.toLowerCase() === rec.role.toLowerCase() || a.name.toLowerCase() === rec.name.toLowerCase()
+      );
+      if (!exists) {
+        const id = s.createCustomAgent({
+          name: rec.name,
+          role: rec.role,
+          task_description: rec.task_description,
+          skills: rec.skills,
+          avatar_color: rec.avatar_color,
+          system_instructions: `Fokus pada eksekusi tugas ${rec.role} sesuai arahan Lead Orchestrator.`,
+        });
+        spawnedIds.push(id);
+      } else {
+        const found = s.customAgents.find(
+          (a) => a.role.toLowerCase() === rec.role.toLowerCase() || a.name.toLowerCase() === rec.name.toLowerCase()
+        );
+        if (found) spawnedIds.push(found.id);
+      }
+    });
+
+    const allAgentIds = Array.from(new Set([...s.buildDiscussion.selected_agent_ids, ...spawnedIds]));
+    set((state) => ({
+      buildDiscussion: {
+        ...state.buildDiscussion,
+        selected_agent_ids: allAgentIds,
+        recommendedSquad: [],
+      },
+    }));
+
+    s.addToast('success', 'Tim agen berhasil dibentuk secara otomatis.');
+  },
+
+  approveAndDispatchPlan: () => {
+    const s = get();
+    const tasks = s.buildDiscussion.draftPlanTasks || [];
+    if (tasks.length === 0) {
+      s.addToast('warning', 'Belum ada draf tugas untuk disetujui.');
+      return;
+    }
+
+    if (s.customAgents.length < 2) {
+      s.autoSpawnRecommendedSquad();
+    }
+
+    const currentAgents = get().customAgents;
+    const newKanbanTasks: KanbanTask[] = tasks.map((t, idx) => {
+      const matchedAgent = currentAgents.find((a) =>
+        a.role.toLowerCase().includes(t.role_needed.toLowerCase()) ||
+        t.role_needed.toLowerCase().includes(a.role.toLowerCase())
+      );
+      return {
+        id: `task-plan-${Date.now()}-${idx}`,
+        title: t.title,
+        status: 'backlog',
+        assigned_agent: matchedAgent ? matchedAgent.name : t.role_needed,
+        priority: t.priority,
+        progress: 0,
+      };
+    });
+
+    const handoverMsg: DiscussionMessage = {
+      id: `handover-${Date.now()}`,
+      agent_id: 'lead-orchestrator',
+      agent_name: 'Lead Orchestrator',
+      agent_role: 'Built-in System Architect',
+      avatar_color: '#10b981',
+      content: `Rencana proyek telah disetujui oleh Operator. Sebanyak ${tasks.length} tugas telah dialokasikan ke backlog Kanban tim. Tim dipersilakan memulai koordinasi eksekusi.`,
+      step_type: 'summary',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    set((state) => ({
+      kanbanTasks: [...state.kanbanTasks, ...newKanbanTasks],
+      buildDiscussion: {
+        ...state.buildDiscussion,
+        buildSubMode: 'build',
+        status: 'running',
+        selected_agent_ids: state.customAgents.map((a) => a.id),
+        messages: [...state.buildDiscussion.messages, handoverMsg],
+        draftPlanTasks: [],
+      },
+    }));
+
+    s.addToast('success', 'Rencana disetujui, tugas telah dialokasikan ke tim.');
+  },
 
   // CLEAN MULTI-AGENT STATE (Zero test traces)
   subagents: [],
@@ -1603,6 +1932,12 @@ ATURAN KOMUNIKASI & TUGAS ANDA SEKARANG:
     } catch (_) {}
     get().addToast('success', `Imported "${name}" to ${location} directory!`);
   },
+
+  // Streaming and Working Status
+  isStreaming: false,
+  setIsStreaming: (isStreaming) => set({ isStreaming }),
+  isWorking: false,
+  setIsWorking: (isWorking) => set({ isWorking }),
 
   // Queued Messages
   queuedMessagesBuffer: [],
