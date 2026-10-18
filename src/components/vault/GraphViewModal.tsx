@@ -87,20 +87,17 @@ export const GraphViewModal: React.FC<{
     let currentScale = 0.9;
     let textSelection: any = null;
 
-    const calculateTextOpacity = (d: D3Node, scale: number) => {
+    const calculateTextOpacity = (_d: D3Node, scale: number) => {
       if (showAllLabels) return 0.95;
-      // When zoomed in, all note titles are clearly visible under their circles
-      if (scale >= 1.0) return 0.95;
-      if (scale >= 0.75) {
-        const progress = (scale - 0.75) / 0.25;
-        return 0.4 + progress * 0.55;
+      // Judul disembunyikan secara default (opacity 0)
+      // Judul HANYA muncul ketika user zoom mendekat ke graf (scale >= 1.35)
+      const ZOOM_THRESHOLD = 1.35;
+      if (scale < ZOOM_THRESHOLD) {
+        return 0;
       }
-      if (scale >= 0.5) {
-        // Hub notes visible, smaller notes fade gracefully
-        return (d.backlink_count || 0) >= 2 ? 0.75 : ((scale - 0.5) / 0.25) * 0.4;
-      }
-      // When zoomed out far, only major hub notes are visible
-      return (d.backlink_count || 0) >= 3 ? 0.6 : 0;
+      // Transisi muncul halus saat zoom in melewati batas threshold
+      const progress = Math.min(1, (scale - ZOOM_THRESHOLD) / 0.4);
+      return progress * 0.95;
     };
 
     // Setup Zoom
@@ -267,7 +264,7 @@ export const GraphViewModal: React.FC<{
 
         // Highlight labels of hovered note and connected neighbors
         textSelection
-          .style('opacity', (n: D3Node) => (neighbors.has(n.id) ? 1 : 0.08))
+          .style('opacity', (n: D3Node) => (neighbors.has(n.id) ? 1 : 0))
           .attr('fill', (n: D3Node) =>
             n.id === d.id ? '#ffffff' : neighbors.has(n.id) ? '#ececec' : '#707070'
           )
