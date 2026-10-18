@@ -1,6 +1,18 @@
+<div align="center">
+
 # Autonomous AI Desktop Platform
 
-Platform desktop native untuk orkestrasi agen AI mandiri, kolaborasi tim multi-agen paralel, dan manajemen basis pengetahuan universal berbasis konteks, yang dibangun di atas fondasi Tauri 2.0, React 19, dan mesin asynchronous Rust Tokio.
+### Multi-Agent Orchestration & Universal Context Workspace
+
+[![Tauri](https://img.shields.io/badge/Tauri-2.0-24C8D8?logo=tauri&logoColor=white)](https://tauri.app/)
+[![Rust](https://img.shields.io/badge/Rust-Tokio_Async-DEA584?logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-0078D6)](https://github.com/Great-YUDZZ/Agentic-APP)
+[![License](https://img.shields.io/badge/License-MIT-4ade80)](LICENSE)
+
+*Aplikasi desktop modern, aman, dan ringan untuk orkestrasi agen AI mandiri, kolaborasi tim multi-agen paralel, dan manajemen basis pengetahuan universal berbasis markdown.*
+
+</div>
 
 ---
 
