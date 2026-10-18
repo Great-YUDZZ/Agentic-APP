@@ -51,7 +51,7 @@ export const VaultWorkspace: React.FC = () => {
       label: 'Approvals',
       icon: ShieldAlert,
       badge: pendingDeleteRequests.length > 0 ? pendingDeleteRequests.length : undefined,
-      badgeColor: 'bg-amber-500/15 border border-amber-500/30 text-amber-300 font-medium',
+      badgeColor: 'bg-[#383838] text-[#ececec]',
     },
   ];
 
@@ -124,17 +124,17 @@ export const VaultWorkspace: React.FC = () => {
 
       {/* Prominent Warning Alert Banner if Delete Requests Pending */}
       {pendingDeleteRequests.length > 0 && activeVaultTab !== 'approvals' && (
-        <div className="bg-amber-500/10 border-b border-amber-500/25 px-5 py-2.5 flex items-center justify-between text-xs text-[#ececec] shrink-0">
+        <div className="bg-[#262626] border-b border-[#303030] px-5 py-2.5 flex items-center justify-between text-xs text-[#ececec] shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
-            <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
+            <ShieldAlert className="w-4 h-4 text-[#b4b4b4] shrink-0" />
             <span className="truncate">
-              Terdapat <strong className="text-amber-300">{pendingDeleteRequests.length} permintaan penghapusan note</strong> yang menunggu persetujuan Anda.
+              Terdapat <strong className="text-[#ececec]">{pendingDeleteRequests.length} permintaan penghapusan note</strong> yang menunggu persetujuan Anda.
             </span>
           </div>
           <button
             type="button"
             onClick={() => setActiveVaultTab('approvals')}
-            className="px-3 py-1 rounded-xl bg-[#2f2f2f] hover:bg-[#383838] border border-amber-500/40 text-amber-300 font-medium text-xs transition-colors shrink-0 ml-3"
+            className="px-3 py-1 rounded-xl bg-[#2f2f2f] hover:bg-[#383838] border border-[#383838] text-[#ececec] font-medium text-xs transition-colors shrink-0 ml-3"
           >
             Tinjau Permintaan
           </button>

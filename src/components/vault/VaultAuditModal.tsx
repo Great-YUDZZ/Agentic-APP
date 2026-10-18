@@ -54,23 +54,11 @@ export const VaultAuditModal: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded
   });
 
   const getActionBadge = (action: string) => {
-    const act = action.toLowerCase();
-    if (act.includes('create')) {
-      return <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-blue-500/15 text-blue-400 border border-blue-500/30">CREATE</span>;
-    }
-    if (act.includes('edit')) {
-      return <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-purple-500/15 text-purple-400 border border-purple-500/30">EDIT</span>;
-    }
-    if (act.includes('delete')) {
-      return <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-red-500/15 text-red-400 border border-red-500/30">DELETE</span>;
-    }
-    if (act.includes('restore')) {
-      return <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">RESTORE</span>;
-    }
-    if (act.includes('auto_purge') || act.includes('purge')) {
-      return <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30">PURGE</span>;
-    }
-    return <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-[#303030] text-[#ececec]">{action.toUpperCase()}</span>;
+    return (
+      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-[#262626] border border-[#383838] text-[#ececec]">
+        {action.toUpperCase()}
+      </span>
+    );
   };
 
   const renderInnerContent = () => (

@@ -101,7 +101,7 @@ export const Sidebar: React.FC = () => {
           >
             <BookOpen className="w-4 h-4" />
             {pendingDeleteRequests.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-[#171717]" />
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#ececec] ring-2 ring-[#171717]" />
             )}
           </button>
         </div>
@@ -164,7 +164,7 @@ export const Sidebar: React.FC = () => {
             <span>Context Vault</span>
           </div>
           {pendingDeleteRequests.length > 0 ? (
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-amber-500/15 border border-amber-500/30 text-amber-300 font-medium">
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-[#2f2f2f] border border-[#383838] text-[#ececec]">
               {pendingDeleteRequests.length}
             </span>
           ) : (
@@ -221,7 +221,7 @@ export const Sidebar: React.FC = () => {
 
                 <button
                   onClick={(e) => handleDeleteSession(e, session.id)}
-                  className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-[#707070] hover:text-red-400 hover:bg-[#2a2a2a] transition-all shrink-0"
+                  className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-[#707070] hover:text-[#ececec] hover:bg-[#2a2a2a] transition-all shrink-0"
                   title="Hapus chat"
                 >
                   <Trash2 className="w-3.5 h-3.5" />

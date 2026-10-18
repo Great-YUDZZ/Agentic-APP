@@ -85,6 +85,8 @@ export const GraphViewModal: React.FC<{
 
     // Dynamic text opacity based on zoom scale and node importance ala Obsidian
     let currentScale = 0.9;
+    let textSelection: any = null;
+
     const calculateTextOpacity = (d: D3Node, scale: number) => {
       if (showAllLabels) return 0.95;
       // When zoomed in, all note titles are clearly visible under their circles
@@ -108,14 +110,13 @@ export const GraphViewModal: React.FC<{
       .on('zoom', (event: d3.D3ZoomEvent<SVGSVGElement, unknown>) => {
         g.attr('transform', event.transform.toString());
         currentScale = event.transform.k;
-        // Dynamically scale text label visibility on zoom
-        textSelection.style('opacity', (d: D3Node) => calculateTextOpacity(d, currentScale));
+        // Dynamically scale text label visibility on zoom (safeguarded against pre-init)
+        if (textSelection) {
+          textSelection.style('opacity', (d: D3Node) => calculateTextOpacity(d, currentScale));
+        }
       });
 
     svg.call(zoomBehavior);
-
-    // Initial centering
-    svg.call(zoomBehavior.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(0.9));
 
     // Force Simulation
     const simulation = d3
@@ -140,7 +141,7 @@ export const GraphViewModal: React.FC<{
       .data(activeLinks)
       .enter()
       .append('line')
-      .attr('stroke', '#3a3a3a')
+      .attr('stroke', '#383838')
       .attr('stroke-width', 1.2)
       .attr('stroke-opacity', 0.65);
 
@@ -177,21 +178,21 @@ export const GraphViewModal: React.FC<{
       .attr('class', 'node-group cursor-pointer')
       .call(dragBehavior as any);
 
-    // Node Circle (Obsidian aesthetic palette)
+    // Node Circle (Flat Design Master uniform surfaces - zero rainbow/blue/green/purple)
     nodeSelection
       .append('circle')
       .attr('r', getNodeRadius)
       .attr('fill', (d: D3Node) => {
-        if (d.backlink_count >= 3) return '#60a5fa'; // Hub note
-        if (d.tags.length > 0) return '#34d399';     // Tagged note
-        return '#a78bfa';                            // Standard note
+        if (d.backlink_count >= 3) return '#ececec'; // Hub note - primary high contrast
+        if (d.tags.length > 0) return '#b4b4b4';     // Tagged note - secondary neutral
+        return '#707070';                            // Standard note - muted solid
       })
       .attr('stroke', '#171717')
       .attr('stroke-width', 1.5)
       .attr('class', 'transition-all duration-150');
 
     // Node Text Label (centered directly below circle ala Obsidian)
-    const textSelection = nodeSelection
+    textSelection = nodeSelection
       .append('text')
       .text((d: D3Node) => d.title)
       .attr('text-anchor', 'middle')
@@ -202,8 +203,11 @@ export const GraphViewModal: React.FC<{
       .attr('font-family', 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif')
       .attr('font-weight', '400')
       .attr('letter-spacing', '0.01em')
-      .attr('opacity', (d: D3Node) => calculateTextOpacity(d, currentScale))
+      .attr('opacity', (d: D3Node) => calculateTextOpacity(d, 0.9))
       .attr('class', 'pointer-events-none transition-opacity duration-150 select-none');
+
+    // Initial centering (executed safely AFTER textSelection is created)
+    svg.call(zoomBehavior.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(0.9));
 
     // Interactive Hover & Highlight logic (Obsidian style)
     const connectedMap: Record<string, Set<string>> = {};
@@ -224,7 +228,7 @@ export const GraphViewModal: React.FC<{
         // Dim unconnected nodes
         nodeSelection.style('opacity', (n: D3Node) => (neighbors.has(n.id) ? 1 : 0.15));
 
-        // Dim unconnected links and highlight connected edges
+        // Dim unconnected links and highlight connected edges (uniform flat tone)
         linkSelection
           .style('opacity', (l: any) => {
             const sId = typeof l.source === 'object' ? l.source.id : l.source;
@@ -234,7 +238,7 @@ export const GraphViewModal: React.FC<{
           .attr('stroke', (l: any) => {
             const sId = typeof l.source === 'object' ? l.source.id : l.source;
             const tId = typeof l.target === 'object' ? l.target.id : l.target;
-            return sId === d.id || tId === d.id ? '#60a5fa' : '#3a3a3a';
+            return sId === d.id || tId === d.id ? '#ececec' : '#383838';
           })
           .attr('stroke-width', (l: any) => {
             const sId = typeof l.source === 'object' ? l.source.id : l.source;
@@ -254,7 +258,7 @@ export const GraphViewModal: React.FC<{
         nodeSelection.style('opacity', 1);
         linkSelection
           .style('opacity', 0.65)
-          .attr('stroke', '#3a3a3a')
+          .attr('stroke', '#383838')
           .attr('stroke-width', 1.2);
         textSelection
           .style('opacity', (d: D3Node) => calculateTextOpacity(d, currentScale))

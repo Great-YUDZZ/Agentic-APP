@@ -132,7 +132,7 @@ export const PendingApprovalsModal: React.FC<{ isEmbedded?: boolean }> = ({ isEm
         {pendingDeleteRequests.length === 0 ? (
           <div className="py-16 text-center space-y-3">
             <div className="w-12 h-12 rounded-2xl bg-[#2f2f2f] border border-[#383838] mx-auto flex items-center justify-center text-[#707070]">
-              <Check className="w-6 h-6 text-emerald-400" />
+              <Check className="w-6 h-6 text-[#ececec]" />
             </div>
             <div>
               <h3 className="text-sm font-medium text-[#ececec]">

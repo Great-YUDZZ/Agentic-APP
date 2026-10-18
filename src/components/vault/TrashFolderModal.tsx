@@ -147,21 +147,21 @@ export const TrashFolderModal: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedde
 
                 <div className="flex items-center gap-2 shrink-0">
                   {isConfirmingPurge ? (
-                    <div className="flex items-center gap-1.5 p-1 px-2 rounded-xl bg-red-500/15 border border-red-500/30 text-xs">
-                      <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
-                      <span className="text-red-300">Yakin hapus permanen?</span>
+                    <div className="flex items-center gap-1.5 p-1 px-2 rounded-xl bg-[#262626] border border-[#383838] text-xs">
+                      <AlertTriangle className="w-3.5 h-3.5 text-[#ececec]" />
+                      <span className="text-[#ececec]">Yakin hapus permanen?</span>
                       <button
                         type="button"
                         disabled={isProcessing}
                         onClick={() => handlePurge(item.file_name)}
-                        className="px-2 py-0.5 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium ml-1 transition-colors"
+                        className="px-2 py-0.5 rounded-lg bg-[#ececec] hover:bg-white text-[#171717] font-medium ml-1 transition-colors"
                       >
                         Ya
                       </button>
                       <button
                         type="button"
                         onClick={() => setConfirmPurgeTarget(null)}
-                        className="px-2 py-0.5 rounded-lg bg-[#262626] text-[#ececec] hover:bg-[#383838] transition-colors"
+                        className="px-2 py-0.5 rounded-lg bg-[#2f2f2f] text-[#ececec] hover:bg-[#383838] border border-[#383838] transition-colors"
                       >
                         Batal
                       </button>
@@ -182,7 +182,7 @@ export const TrashFolderModal: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedde
                         type="button"
                         disabled={isProcessing}
                         onClick={() => setConfirmPurgeTarget(item.file_name)}
-                        className="p-1.5 rounded-lg text-[#707070] hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                        className="p-1.5 rounded-lg text-[#707070] hover:text-[#ececec] hover:bg-[#383838] transition-colors"
                         title="Hapus permanen dari disk"
                       >
                         <Trash2 className="w-4 h-4" />
