@@ -9,6 +9,10 @@ import { TerminalPanel } from './components/terminal/TerminalPanel';
 import { SkillsModal } from './components/skills/SkillsModal';
 import { LocalSkillImportModal } from './components/skills/LocalSkillImportModal';
 import { CodeReviewModal } from './components/build/CodeReviewModal';
+import { PendingApprovalsModal } from './components/vault/PendingApprovalsModal';
+import { TrashFolderModal } from './components/vault/TrashFolderModal';
+import { VaultAuditModal } from './components/vault/VaultAuditModal';
+import { GraphViewModal } from './components/vault/GraphViewModal';
 import { ToastFeedback } from './components/common/ToastFeedback';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { useStore } from './store/useStore';
@@ -76,6 +80,10 @@ export const App: React.FC = () => {
         <LocalSkillImportModal />
         <CodeReviewModal />
         <SettingsModal />
+        <PendingApprovalsModal />
+        <TrashFolderModal />
+        <VaultAuditModal />
+        <GraphViewModal />
         <ToastFeedback />
       </div>
     </ErrorBoundary>

@@ -230,5 +230,60 @@ export interface AppSettings {
   accentColor: string;
   verboseAgentChat: boolean;
   conversationWidth: 'narrow' | 'default' | 'wide';
+  trashRetentionDays: number;
+}
+
+export interface DeleteRequest {
+  request_id: string;
+  agent_id: string;
+  note_title: string;
+  reason: string;
+  requested_at: number;
+  note_content_preview: string;
+}
+
+export interface TrashItem {
+  file_name: string;
+  original_title: string;
+  deleted_at: number;
+  size_bytes: number;
+}
+
+export interface VaultAuditEntry {
+  id: string;
+  timestamp: number;
+  agent_id: string;
+  action: string;
+  note_title: string;
+  previous_content?: string;
+  diff_summary?: string;
+}
+
+export interface GraphNodeItem {
+  id: string;
+  title: string;
+  tags: string[];
+  backlink_count: number;
+  link_count: number;
+  word_count: number;
+}
+
+export interface GraphEdgeItem {
+  source: string;
+  target: string;
+}
+
+export interface GraphSnapshot {
+  nodes: GraphNodeItem[];
+  edges: GraphEdgeItem[];
+}
+
+export interface ScoredSearchResult {
+  title: string;
+  path: string;
+  snippet: string;
+  score: number;
+  match_type: string;
+  tags: string[];
 }
 

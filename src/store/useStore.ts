@@ -24,6 +24,11 @@ import {
   PlanApprovalRequest,
   DraftPlanTask,
   RecommendedSquadAgent,
+  DeleteRequest,
+  TrashItem,
+  VaultAuditEntry,
+  GraphSnapshot,
+  ScoredSearchResult,
 } from '../types';
 import { parseRobustJson, getChatEndpoint, getModelsEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../utils/api';
 import { extractCodeReviewItems } from '../utils/codeExtractor';
@@ -215,6 +220,30 @@ interface AppStore {
   // Global App Settings
   settings: AppSettings;
   updateSettings: (partial: Partial<AppSettings>) => void;
+
+  // Universal Context Vault (Obsidian-Style)
+  pendingDeleteRequests: DeleteRequest[];
+  trashNotes: TrashItem[];
+  vaultAuditLog: VaultAuditEntry[];
+  isPendingApprovalsModalOpen: boolean;
+  setPendingApprovalsModalOpen: (open: boolean) => void;
+  isTrashModalOpen: boolean;
+  setTrashModalOpen: (open: boolean) => void;
+  isGraphViewModalOpen: boolean;
+  setGraphViewModalOpen: (open: boolean) => void;
+  isVaultAuditModalOpen: boolean;
+  setVaultAuditModalOpen: (open: boolean) => void;
+  fetchPendingDeleteRequests: () => Promise<void>;
+  approveDeleteRequest: (requestId: string) => Promise<void>;
+  rejectDeleteRequest: (requestId: string) => Promise<void>;
+  batchApproveDeleteRequests: (requestIds: string[]) => Promise<void>;
+  batchRejectDeleteRequests: (requestIds: string[]) => Promise<void>;
+  fetchTrashNotes: () => Promise<void>;
+  restoreTrashNote: (fileName: string) => Promise<string | null>;
+  purgeTrashNote: (fileName: string) => Promise<void>;
+  fetchVaultAuditLog: (limit?: number) => Promise<void>;
+  getGraphSnapshot: () => Promise<GraphSnapshot | null>;
+  searchNotesHybrid: (query: string, limit?: number) => Promise<ScoredSearchResult[]>;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -240,6 +269,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   accentColor: '#3b82f6',
   verboseAgentChat: true,
   conversationWidth: 'default',
+  trashRetentionDays: 30,
 };
 
 const loadSavedSettings = (): AppSettings => {
@@ -2025,5 +2055,150 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
       }
       return { settings: updated, isStrictApprovalMode: strictMode };
     });
+  },
+
+  // Universal Context Vault (Obsidian-Style)
+  pendingDeleteRequests: [],
+  trashNotes: [],
+  vaultAuditLog: [],
+  isPendingApprovalsModalOpen: false,
+  setPendingApprovalsModalOpen: (isPendingApprovalsModalOpen) => set({ isPendingApprovalsModalOpen }),
+  isTrashModalOpen: false,
+  setTrashModalOpen: (isTrashModalOpen) => set({ isTrashModalOpen }),
+  isGraphViewModalOpen: false,
+  setGraphViewModalOpen: (isGraphViewModalOpen) => set({ isGraphViewModalOpen }),
+  isVaultAuditModalOpen: false,
+  setVaultAuditModalOpen: (isVaultAuditModalOpen) => set({ isVaultAuditModalOpen }),
+
+  fetchPendingDeleteRequests: async () => {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const list = await invoke<DeleteRequest[]>('get_pending_delete_requests');
+      set({ pendingDeleteRequests: list || [] });
+    } catch (err) {
+      console.warn('Gagal memuat pending delete requests:', err);
+    }
+  },
+
+  approveDeleteRequest: async (requestId: string) => {
+    const s = get();
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('approve_delete_request', { requestId });
+      s.addToast('success', 'Permintaan hapus disetujui. Note dipindahkan ke .trash/');
+      await s.fetchPendingDeleteRequests();
+      await s.fetchTrashNotes();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      s.addToast('error', `Gagal menyetujui hapus: ${msg}`);
+    }
+  },
+
+  rejectDeleteRequest: async (requestId: string) => {
+    const s = get();
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('reject_delete_request', { requestId });
+      s.addToast('info', 'Permintaan hapus ditolak.');
+      await s.fetchPendingDeleteRequests();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      s.addToast('error', `Gagal menolak hapus: ${msg}`);
+    }
+  },
+
+  batchApproveDeleteRequests: async (requestIds: string[]) => {
+    const s = get();
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const count = await invoke<number>('batch_approve_delete_requests', { requestIds });
+      s.addToast('success', `${count} permintaan hapus berhasil disetujui.`);
+      await s.fetchPendingDeleteRequests();
+      await s.fetchTrashNotes();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      s.addToast('error', `Gagal batch approve: ${msg}`);
+    }
+  },
+
+  batchRejectDeleteRequests: async (requestIds: string[]) => {
+    const s = get();
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const count = await invoke<number>('batch_reject_delete_requests', { requestIds });
+      s.addToast('info', `${count} permintaan hapus ditolak.`);
+      await s.fetchPendingDeleteRequests();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      s.addToast('error', `Gagal batch reject: ${msg}`);
+    }
+  },
+
+  fetchTrashNotes: async () => {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const list = await invoke<TrashItem[]>('list_trash_notes');
+      set({ trashNotes: list || [] });
+    } catch (err) {
+      console.warn('Gagal memuat trash notes:', err);
+    }
+  },
+
+  restoreTrashNote: async (fileName: string) => {
+    const s = get();
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const restoredTitle = await invoke<string>('restore_trash_note', { fileName });
+      s.addToast('success', `Note berhasil dipulihkan: ${restoredTitle}`);
+      await s.fetchTrashNotes();
+      return restoredTitle;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      s.addToast('error', `Gagal memulihkan note: ${msg}`);
+      return null;
+    }
+  },
+
+  purgeTrashNote: async (fileName: string) => {
+    const s = get();
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('purge_trash_note', { fileName });
+      s.addToast('info', `Berkas ${fileName} dihapus permanen.`);
+      await s.fetchTrashNotes();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      s.addToast('error', `Gagal menghapus permanen: ${msg}`);
+    }
+  },
+
+  fetchVaultAuditLog: async (limit = 100) => {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const entries = await invoke<VaultAuditEntry[]>('get_vault_audit_log', { limit });
+      set({ vaultAuditLog: entries || [] });
+    } catch (err) {
+      console.warn('Gagal memuat log audit vault:', err);
+    }
+  },
+
+  getGraphSnapshot: async () => {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      return await invoke<GraphSnapshot>('get_graph_snapshot');
+    } catch (err) {
+      console.warn('Gagal memuat graph snapshot:', err);
+      return null;
+    }
+  },
+
+  searchNotesHybrid: async (query: string, limit = 15) => {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      return await invoke<ScoredSearchResult[]>('search_notes_hybrid', { query, limit });
+    } catch (err) {
+      console.warn('Gagal pencarian hybrid:', err);
+      return [];
+    }
   },
 }));

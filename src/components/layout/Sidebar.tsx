@@ -1,10 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Plus,
   Settings,
   Trash2,
   ChevronLeft,
   Search,
+  ShieldAlert,
+  Share2,
+  History,
+  BookOpen,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 
@@ -21,7 +25,20 @@ export const Sidebar: React.FC = () => {
     setSidebarOpen,
     apiKeys,
     addToast,
+    pendingDeleteRequests,
+    setPendingApprovalsModalOpen,
+    setTrashModalOpen,
+    trashNotes,
+    setGraphViewModalOpen,
+    setVaultAuditModalOpen,
+    fetchPendingDeleteRequests,
+    fetchTrashNotes,
   } = useStore();
+
+  useEffect(() => {
+    fetchPendingDeleteRequests();
+    fetchTrashNotes();
+  }, [fetchPendingDeleteRequests, fetchTrashNotes]);
 
   const [searchFilter, setSearchFilter] = useState('');
 
@@ -177,6 +194,82 @@ export const Sidebar: React.FC = () => {
             );
           })
         )}
+      </div>
+
+      {/* Knowledge Vault Navigation Section */}
+      <div className="p-2 px-3 border-t border-[#262626] bg-[#171717] space-y-1">
+        <div className="text-[10px] font-semibold tracking-wider text-[#707070] uppercase px-2 py-1 flex items-center justify-between">
+          <span className="flex items-center gap-1.5">
+            <BookOpen className="w-3 h-3 text-[#b4b4b4]" />
+            <span>Context Vault</span>
+          </span>
+        </div>
+
+        {/* Pending Approvals */}
+        <button
+          type="button"
+          onClick={() => setPendingApprovalsModalOpen(true)}
+          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs transition-colors ${
+            pendingDeleteRequests.length > 0
+              ? 'bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 border border-amber-500/20'
+              : 'text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#212121]'
+          }`}
+          title="Tinjau permintaan hapus note dari agen"
+        >
+          <div className="flex items-center gap-2">
+            <ShieldAlert className={`w-3.5 h-3.5 ${pendingDeleteRequests.length > 0 ? 'text-amber-400' : 'text-[#707070]'}`} />
+            <span>Approvals</span>
+          </div>
+          {pendingDeleteRequests.length > 0 && (
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-amber-500 text-black">
+              {pendingDeleteRequests.length}
+            </span>
+          )}
+        </button>
+
+        {/* Graph View */}
+        <button
+          type="button"
+          onClick={() => setGraphViewModalOpen(true)}
+          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#212121] transition-colors"
+          title="Buka visualisasi graf keterhubungan wikilink ala Obsidian"
+        >
+          <div className="flex items-center gap-2">
+            <Share2 className="w-3.5 h-3.5 text-purple-400" />
+            <span>Graph View</span>
+          </div>
+        </button>
+
+        {/* Trash */}
+        <button
+          type="button"
+          onClick={() => setTrashModalOpen(true)}
+          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#212121] transition-colors"
+          title="Buka tempat sampah vault (.trash)"
+        >
+          <div className="flex items-center gap-2">
+            <Trash2 className="w-3.5 h-3.5 text-red-400" />
+            <span>Trash (.trash)</span>
+          </div>
+          {trashNotes.length > 0 && (
+            <span className="text-[10px] text-[#707070] font-mono">
+              {trashNotes.length}
+            </span>
+          )}
+        </button>
+
+        {/* Audit Trail */}
+        <button
+          type="button"
+          onClick={() => setVaultAuditModalOpen(true)}
+          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#212121] transition-colors"
+          title="Lihat riwayat perubahan berkas .audit.jsonl"
+        >
+          <div className="flex items-center gap-2">
+            <History className="w-3.5 h-3.5 text-blue-400" />
+            <span>Audit Trail</span>
+          </div>
+        </button>
       </div>
 
       {/* Footer Settings */}

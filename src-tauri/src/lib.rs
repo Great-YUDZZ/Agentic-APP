@@ -2,6 +2,7 @@ pub mod db;
 pub mod engine;
 pub mod ipc;
 pub mod providers;
+pub mod vault;
 
 use db::Database;
 use engine::orchestrator::AgentOrchestrator;
@@ -9,6 +10,7 @@ use engine::tools::ToolRunner;
 use ipc::AppState;
 use std::path::PathBuf;
 use std::sync::Arc;
+use vault::VaultState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -20,8 +22,12 @@ pub fn run() {
     });
 
     let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    let tool_runner = ToolRunner::new(current_dir);
+    let tool_runner = ToolRunner::new(current_dir.clone());
     let orchestrator = Arc::new(AgentOrchestrator::new(db.clone(), tool_runner.clone()));
+
+    let vault_dir = current_dir.join("vault");
+    let vault = Arc::new(VaultState::new(vault_dir.clone()));
+    vault.set_root(vault_dir, None);
 
     let app_state = AppState {
         db,
@@ -29,11 +35,28 @@ pub fn run() {
         tool_runner,
         active_terminal_processes: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
         pty_sessions: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
+        vault: vault.clone(),
     };
+
+    let v_state = vault.clone();
 
     tauri::Builder::<tauri::Wry>::default()
         .plugin(tauri_plugin_opener::init())
         .manage(app_state)
+        .setup(move |app| {
+            vault::watcher::start_vault_watcher(
+                app.handle().clone(),
+                v_state.vault_root.clone(),
+                v_state.graph.clone(),
+            );
+            // Auto purge awal untuk berkas di atas 30 hari
+            vault::trash::run_auto_purge_worker(
+                v_state.audit.clone(),
+                v_state.vault_root.clone(),
+                30,
+            );
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             ipc::save_api_key,
             ipc::get_api_keys,
@@ -66,6 +89,24 @@ pub fn run() {
             ipc::pick_local_directory,
             ipc::scan_local_skills_directory,
             ipc::copy_skill_folder,
+            ipc::get_vault_root,
+            ipc::set_vault_root,
+            ipc::get_graph_snapshot,
+            ipc::search_note_titles,
+            ipc::read_note,
+            ipc::create_note,
+            ipc::edit_note,
+            ipc::request_delete_note,
+            ipc::get_pending_delete_requests,
+            ipc::approve_delete_request,
+            ipc::reject_delete_request,
+            ipc::batch_approve_delete_requests,
+            ipc::batch_reject_delete_requests,
+            ipc::list_trash_notes,
+            ipc::restore_trash_note,
+            ipc::purge_trash_note,
+            ipc::get_vault_audit_log,
+            ipc::search_notes_hybrid,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

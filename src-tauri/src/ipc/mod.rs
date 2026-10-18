@@ -28,6 +28,7 @@ pub struct AppState {
     pub tool_runner: ToolRunner,
     pub active_terminal_processes: Arc<Mutex<HashMap<String, u32>>>,
     pub pty_sessions: Arc<Mutex<HashMap<String, PtySession>>>,
+    pub vault: Arc<crate::vault::VaultState>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -1229,6 +1230,300 @@ pub async fn copy_skill_folder(
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+// -------------------------------------------------------------
+// Universal Context Vault Commands (Obsidian-Style)
+// -------------------------------------------------------------
+
+#[tauri::command]
+pub fn get_vault_root(state: State<'_, AppState>) -> Result<String, String> {
+    let root = state.vault.vault_root.read().map_err(|e| e.to_string())?;
+    Ok(root.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub fn set_vault_root(
+    state: State<'_, AppState>,
+    app: AppHandle,
+    path: String,
+) -> Result<(), String> {
+    let p = std::path::PathBuf::from(path);
+    state.vault.set_root(p, Some(&app));
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_graph_snapshot(state: State<'_, AppState>) -> Result<crate::vault::GraphSnapshot, String> {
+    let g = state.vault.graph.read().map_err(|e| e.to_string())?;
+    Ok(g.get_snapshot())
+}
+
+#[tauri::command]
+pub fn search_note_titles(
+    state: State<'_, AppState>,
+    query: String,
+) -> Result<Vec<String>, String> {
+    let g = state.vault.graph.read().map_err(|e| e.to_string())?;
+    let q = query.to_lowercase();
+    let matches: Vec<String> = g.nodes.keys()
+        .filter(|t| t.to_lowercase().contains(&q))
+        .take(15)
+        .cloned()
+        .collect();
+    Ok(matches)
+}
+
+#[tauri::command]
+pub fn read_note(
+    state: State<'_, AppState>,
+    title: String,
+) -> Result<(String, String), String> {
+    let g = state.vault.graph.read().map_err(|e| e.to_string())?;
+    let node = g.nodes.get(&title).ok_or("Note tidak ditemukan")?;
+    let content = std::fs::read_to_string(&node.path).map_err(|e| e.to_string())?;
+    let hash = crate::vault::VaultGraph::compute_hash(&content);
+    Ok((content, hash))
+}
+
+#[tauri::command]
+pub async fn create_note(
+    state: State<'_, AppState>,
+    app: AppHandle,
+    agent_id: String,
+    title: String,
+    content: String,
+) -> Result<(), String> {
+    let root = state.vault.vault_root.read().map_err(|e| e.to_string())?.clone();
+    let path = root.join(format!("{}.md", title));
+    if path.exists() {
+        return Err(format!("Note '{}' sudah ada. Gunakan edit_note jika ingin mengubahnya.", title));
+    }
+    std::fs::write(&path, &content).map_err(|e| e.to_string())?;
+
+    state.vault.audit.append(crate::vault::AuditEntry {
+        id: Uuid::new_v4().to_string(),
+        timestamp: chrono::Utc::now().timestamp(),
+        agent_id,
+        action: "create".into(),
+        note_title: title.clone(),
+        previous_content: None,
+        diff_summary: Some(format!("Dibuat dengan {} kata", content.split_whitespace().count())),
+    });
+
+    let node = crate::vault::VaultGraph::parse_note(&path);
+    {
+        let mut g = state.vault.graph.write().map_err(|e| e.to_string())?;
+        g.upsert_note(node);
+        g.index_version += 1;
+    }
+
+    let _ = app.emit("vault-index-updated", &title);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn edit_note(
+    state: State<'_, AppState>,
+    app: AppHandle,
+    agent_id: String,
+    title: String,
+    new_content: String,
+    expected_hash: String,
+) -> Result<(), String> {
+    let path = {
+        let g = state.vault.graph.read().map_err(|e| e.to_string())?;
+        g.nodes.get(&title).ok_or("Note tidak ditemukan")?.path.clone()
+    };
+
+    let lock = state.vault.locks.get_lock(&path);
+    let _guard = lock.lock().await;
+
+    let current_content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let current_hash = crate::vault::VaultGraph::compute_hash(&current_content);
+
+    if current_hash != expected_hash {
+        return Err(format!("Konflik: '{}' telah diubah pihak lain sejak terakhir dibaca. Silakan baca ulang sebelum mengedit.", title));
+    }
+
+    state.vault.audit.append(crate::vault::AuditEntry {
+        id: Uuid::new_v4().to_string(),
+        timestamp: chrono::Utc::now().timestamp(),
+        agent_id,
+        action: "edit".into(),
+        note_title: title.clone(),
+        previous_content: Some(current_content),
+        diff_summary: Some(format!("Diperbarui menjadi {} kata", new_content.split_whitespace().count())),
+    });
+
+    std::fs::write(&path, &new_content).map_err(|e| e.to_string())?;
+
+    let node = crate::vault::VaultGraph::parse_note(&path);
+    {
+        let mut g = state.vault.graph.write().map_err(|e| e.to_string())?;
+        g.upsert_note(node);
+        g.index_version += 1;
+    }
+
+    let _ = app.emit("vault-index-updated", &title);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn request_delete_note(
+    state: State<'_, AppState>,
+    app: AppHandle,
+    agent_id: String,
+    note_title: String,
+    reason: String,
+) -> Result<String, String> {
+    crate::vault::delete_requests::create_delete_request(
+        &state.vault.delete_queue,
+        &state.vault.graph,
+        &app,
+        agent_id,
+        note_title,
+        reason,
+    )
+}
+
+#[tauri::command]
+pub fn get_pending_delete_requests(
+    state: State<'_, AppState>,
+) -> Result<Vec<crate::vault::DeleteRequest>, String> {
+    Ok(state.vault.delete_queue.list())
+}
+
+#[tauri::command]
+pub async fn approve_delete_request(
+    state: State<'_, AppState>,
+    app: AppHandle,
+    request_id: String,
+) -> Result<(), String> {
+    let root = state.vault.vault_root.read().map_err(|e| e.to_string())?.clone();
+    crate::vault::delete_requests::execute_approve_delete(
+        &state.vault.delete_queue,
+        &state.vault.graph,
+        &state.vault.locks,
+        &state.vault.audit,
+        &root,
+        &app,
+        &request_id,
+    ).await
+}
+
+#[tauri::command]
+pub fn reject_delete_request(
+    state: State<'_, AppState>,
+    app: AppHandle,
+    request_id: String,
+) -> Result<(), String> {
+    crate::vault::delete_requests::execute_reject_delete(
+        &state.vault.delete_queue,
+        &state.vault.audit,
+        &app,
+        &request_id,
+    )
+}
+
+#[tauri::command]
+pub async fn batch_approve_delete_requests(
+    state: State<'_, AppState>,
+    app: AppHandle,
+    request_ids: Vec<String>,
+) -> Result<usize, String> {
+    let root = state.vault.vault_root.read().map_err(|e| e.to_string())?.clone();
+    let mut count = 0;
+    for req_id in request_ids {
+        if crate::vault::delete_requests::execute_approve_delete(
+            &state.vault.delete_queue,
+            &state.vault.graph,
+            &state.vault.locks,
+            &state.vault.audit,
+            &root,
+            &app,
+            &req_id,
+        ).await.is_ok() {
+            count += 1;
+        }
+    }
+    Ok(count)
+}
+
+#[tauri::command]
+pub fn batch_reject_delete_requests(
+    state: State<'_, AppState>,
+    app: AppHandle,
+    request_ids: Vec<String>,
+) -> Result<usize, String> {
+    let mut count = 0;
+    for req_id in request_ids {
+        if crate::vault::delete_requests::execute_reject_delete(
+            &state.vault.delete_queue,
+            &state.vault.audit,
+            &app,
+            &req_id,
+        ).is_ok() {
+            count += 1;
+        }
+    }
+    Ok(count)
+}
+
+#[tauri::command]
+pub fn list_trash_notes(state: State<'_, AppState>) -> Result<Vec<crate::vault::TrashItem>, String> {
+    let root = state.vault.vault_root.read().map_err(|e| e.to_string())?.clone();
+    Ok(crate::vault::trash::list_trash_items(&root))
+}
+
+#[tauri::command]
+pub fn restore_trash_note(
+    state: State<'_, AppState>,
+    app: AppHandle,
+    file_name: String,
+) -> Result<String, String> {
+    let root = state.vault.vault_root.read().map_err(|e| e.to_string())?.clone();
+    crate::vault::trash::restore_trash_item(
+        &state.vault.graph,
+        &state.vault.audit,
+        &root,
+        &app,
+        &file_name,
+    )
+}
+
+#[tauri::command]
+pub fn purge_trash_note(
+    state: State<'_, AppState>,
+    file_name: String,
+) -> Result<(), String> {
+    let root = state.vault.vault_root.read().map_err(|e| e.to_string())?.clone();
+    crate::vault::trash::purge_trash_item(
+        &state.vault.audit,
+        &root,
+        &file_name,
+    )
+}
+
+#[tauri::command]
+pub fn get_vault_audit_log(
+    state: State<'_, AppState>,
+    limit: usize,
+) -> Result<Vec<crate::vault::AuditEntry>, String> {
+    Ok(state.vault.audit.get_entries(limit))
+}
+
+#[tauri::command]
+pub fn search_notes_hybrid(
+    state: State<'_, AppState>,
+    query: String,
+    limit: usize,
+) -> Result<Vec<crate::vault::ScoredSearchResult>, String> {
+    Ok(crate::vault::semantic::search_notes_hybrid(
+        &state.vault.graph,
+        &query,
+        limit,
+    ))
 }
 
 #[cfg(test)]
