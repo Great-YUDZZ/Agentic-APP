@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 
-export const PendingApprovalsModal: React.FC = () => {
+export const PendingApprovalsModal: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded = false }) => {
   const {
     isPendingApprovalsModalOpen,
     setPendingApprovalsModalOpen,
@@ -30,12 +30,12 @@ export const PendingApprovalsModal: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
-    if (isPendingApprovalsModalOpen) {
+    if (isPendingApprovalsModalOpen || isEmbedded) {
       fetchPendingDeleteRequests();
     }
-  }, [isPendingApprovalsModalOpen, fetchPendingDeleteRequests]);
+  }, [isPendingApprovalsModalOpen, isEmbedded, fetchPendingDeleteRequests]);
 
-  if (!isPendingApprovalsModalOpen) return null;
+  if (!isPendingApprovalsModalOpen && !isEmbedded) return null;
 
   const toggleExpand = (id: string) => {
     setExpandedRequestId(expandedRequestId === id ? null : id);
@@ -69,40 +69,34 @@ export const PendingApprovalsModal: React.FC = () => {
     setIsProcessing(false);
   };
 
-  return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.96 }}
-          transition={{ duration: 0.15 }}
-          className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl bg-[#262626] border border-[#383838] shadow-2xl overflow-hidden"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 px-5 border-b border-[#303030] bg-[#212121]">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                <ShieldAlert className="w-4 h-4" />
-              </div>
-              <div>
-                <h2 className="text-sm font-semibold text-[#ececec]">
-                  Persetujuan Hapus Note (Pending Approvals)
-                </h2>
-                <p className="text-xs text-[#b4b4b4]">
-                  Human-in-the-Loop: Tinjau dan konfirmasi permintaan hapus berkas dari AI agent
-                </p>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setPendingApprovalsModalOpen(false)}
-              className="p-1.5 rounded-lg text-[#707070] hover:text-[#ececec] hover:bg-[#2a2a2a] transition-colors"
-              title="Tutup"
-            >
-              <X className="w-4 h-4" />
-            </button>
+  const renderInnerContent = () => (
+    <>
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 px-5 border-b border-[#303030] bg-[#212121] shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <ShieldAlert className="w-4 h-4" />
           </div>
+          <div>
+            <h2 className="text-sm font-semibold text-[#ececec]">
+              Persetujuan Hapus Note (Pending Approvals)
+            </h2>
+            <p className="text-xs text-[#b4b4b4]">
+              Human-in-the-Loop: Tinjau dan konfirmasi permintaan hapus berkas dari AI agent
+            </p>
+          </div>
+        </div>
+
+        {!isEmbedded && (
+          <button
+            onClick={() => setPendingApprovalsModalOpen(false)}
+            className="p-1.5 rounded-lg text-[#707070] hover:text-[#ececec] hover:bg-[#2a2a2a] transition-colors"
+            title="Tutup"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
 
           {/* Action Subbar */}
           {pendingDeleteRequests.length > 0 && (
@@ -238,6 +232,28 @@ export const PendingApprovalsModal: React.FC = () => {
               })
             )}
           </div>
+    </>
+  );
+
+  if (isEmbedded) {
+    return (
+      <div className="w-full h-full flex flex-col bg-[#171717] overflow-hidden">
+        {renderInnerContent()}
+      </div>
+    );
+  }
+
+  return (
+    <AnimatePresence>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.96 }}
+          transition={{ duration: 0.15 }}
+          className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl bg-[#262626] border border-[#383838] shadow-2xl overflow-hidden"
+        >
+          {renderInnerContent()}
         </motion.div>
       </div>
     </AnimatePresence>

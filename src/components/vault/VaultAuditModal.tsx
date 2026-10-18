@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 
-export const VaultAuditModal: React.FC = () => {
+export const VaultAuditModal: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded = false }) => {
   const {
     isVaultAuditModalOpen,
     setVaultAuditModalOpen,
@@ -29,10 +29,10 @@ export const VaultAuditModal: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (isVaultAuditModalOpen) {
+    if (isVaultAuditModalOpen || isEmbedded) {
       loadLogs();
     }
-  }, [isVaultAuditModalOpen]);
+  }, [isVaultAuditModalOpen, isEmbedded]);
 
   const loadLogs = async () => {
     setIsLoading(true);
@@ -40,7 +40,7 @@ export const VaultAuditModal: React.FC = () => {
     setIsLoading(false);
   };
 
-  if (!isVaultAuditModalOpen) return null;
+  if (!isVaultAuditModalOpen && !isEmbedded) return null;
 
   const filteredLogs = vaultAuditLog.filter((entry) => {
     const matchesAction =
@@ -73,51 +73,45 @@ export const VaultAuditModal: React.FC = () => {
     return <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-[#303030] text-[#ececec]">{action.toUpperCase()}</span>;
   };
 
-  return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.96 }}
-          transition={{ duration: 0.15 }}
-          className="w-full max-w-3xl max-h-[85vh] flex flex-col rounded-2xl bg-[#262626] border border-[#383838] shadow-2xl overflow-hidden"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 px-5 border-b border-[#303030] bg-[#212121]">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400">
-                <History className="w-4 h-4" />
-              </div>
-              <div>
-                <h2 className="text-sm font-semibold text-[#ececec]">
-                  Jejak Audit Vault (.audit.jsonl)
-                </h2>
-                <p className="text-xs text-[#b4b4b4]">
-                  Riwayat append-only kronologis seluruh aksi baca, tulis, hapus, dan pemulihan
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={loadLogs}
-                disabled={isLoading}
-                className="p-1.5 rounded-lg text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#2a2a2a] transition-colors"
-                title="Segarkan Log"
-              >
-                <RotateCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-              </button>
-              <button
-                onClick={() => setVaultAuditModalOpen(false)}
-                className="p-1.5 rounded-lg text-[#707070] hover:text-[#ececec] hover:bg-[#2a2a2a] transition-colors"
-                title="Tutup"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+  const renderInnerContent = () => (
+    <>
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 px-5 border-b border-[#303030] bg-[#212121] shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400">
+            <History className="w-4 h-4" />
           </div>
+          <div>
+            <h2 className="text-sm font-semibold text-[#ececec]">
+              Jejak Audit Vault (.audit.jsonl)
+            </h2>
+            <p className="text-xs text-[#b4b4b4]">
+              Riwayat append-only kronologis seluruh aksi baca, tulis, hapus, dan pemulihan
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={loadLogs}
+            disabled={isLoading}
+            className="p-1.5 rounded-lg text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#2a2a2a] transition-colors"
+            title="Segarkan Log"
+          >
+            <RotateCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
+          {!isEmbedded && (
+            <button
+              onClick={() => setVaultAuditModalOpen(false)}
+              className="p-1.5 rounded-lg text-[#707070] hover:text-[#ececec] hover:bg-[#2a2a2a] transition-colors"
+              title="Tutup"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
 
           {/* Filters Bar */}
           <div className="p-3 px-5 border-b border-[#303030] bg-[#212121] flex items-center justify-between gap-3 flex-wrap text-xs">
@@ -241,6 +235,28 @@ export const VaultAuditModal: React.FC = () => {
               })
             )}
           </div>
+    </>
+  );
+
+  if (isEmbedded) {
+    return (
+      <div className="w-full h-full flex flex-col bg-[#171717] overflow-hidden">
+        {renderInnerContent()}
+      </div>
+    );
+  }
+
+  return (
+    <AnimatePresence>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.96 }}
+          transition={{ duration: 0.15 }}
+          className="w-full max-w-3xl max-h-[85vh] flex flex-col rounded-2xl bg-[#262626] border border-[#383838] shadow-2xl overflow-hidden"
+        >
+          {renderInnerContent()}
         </motion.div>
       </div>
     </AnimatePresence>

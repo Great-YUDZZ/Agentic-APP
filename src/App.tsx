@@ -13,6 +13,7 @@ import { PendingApprovalsModal } from './components/vault/PendingApprovalsModal'
 import { TrashFolderModal } from './components/vault/TrashFolderModal';
 import { VaultAuditModal } from './components/vault/VaultAuditModal';
 import { GraphViewModal } from './components/vault/GraphViewModal';
+import { VaultWorkspace } from './components/vault/VaultWorkspace';
 import { ToastFeedback } from './components/common/ToastFeedback';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { useStore } from './store/useStore';
@@ -26,6 +27,7 @@ export const App: React.FC = () => {
     toggleBuildSubMode,
     loadApiKeysFromDb,
     loadSessionsFromDb,
+    isVaultPageOpen,
   } = useStore();
 
   React.useEffect(() => {
@@ -65,14 +67,20 @@ export const App: React.FC = () => {
 
           <main className="flex-1 flex flex-col overflow-hidden relative bg-[#212121]">
             <ErrorBoundary fallbackTitle="Mode View Encountered an Error">
-              {currentMode === 'chatbot' && <ChatContainer />}
-              {currentMode === 'agent' && <AgentWorkspace />}
-              {currentMode === 'build' && <BuildStudio />}
+              {isVaultPageOpen ? (
+                <VaultWorkspace />
+              ) : (
+                <>
+                  {currentMode === 'chatbot' && <ChatContainer />}
+                  {currentMode === 'agent' && <AgentWorkspace />}
+                  {currentMode === 'build' && <BuildStudio />}
+                </>
+              )}
             </ErrorBoundary>
           </main>
 
-          {/* Resizable Bottom Terminal Panel (Disabled & Unmounted in Chatbot Mode) */}
-          {currentMode !== 'chatbot' && <TerminalPanel />}
+          {/* Resizable Bottom Terminal Panel (Disabled & Unmounted in Chatbot Mode or Vault Page) */}
+          {currentMode !== 'chatbot' && !isVaultPageOpen && <TerminalPanel />}
         </div>
 
         {/* Global Floating Modals */}

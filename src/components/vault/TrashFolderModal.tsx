@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 
-export const TrashFolderModal: React.FC = () => {
+export const TrashFolderModal: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded = false }) => {
   const {
     isTrashModalOpen,
     setTrashModalOpen,
@@ -26,12 +26,12 @@ export const TrashFolderModal: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
-    if (isTrashModalOpen) {
+    if (isTrashModalOpen || isEmbedded) {
       fetchTrashNotes();
     }
-  }, [isTrashModalOpen, fetchTrashNotes]);
+  }, [isTrashModalOpen, isEmbedded, fetchTrashNotes]);
 
-  if (!isTrashModalOpen) return null;
+  if (!isTrashModalOpen && !isEmbedded) return null;
 
   const handleRestore = async (fileName: string) => {
     setIsProcessing(true);
@@ -51,42 +51,36 @@ export const TrashFolderModal: React.FC = () => {
     return `${(bytes / 1024).toFixed(1)} KB`;
   };
 
-  return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.96 }}
-          transition={{ duration: 0.15 }}
-          className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl bg-[#262626] border border-[#383838] shadow-2xl overflow-hidden"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 px-5 border-b border-[#303030] bg-[#212121]">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400">
-                <Trash2 className="w-4 h-4" />
-              </div>
-              <div>
-                <h2 className="text-sm font-semibold text-[#ececec]">
-                  Tempat Sampah Vault (.trash)
-                </h2>
-                <p className="text-xs text-[#b4b4b4]">
-                  Berkas soft-delete disimpan sementara dan dapat dipulihkan kapan saja
-                </p>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setTrashModalOpen(false)}
-              className="p-1.5 rounded-lg text-[#707070] hover:text-[#ececec] hover:bg-[#2a2a2a] transition-colors"
-              title="Tutup"
-            >
-              <X className="w-4 h-4" />
-            </button>
+  const renderInnerContent = () => (
+    <>
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 px-5 border-b border-[#303030] bg-[#212121] shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400">
+            <Trash2 className="w-4 h-4" />
           </div>
+          <div>
+            <h2 className="text-sm font-semibold text-[#ececec]">
+              Tempat Sampah Vault (.trash/)
+            </h2>
+            <p className="text-xs text-[#b4b4b4]">
+              Semua note yang disetujui untuk dihapus disimpan di sini dan dapat dipulihkan kapan saja
+            </p>
+          </div>
+        </div>
 
-          {/* Retention Notice Bar */}
+        {!isEmbedded && (
+          <button
+            onClick={() => setTrashModalOpen(false)}
+            className="p-1.5 rounded-lg text-[#707070] hover:text-[#ececec] hover:bg-[#2a2a2a] transition-colors"
+            title="Tutup"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Retention Notice Bar */}
           <div className="flex items-center justify-between p-3 px-5 border-b border-[#303030] bg-[#262626] text-xs">
             <span className="text-[#b4b4b4]">
               Total berkas: <strong className="text-[#ececec]">{trashNotes.length}</strong>
@@ -201,6 +195,28 @@ export const TrashFolderModal: React.FC = () => {
               })
             )}
           </div>
+    </>
+  );
+
+  if (isEmbedded) {
+    return (
+      <div className="w-full h-full flex flex-col bg-[#171717] overflow-hidden">
+        {renderInnerContent()}
+      </div>
+    );
+  }
+
+  return (
+    <AnimatePresence>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.96 }}
+          transition={{ duration: 0.15 }}
+          className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl bg-[#262626] border border-[#383838] shadow-2xl overflow-hidden"
+        >
+          {renderInnerContent()}
         </motion.div>
       </div>
     </AnimatePresence>

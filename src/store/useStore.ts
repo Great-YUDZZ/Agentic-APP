@@ -222,6 +222,10 @@ interface AppStore {
   updateSettings: (partial: Partial<AppSettings>) => void;
 
   // Universal Context Vault (Obsidian-Style)
+  isVaultPageOpen: boolean;
+  setIsVaultPageOpen: (open: boolean) => void;
+  activeVaultTab: 'graph' | 'audit' | 'trash' | 'approvals';
+  setActiveVaultTab: (tab: 'graph' | 'audit' | 'trash' | 'approvals') => void;
   pendingDeleteRequests: DeleteRequest[];
   trashNotes: TrashItem[];
   vaultAuditLog: VaultAuditEntry[];
@@ -2058,6 +2062,10 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
   },
 
   // Universal Context Vault (Obsidian-Style)
+  isVaultPageOpen: false,
+  setIsVaultPageOpen: (isVaultPageOpen) => set({ isVaultPageOpen }),
+  activeVaultTab: 'graph',
+  setActiveVaultTab: (activeVaultTab) => set({ activeVaultTab }),
   pendingDeleteRequests: [],
   trashNotes: [],
   vaultAuditLog: [],

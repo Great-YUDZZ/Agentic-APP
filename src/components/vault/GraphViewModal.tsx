@@ -28,7 +28,10 @@ interface D3Link extends d3.SimulationLinkDatum<D3Node> {
   target: D3Node | string;
 }
 
-export const GraphViewModal: React.FC<{ onOpenNote?: (title: string) => void }> = ({ onOpenNote }) => {
+export const GraphViewModal: React.FC<{
+  isEmbedded?: boolean;
+  onOpenNote?: (title: string) => void;
+}> = ({ isEmbedded = false, onOpenNote }) => {
   const { isGraphViewModalOpen, setGraphViewModalOpen, getGraphSnapshot, addToast } = useStore();
 
   const svgRef = useRef<SVGSVGElement>(null);
@@ -46,10 +49,10 @@ export const GraphViewModal: React.FC<{ onOpenNote?: (title: string) => void }> 
   const [showAllLabels, setShowAllLabels] = useState(false);
 
   useEffect(() => {
-    if (isGraphViewModalOpen) {
+    if (isGraphViewModalOpen || isEmbedded) {
       loadGraph();
     }
-  }, [isGraphViewModalOpen]);
+  }, [isGraphViewModalOpen, isEmbedded]);
 
   const loadGraph = async () => {
     const data = await getGraphSnapshot();
@@ -59,7 +62,7 @@ export const GraphViewModal: React.FC<{ onOpenNote?: (title: string) => void }> 
   };
 
   useEffect(() => {
-    if (!isGraphViewModalOpen || !snapshot || !svgRef.current || !containerRef.current) return;
+    if ((!isGraphViewModalOpen && !isEmbedded) || !snapshot || !svgRef.current || !containerRef.current) return;
 
     const svg = d3.select(svgRef.current);
     svg.selectAll('*').remove();
@@ -249,6 +252,7 @@ export const GraphViewModal: React.FC<{ onOpenNote?: (title: string) => void }> 
     };
   }, [
     isGraphViewModalOpen,
+    isEmbedded,
     snapshot,
     searchFilter,
     nodeRadiusMultiplier,
@@ -257,7 +261,223 @@ export const GraphViewModal: React.FC<{ onOpenNote?: (title: string) => void }> 
     showAllLabels,
   ]);
 
-  if (!isGraphViewModalOpen) return null;
+  if (!isGraphViewModalOpen && !isEmbedded) return null;
+
+  const renderInnerContent = () => (
+    <>
+      {/* Top Bar / Subheader */}
+      <div className="flex items-center justify-between p-3.5 px-5 border-b border-[#262626] bg-[#212121] z-20 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400">
+            <Share2 className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-[#ececec]">
+              Graph View (Visualisasi Wikilink ala Obsidian)
+            </h2>
+            <p className="text-xs text-[#b4b4b4]">
+              {snapshot
+                ? `${snapshot.nodes.length} note • ${snapshot.edges.length} relasi keterhubungan wikilink`
+                : 'Peta keterhubungan antar note markdown, tag, dan jejaring backlink'}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Search Inside Graph */}
+          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-[#171717] border border-[#303030]">
+            <Search className="w-3.5 h-3.5 text-[#707070]" />
+            <input
+              type="text"
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+              placeholder="Saring node atau tag..."
+              className="bg-transparent border-none text-xs text-[#ececec] placeholder-[#707070] focus:outline-none w-44"
+            />
+          </div>
+
+          {/* Controls Toggle */}
+          <button
+            type="button"
+            onClick={() => setIsControlsOpen(!isControlsOpen)}
+            className={`px-2.5 py-1.5 rounded-xl border text-xs flex items-center gap-1.5 transition-colors ${
+              isControlsOpen
+                ? 'bg-[#383838] text-white border-[#484848]'
+                : 'bg-[#212121] text-[#b4b4b4] hover:text-[#ececec] border-[#303030]'
+            }`}
+            title="Pengaturan Fisika & Tampilan Graf"
+          >
+            <Sliders className="w-3.5 h-3.5" />
+            <span>Pengaturan</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={loadGraph}
+            className="p-2 rounded-xl bg-[#212121] border border-[#303030] text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#2a2a2a] transition-colors"
+            title="Muat Ulang Graf"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+          </button>
+
+          {!isEmbedded && (
+            <button
+              onClick={() => setGraphViewModalOpen(false)}
+              className="p-1.5 rounded-lg text-[#707070] hover:text-[#ececec] hover:bg-[#2a2a2a] transition-colors"
+              title="Tutup"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Canvas Area */}
+      <div ref={containerRef} className="flex-1 w-full h-full relative overflow-hidden bg-[#141414]">
+        <svg ref={svgRef} className="w-full h-full block cursor-grab active:cursor-grabbing" />
+
+        {/* Hover Tooltip Card */}
+        {hoveredNode && (
+          <div
+            style={{
+              left: Math.min(hoveredNode.x + 14, (containerRef.current?.clientWidth || 600) - 240),
+              top: Math.min(hoveredNode.y + 14, (containerRef.current?.clientHeight || 400) - 150),
+            }}
+            className="pointer-events-none absolute z-30 p-2.5 px-3 rounded-xl bg-[#262626] border border-[#383838] shadow-xl text-xs space-y-1.5 min-w-[180px] max-w-[240px]"
+          >
+            <div className="font-semibold text-[#ececec] flex items-center gap-1.5 truncate">
+              <FileText className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+              <span className="truncate">{hoveredNode.node.title}</span>
+            </div>
+            <div className="flex items-center gap-3 text-[11px] text-[#707070] font-mono">
+              <span className="flex items-center gap-1">
+                <Link className="w-3 h-3 text-emerald-400" />
+                {hoveredNode.node.backlink_count} backlinks
+              </span>
+              <span>•</span>
+              <span>{hoveredNode.node.link_count} outbound</span>
+            </div>
+            {hoveredNode.node.tags.length > 0 && (
+              <div className="flex items-center gap-1 flex-wrap pt-0.5">
+                {hoveredNode.node.tags.map((t) => (
+                  <span
+                    key={t}
+                    className="px-1.5 py-0.2 rounded bg-[#1f1f1f] text-[9px] text-[#b4b4b4] font-mono flex items-center gap-0.5"
+                  >
+                    <Tag className="w-2.5 h-2.5 text-purple-400" />
+                    #{t}
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="text-[10px] text-blue-400/80 pt-0.5">
+              Klik node untuk membuka note
+            </div>
+          </div>
+        )}
+
+        {/* Corner Controls Panel (Obsidian style) */}
+        <AnimatePresence>
+          {isControlsOpen && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="absolute top-4 right-4 z-20 w-72 p-4 rounded-2xl bg-[#212121]/95 border border-[#383838] shadow-2xl backdrop-blur-sm space-y-3.5 text-xs text-[#b4b4b4]"
+            >
+              <div className="flex items-center justify-between pb-1 border-b border-[#303030]">
+                <span className="font-semibold text-[#ececec]">Pengaturan Graf</span>
+                <button
+                  type="button"
+                  onClick={() => setIsControlsOpen(false)}
+                  className="p-1 rounded text-[#707070] hover:text-[#ececec]"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Node Size Slider */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span>Ukuran Node:</span>
+                  <span className="font-mono text-[#ececec]">{nodeRadiusMultiplier}x</span>
+                </div>
+                <input
+                  type="range"
+                  min={0.5}
+                  max={3.0}
+                  step={0.1}
+                  value={nodeRadiusMultiplier}
+                  onChange={(e) => setNodeRadiusMultiplier(parseFloat(e.target.value))}
+                  className="w-full accent-blue-500 cursor-pointer"
+                />
+              </div>
+
+              {/* Link Distance Slider */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span>Jarak Garis (Link Distance):</span>
+                  <span className="font-mono text-[#ececec]">{linkDistance}px</span>
+                </div>
+                <input
+                  type="range"
+                  min={40}
+                  max={200}
+                  step={5}
+                  value={linkDistance}
+                  onChange={(e) => setLinkDistance(parseInt(e.target.value))}
+                  className="w-full accent-blue-500 cursor-pointer"
+                />
+              </div>
+
+              {/* Force Repel Slider */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span>Daya Tolak (Repel Force):</span>
+                  <span className="font-mono text-[#ececec]">{Math.abs(chargeStrength)}</span>
+                </div>
+                <input
+                  type="range"
+                  min={-400}
+                  max={-60}
+                  step={20}
+                  value={chargeStrength}
+                  onChange={(e) => setChargeStrength(parseInt(e.target.value))}
+                  className="w-full accent-blue-500 cursor-pointer"
+                />
+              </div>
+
+              {/* Toggle Show All Labels */}
+              <div className="flex items-center justify-between pt-1 border-t border-[#303030]">
+                <span>Tampilkan Semua Judul:</span>
+                <button
+                  type="button"
+                  onClick={() => setShowAllLabels(!showAllLabels)}
+                  className={`w-9 h-5 rounded-full transition-colors relative p-0.5 ${
+                    showAllLabels ? 'bg-blue-600' : 'bg-[#383838]'
+                  }`}
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                      showAllLabels ? 'translate-x-4' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </>
+  );
+
+  if (isEmbedded) {
+    return (
+      <div className="w-full h-full flex flex-col bg-[#171717] relative overflow-hidden">
+        {renderInnerContent()}
+      </div>
+    );
+  }
 
   return (
     <AnimatePresence>
@@ -269,205 +489,7 @@ export const GraphViewModal: React.FC<{ onOpenNote?: (title: string) => void }> 
           transition={{ duration: 0.15 }}
           className="w-full h-full max-w-6xl max-h-[92vh] flex flex-col rounded-2xl bg-[#171717] border border-[#383838] shadow-2xl overflow-hidden relative"
         >
-          {/* Top Bar Header */}
-          <div className="flex items-center justify-between p-3.5 px-5 border-b border-[#262626] bg-[#212121] z-20">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400">
-                <Share2 className="w-4 h-4" />
-              </div>
-              <div>
-                <h2 className="text-sm font-semibold text-[#ececec]">
-                  Graph View (Visualisasi Wikilink ala Obsidian)
-                </h2>
-                <p className="text-xs text-[#b4b4b4]">
-                  Peta keterhubungan antar note markdown, tag, dan jejaring backlink
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {/* Search Inside Graph */}
-              <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-[#171717] border border-[#303030]">
-                <Search className="w-3.5 h-3.5 text-[#707070]" />
-                <input
-                  type="text"
-                  value={searchFilter}
-                  onChange={(e) => setSearchFilter(e.target.value)}
-                  placeholder="Saring node..."
-                  className="bg-transparent border-none text-xs text-[#ececec] placeholder-[#707070] focus:outline-none w-36"
-                />
-              </div>
-
-              {/* Controls Toggle */}
-              <button
-                type="button"
-                onClick={() => setIsControlsOpen(!isControlsOpen)}
-                className={`p-1.5 rounded-lg border text-xs flex items-center gap-1.5 transition-colors ${
-                  isControlsOpen
-                    ? 'bg-[#383838] text-white border-[#484848]'
-                    : 'bg-[#212121] text-[#b4b4b4] hover:text-[#ececec] border-[#303030]'
-                }`}
-                title="Pengaturan Fisika & Tampilan Graf"
-              >
-                <Sliders className="w-3.5 h-3.5" />
-                <span>Pengaturan</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={loadGraph}
-                className="p-1.5 rounded-lg text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#2a2a2a] transition-colors"
-                title="Muat Ulang Graf"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
-
-              <button
-                onClick={() => setGraphViewModalOpen(false)}
-                className="p-1.5 rounded-lg text-[#707070] hover:text-[#ececec] hover:bg-[#2a2a2a] transition-colors"
-                title="Tutup"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Canvas Area */}
-          <div ref={containerRef} className="flex-1 w-full h-full relative overflow-hidden bg-[#141414]">
-            <svg ref={svgRef} className="w-full h-full block cursor-grab active:cursor-grabbing" />
-
-            {/* Hover Tooltip Card */}
-            {hoveredNode && (
-              <div
-                style={{
-                  left: Math.min(hoveredNode.x + 14, (containerRef.current?.clientWidth || 600) - 240),
-                  top: Math.min(hoveredNode.y + 14, (containerRef.current?.clientHeight || 400) - 150),
-                }}
-                className="pointer-events-none absolute z-30 p-2.5 px-3 rounded-xl bg-[#262626] border border-[#383838] shadow-xl text-xs space-y-1.5 min-w-[180px] max-w-[240px]"
-              >
-                <div className="font-semibold text-[#ececec] flex items-center gap-1.5 truncate">
-                  <FileText className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                  <span className="truncate">{hoveredNode.node.title}</span>
-                </div>
-                <div className="flex items-center gap-3 text-[11px] text-[#707070] font-mono">
-                  <span className="flex items-center gap-1">
-                    <Link className="w-3 h-3 text-emerald-400" />
-                    {hoveredNode.node.backlink_count} backlinks
-                  </span>
-                  <span>•</span>
-                  <span>{hoveredNode.node.link_count} outbound</span>
-                </div>
-                {hoveredNode.node.tags.length > 0 && (
-                  <div className="flex items-center gap-1 flex-wrap pt-0.5">
-                    {hoveredNode.node.tags.map((t) => (
-                      <span
-                        key={t}
-                        className="px-1.5 py-0.2 rounded bg-[#1f1f1f] text-[9px] text-[#b4b4b4] font-mono flex items-center gap-0.5"
-                      >
-                        <Tag className="w-2.5 h-2.5 text-purple-400" />
-                        #{t}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <div className="text-[10px] text-blue-400/80 pt-0.5">
-                  Klik node untuk membuka note
-                </div>
-              </div>
-            )}
-
-            {/* Corner Controls Panel (Obsidian style) */}
-            <AnimatePresence>
-              {isControlsOpen && (
-                <motion.div
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  className="absolute top-4 right-4 z-20 w-72 p-4 rounded-2xl bg-[#212121]/95 border border-[#383838] shadow-2xl backdrop-blur-sm space-y-3.5 text-xs text-[#b4b4b4]"
-                >
-                  <div className="flex items-center justify-between pb-1 border-b border-[#303030]">
-                    <span className="font-semibold text-[#ececec]">Pengaturan Graf</span>
-                    <button
-                      type="button"
-                      onClick={() => setIsControlsOpen(false)}
-                      className="p-1 rounded text-[#707070] hover:text-[#ececec]"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  {/* Node Size Slider */}
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span>Ukuran Node:</span>
-                      <span className="font-mono text-[#ececec]">{nodeRadiusMultiplier}x</span>
-                    </div>
-                    <input
-                      type="range"
-                      min={0.5}
-                      max={3.0}
-                      step={0.1}
-                      value={nodeRadiusMultiplier}
-                      onChange={(e) => setNodeRadiusMultiplier(parseFloat(e.target.value))}
-                      className="w-full accent-blue-500 cursor-pointer"
-                    />
-                  </div>
-
-                  {/* Link Distance Slider */}
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span>Jarak Garis (Link Distance):</span>
-                      <span className="font-mono text-[#ececec]">{linkDistance}px</span>
-                    </div>
-                    <input
-                      type="range"
-                      min={40}
-                      max={200}
-                      step={5}
-                      value={linkDistance}
-                      onChange={(e) => setLinkDistance(parseInt(e.target.value))}
-                      className="w-full accent-blue-500 cursor-pointer"
-                    />
-                  </div>
-
-                  {/* Force Repel Slider */}
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span>Daya Tolak (Repel Force):</span>
-                      <span className="font-mono text-[#ececec]">{Math.abs(chargeStrength)}</span>
-                    </div>
-                    <input
-                      type="range"
-                      min={-400}
-                      max={-60}
-                      step={20}
-                      value={chargeStrength}
-                      onChange={(e) => setChargeStrength(parseInt(e.target.value))}
-                      className="w-full accent-blue-500 cursor-pointer"
-                    />
-                  </div>
-
-                  {/* Toggle Show All Labels */}
-                  <div className="flex items-center justify-between pt-1 border-t border-[#303030]">
-                    <span>Tampilkan Semua Judul:</span>
-                    <button
-                      type="button"
-                      onClick={() => setShowAllLabels(!showAllLabels)}
-                      className={`w-9 h-5 rounded-full transition-colors relative p-0.5 ${
-                        showAllLabels ? 'bg-blue-600' : 'bg-[#383838]'
-                      }`}
-                    >
-                      <div
-                        className={`w-4 h-4 rounded-full bg-white transition-transform ${
-                          showAllLabels ? 'translate-x-4' : 'translate-x-0'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          {renderInnerContent()}
         </motion.div>
       </div>
     </AnimatePresence>

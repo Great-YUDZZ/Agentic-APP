@@ -10,6 +10,7 @@ import {
   FileDiff,
   ChevronDown,
   Check,
+  ShieldAlert,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { AppMode, StudioTab } from '../../types';
@@ -39,6 +40,9 @@ export const TitleBar: React.FC = () => {
     setActiveStudioTab,
     addToast,
     addLog,
+    pendingDeleteRequests,
+    setIsVaultPageOpen,
+    setActiveVaultTab,
   } = useStore();
 
   const [isStudioMenuOpen, setIsStudioMenuOpen] = useState(false);
@@ -195,6 +199,25 @@ export const TitleBar: React.FC = () => {
             <span className="hidden sm:inline">Terminal</span>
           </button>
         ) : null}
+
+        {/* Global Vault Pending Approvals Button */}
+        {pendingDeleteRequests.length > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              setIsVaultPageOpen(true);
+              setActiveVaultTab('approvals');
+            }}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs font-medium transition-colors"
+            title={`${pendingDeleteRequests.length} permintaan penghapusan note menunggu persetujuan Anda`}
+          >
+            <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline">Approval</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-amber-500 text-black">
+              {pendingDeleteRequests.length}
+            </span>
+          </button>
+        )}
       </div>
     </header>
   );
