@@ -5,14 +5,12 @@ import {
   Paperclip,
   Check,
   Bot,
-  Trash2,
   ChevronDown,
   RotateCw,
   Search,
   Sparkles,
   AlertTriangle,
   X,
-  Cpu,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { ChatMessage } from '../../types';
@@ -56,7 +54,6 @@ export const ChatContainer: React.FC = () => {
     setContextCompressed,
     setContextUsagePercent,
     settings,
-    updateSettings,
     isStreaming,
     setIsStreaming,
     isWorking,
@@ -481,54 +478,8 @@ export const ChatContainer: React.FC = () => {
     }
   };
 
-  const handleClearChat = () => {
-    if (activeSessionId) {
-      setMessages(messages.filter((m) => m.session_id !== activeSessionId));
-      addToast('info', 'Percakapan berhasil dibersihkan.');
-    }
-  };
-
   return (
     <div className="flex-1 flex flex-col h-full bg-[#212121] overflow-hidden">
-      {/* Top Session Bar */}
-      <div className="h-10 px-6 bg-[#212121] border-b border-[#262626] flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2 text-xs text-[#ececec]">
-          <span className="font-medium truncate max-w-sm">
-            {activeSessionId
-              ? useStore.getState().sessions.find((s) => s.id === activeSessionId)?.title || 'Percakapan'
-              : 'Percakapan Baru'}
-          </span>
-          <span className="text-[#707070]">•</span>
-          <span className="text-[11px] font-mono text-[#b4b4b4] truncate max-w-[200px]">
-            {selectedModel}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => updateSettings({ verboseAgentChat: !settings.verboseAgentChat })}
-            title={settings.verboseAgentChat ? 'Sembunyikan langkah pemikiran rinci' : 'Tampilkan langkah pemikiran rinci'}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs border transition-colors ${
-              settings.verboseAgentChat
-                ? 'bg-blue-600/15 border-blue-500/40 text-blue-400'
-                : 'text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#282828] border-[#303030]'
-            }`}
-          >
-            <Cpu className="w-3 h-3" />
-            <span>Verbose {settings.verboseAgentChat ? 'ON' : 'OFF'}</span>
-          </button>
-
-          <button
-            onClick={handleClearChat}
-            title="Bersihkan pesan di sesi ini"
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs text-[#b4b4b4] hover:text-red-400 hover:bg-[#282828] border border-[#303030] transition-colors"
-          >
-            <Trash2 className="w-3 h-3" />
-            <span>Bersihkan</span>
-          </button>
-        </div>
-      </div>
-
       {/* Message Stream */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {currentMessages.length === 0 ? (
