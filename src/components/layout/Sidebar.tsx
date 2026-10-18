@@ -94,14 +94,14 @@ export const Sidebar: React.FC = () => {
             onClick={() => setIsVaultPageOpen(!isVaultPageOpen)}
             className={`relative p-2 rounded-xl transition-colors ${
               isVaultPageOpen
-                ? 'bg-[#2f2f2f] text-purple-400 border border-[#383838]'
+                ? 'bg-[#2f2f2f] text-[#ececec] border border-[#383838]'
                 : 'bg-[#212121] hover:bg-[#282828] border border-[#303030] text-[#b4b4b4] hover:text-[#ececec]'
             }`}
             title="Universal Context Vault"
           >
             <BookOpen className="w-4 h-4" />
             {pendingDeleteRequests.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-[#171717]" />
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-[#171717]" />
             )}
           </button>
         </div>
@@ -160,11 +160,11 @@ export const Sidebar: React.FC = () => {
           title="Buka Halaman Khusus Universal Context Vault"
         >
           <div className="flex items-center gap-2">
-            <BookOpen className={`w-4 h-4 ${isVaultPageOpen ? 'text-purple-400' : 'text-[#707070]'}`} />
+            <BookOpen className={`w-4 h-4 ${isVaultPageOpen ? 'text-[#ececec]' : 'text-[#707070]'}`} />
             <span>Context Vault</span>
           </div>
           {pendingDeleteRequests.length > 0 ? (
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-amber-500 text-black">
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-amber-500/15 border border-amber-500/30 text-amber-300 font-medium">
               {pendingDeleteRequests.length}
             </span>
           ) : (

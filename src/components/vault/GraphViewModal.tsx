@@ -300,9 +300,9 @@ export const GraphViewModal: React.FC<{
   const renderInnerContent = () => (
     <>
       {/* Top Bar / Subheader */}
-      <div className="flex items-center justify-between p-3.5 px-5 border-b border-[#262626] bg-[#212121] z-20 shrink-0">
+      <div className="flex items-center justify-between p-3.5 px-5 border-b border-[#262626] bg-[#171717] z-20 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400">
+          <div className="w-8 h-8 rounded-xl bg-[#2f2f2f] border border-[#383838] flex items-center justify-center text-[#ececec]">
             <Share2 className="w-4 h-4" />
           </div>
           <div>
@@ -319,7 +319,7 @@ export const GraphViewModal: React.FC<{
 
         <div className="flex items-center gap-2">
           {/* Search Inside Graph */}
-          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-[#171717] border border-[#303030]">
+          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-[#262626] border border-[#383838]">
             <Search className="w-3.5 h-3.5 text-[#707070]" />
             <input
               type="text"
@@ -336,8 +336,8 @@ export const GraphViewModal: React.FC<{
             onClick={() => setIsControlsOpen(!isControlsOpen)}
             className={`px-2.5 py-1.5 rounded-xl border text-xs flex items-center gap-1.5 transition-colors ${
               isControlsOpen
-                ? 'bg-[#383838] text-white border-[#484848]'
-                : 'bg-[#212121] text-[#b4b4b4] hover:text-[#ececec] border-[#303030]'
+                ? 'bg-[#383838] text-white border-[#4f4f4f]'
+                : 'bg-[#262626] text-[#b4b4b4] hover:text-[#ececec] border-[#383838]'
             }`}
             title="Pengaturan Fisika & Tampilan Graf"
           >
@@ -348,7 +348,7 @@ export const GraphViewModal: React.FC<{
           <button
             type="button"
             onClick={loadGraph}
-            className="p-2 rounded-xl bg-[#212121] border border-[#303030] text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#2a2a2a] transition-colors"
+            className="p-2 rounded-xl bg-[#262626] border border-[#383838] text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#383838] transition-colors"
             title="Muat Ulang Graf"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -357,7 +357,7 @@ export const GraphViewModal: React.FC<{
           {!isEmbedded && (
             <button
               onClick={() => setGraphViewModalOpen(false)}
-              className="p-1.5 rounded-lg text-[#707070] hover:text-[#ececec] hover:bg-[#2a2a2a] transition-colors"
+              className="p-1.5 rounded-lg text-[#707070] hover:text-[#ececec] hover:bg-[#262626] transition-colors"
               title="Tutup"
             >
               <X className="w-4 h-4" />
@@ -367,7 +367,7 @@ export const GraphViewModal: React.FC<{
       </div>
 
       {/* Canvas Area */}
-      <div ref={containerRef} className="flex-1 w-full h-full relative overflow-hidden bg-[#141414]">
+      <div ref={containerRef} className="flex-1 w-full h-full relative overflow-hidden bg-[#171717]">
         <svg ref={svgRef} className="w-full h-full block cursor-grab active:cursor-grabbing" />
 
         {/* Corner Controls Panel (Obsidian style) */}
@@ -377,9 +377,9 @@ export const GraphViewModal: React.FC<{
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
-              className="absolute top-4 right-4 z-20 w-72 p-4 rounded-2xl bg-[#212121]/95 border border-[#383838] shadow-2xl backdrop-blur-sm space-y-3.5 text-xs text-[#b4b4b4]"
+              className="absolute top-4 right-4 z-20 w-72 p-4 rounded-2xl bg-[#2f2f2f] border border-[#383838] shadow-2xl space-y-3.5 text-xs text-[#b4b4b4]"
             >
-              <div className="flex items-center justify-between pb-1 border-b border-[#303030]">
+              <div className="flex items-center justify-between pb-1 border-b border-[#383838]">
                 <span className="font-semibold text-[#ececec]">Pengaturan Graf</span>
                 <button
                   type="button"
@@ -403,7 +403,7 @@ export const GraphViewModal: React.FC<{
                   step={0.1}
                   value={nodeRadiusMultiplier}
                   onChange={(e) => setNodeRadiusMultiplier(parseFloat(e.target.value))}
-                  className="w-full accent-blue-500 cursor-pointer"
+                  className="w-full accent-[#ececec] cursor-pointer"
                 />
               </div>
 
@@ -420,7 +420,7 @@ export const GraphViewModal: React.FC<{
                   step={5}
                   value={linkDistance}
                   onChange={(e) => setLinkDistance(parseInt(e.target.value))}
-                  className="w-full accent-blue-500 cursor-pointer"
+                  className="w-full accent-[#ececec] cursor-pointer"
                 />
               </div>
 
@@ -437,23 +437,23 @@ export const GraphViewModal: React.FC<{
                   step={20}
                   value={chargeStrength}
                   onChange={(e) => setChargeStrength(parseInt(e.target.value))}
-                  className="w-full accent-blue-500 cursor-pointer"
+                  className="w-full accent-[#ececec] cursor-pointer"
                 />
               </div>
 
               {/* Toggle Show All Labels */}
-              <div className="flex items-center justify-between pt-1 border-t border-[#303030]">
+              <div className="flex items-center justify-between pt-1 border-t border-[#383838]">
                 <span>Tampilkan Semua Judul:</span>
                 <button
                   type="button"
                   onClick={() => setShowAllLabels(!showAllLabels)}
                   className={`w-9 h-5 rounded-full transition-colors relative p-0.5 ${
-                    showAllLabels ? 'bg-blue-600' : 'bg-[#383838]'
+                    showAllLabels ? 'bg-[#ececec]' : 'bg-[#262626] border border-[#383838]'
                   }`}
                 >
                   <div
-                    className={`w-4 h-4 rounded-full bg-white transition-transform ${
-                      showAllLabels ? 'translate-x-4' : 'translate-x-0'
+                    className={`w-4 h-4 rounded-full transition-transform ${
+                      showAllLabels ? 'translate-x-4 bg-[#171717]' : 'translate-x-0 bg-[#707070]'
                     }`}
                   />
                 </button>
@@ -467,7 +467,7 @@ export const GraphViewModal: React.FC<{
 
   if (isEmbedded) {
     return (
-      <div className="w-full h-full flex flex-col bg-[#171717] relative overflow-hidden">
+      <div className="w-full h-full flex flex-col bg-[#212121] relative overflow-hidden">
         {renderInnerContent()}
       </div>
     );

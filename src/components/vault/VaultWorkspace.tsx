@@ -51,31 +51,31 @@ export const VaultWorkspace: React.FC = () => {
       label: 'Approvals',
       icon: ShieldAlert,
       badge: pendingDeleteRequests.length > 0 ? pendingDeleteRequests.length : undefined,
-      badgeColor: 'bg-amber-500 text-black font-bold',
+      badgeColor: 'bg-amber-500/15 border border-amber-500/30 text-amber-300 font-medium',
     },
   ];
 
   return (
-    <div className="flex-1 w-full h-full flex flex-col bg-[#171717] overflow-hidden select-none">
+    <div className="flex-1 w-full h-full flex flex-col bg-[#212121] overflow-hidden select-none">
       {/* Top Navigation Bar */}
-      <header className="h-14 px-5 border-b border-[#262626] bg-[#1a1a1a] flex items-center justify-between shrink-0 z-20">
+      <header className="h-14 px-5 border-b border-[#262626] bg-[#171717] flex items-center justify-between shrink-0 z-20">
         <div className="flex items-center gap-4 min-w-0">
           {/* Back Button */}
           <button
             type="button"
             onClick={() => setIsVaultPageOpen(false)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#212121] hover:bg-[#282828] border border-[#303030] text-xs font-medium text-[#ececec] transition-colors shrink-0"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#212121] hover:bg-[#262626] border border-[#303030] text-xs font-medium text-[#ececec] transition-colors shrink-0"
             title={`Kembali ke mode ${currentMode}`}
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Kembali</span>
           </button>
 
-          <div className="h-5 w-px bg-[#2a2a2a] shrink-0" />
+          <div className="h-5 w-px bg-[#262626] shrink-0" />
 
           {/* Vault Title */}
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-7 h-7 rounded-lg bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-[#2f2f2f] border border-[#383838] flex items-center justify-center text-[#ececec] shrink-0">
               <BookOpen className="w-4 h-4" />
             </div>
             <div className="min-w-0">
@@ -89,8 +89,8 @@ export const VaultWorkspace: React.FC = () => {
           </div>
         </div>
 
-        {/* Tab Switcher Pills */}
-        <div className="flex items-center gap-1 bg-[#212121] p-1 rounded-full border border-[#303030] shrink-0">
+        {/* Tab Switcher Pills - ChatGPT Standard Segmented Pill */}
+        <div className="flex items-center gap-1 bg-[#2f2f2f] p-1 rounded-full border border-[#383838] shrink-0">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeVaultTab === tab.id;
@@ -101,7 +101,7 @@ export const VaultWorkspace: React.FC = () => {
                 onClick={() => setActiveVaultTab(tab.id)}
                 className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                   isActive
-                    ? 'bg-[#2f2f2f] text-[#ececec] border border-[#383838]'
+                    ? 'bg-[#404040] text-[#ececec]'
                     : 'text-[#b4b4b4] hover:text-[#ececec]'
                 }`}
               >
@@ -124,17 +124,17 @@ export const VaultWorkspace: React.FC = () => {
 
       {/* Prominent Warning Alert Banner if Delete Requests Pending */}
       {pendingDeleteRequests.length > 0 && activeVaultTab !== 'approvals' && (
-        <div className="bg-amber-500/15 border-b border-amber-500/30 px-5 py-2.5 flex items-center justify-between text-xs text-amber-200 shrink-0">
+        <div className="bg-amber-500/10 border-b border-amber-500/25 px-5 py-2.5 flex items-center justify-between text-xs text-[#ececec] shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
             <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
             <span className="truncate">
-              Terdapat <strong>{pendingDeleteRequests.length} permintaan penghapusan note</strong> yang menunggu persetujuan Anda.
+              Terdapat <strong className="text-amber-300">{pendingDeleteRequests.length} permintaan penghapusan note</strong> yang menunggu persetujuan Anda.
             </span>
           </div>
           <button
             type="button"
             onClick={() => setActiveVaultTab('approvals')}
-            className="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-semibold text-xs transition-colors shrink-0 ml-3"
+            className="px-3 py-1 rounded-xl bg-[#2f2f2f] hover:bg-[#383838] border border-amber-500/40 text-amber-300 font-medium text-xs transition-colors shrink-0 ml-3"
           >
             Tinjau Permintaan
           </button>
@@ -142,7 +142,7 @@ export const VaultWorkspace: React.FC = () => {
       )}
 
       {/* Active Tab View */}
-      <main className="flex-1 w-full h-full relative overflow-hidden bg-[#171717]">
+      <main className="flex-1 w-full h-full relative overflow-hidden bg-[#212121]">
         {activeVaultTab === 'graph' && <GraphViewModal isEmbedded />}
         {activeVaultTab === 'audit' && <VaultAuditModal isEmbedded />}
         {activeVaultTab === 'trash' && <TrashFolderModal isEmbedded />}

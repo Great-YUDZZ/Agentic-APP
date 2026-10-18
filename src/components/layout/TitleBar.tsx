@@ -208,12 +208,12 @@ export const TitleBar: React.FC = () => {
               setIsVaultPageOpen(true);
               setActiveVaultTab('approvals');
             }}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs font-medium transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-medium transition-colors"
             title={`${pendingDeleteRequests.length} permintaan penghapusan note menunggu persetujuan Anda`}
           >
             <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
             <span className="hidden sm:inline">Approval</span>
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-amber-500 text-black">
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-amber-500/20 text-amber-300">
               {pendingDeleteRequests.length}
             </span>
           </button>
