@@ -6,9 +6,6 @@ import {
   Search,
   Sliders,
   RotateCcw,
-  Tag,
-  Link,
-  FileText,
 } from 'lucide-react';
 import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
@@ -40,7 +37,6 @@ export const GraphViewModal: React.FC<{
   const [snapshot, setSnapshot] = useState<GraphSnapshot | null>(null);
   const [searchFilter, setSearchFilter] = useState('');
   const [isControlsOpen, setIsControlsOpen] = useState(false);
-  const [hoveredNode, setHoveredNode] = useState<{ node: GraphNodeItem; x: number; y: number } | null>(null);
 
   // Graph Simulation Tunings
   const [nodeRadiusMultiplier, setNodeRadiusMultiplier] = useState(1.5);
@@ -87,12 +83,33 @@ export const GraphViewModal: React.FC<{
     // Container group for Pan & Zoom
     const g = svg.append('g').attr('class', 'graph-container');
 
+    // Dynamic text opacity based on zoom scale and node importance ala Obsidian
+    let currentScale = 0.9;
+    const calculateTextOpacity = (d: D3Node, scale: number) => {
+      if (showAllLabels) return 0.95;
+      // When zoomed in, all note titles are clearly visible under their circles
+      if (scale >= 1.0) return 0.95;
+      if (scale >= 0.75) {
+        const progress = (scale - 0.75) / 0.25;
+        return 0.4 + progress * 0.55;
+      }
+      if (scale >= 0.5) {
+        // Hub notes visible, smaller notes fade gracefully
+        return (d.backlink_count || 0) >= 2 ? 0.75 : ((scale - 0.5) / 0.25) * 0.4;
+      }
+      // When zoomed out far, only major hub notes are visible
+      return (d.backlink_count || 0) >= 3 ? 0.6 : 0;
+    };
+
     // Setup Zoom
     const zoomBehavior = d3
       .zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.15, 4.0])
       .on('zoom', (event: d3.D3ZoomEvent<SVGSVGElement, unknown>) => {
         g.attr('transform', event.transform.toString());
+        currentScale = event.transform.k;
+        // Dynamically scale text label visibility on zoom
+        textSelection.style('opacity', (d: D3Node) => calculateTextOpacity(d, currentScale));
       });
 
     svg.call(zoomBehavior);
@@ -112,7 +129,7 @@ export const GraphViewModal: React.FC<{
       )
       .force('charge', d3.forceManyBody().strength(chargeStrength))
       .force('center', d3.forceCenter(0, 0))
-      .force('collision', d3.forceCollide<D3Node>().radius((d) => 8 + (d.backlink_count || 0) * 3))
+      .force('collision', d3.forceCollide<D3Node>().radius((d) => 12 + (d.backlink_count || 0) * 3))
       .alphaDecay(0.025);
 
     // Render Edges
@@ -145,6 +162,10 @@ export const GraphViewModal: React.FC<{
         d.fy = null;
       });
 
+    // Helper for node radius
+    const getNodeRadius = (d: D3Node) =>
+      Math.min(22, Math.max(5, 5 + (d.backlink_count || 0) * nodeRadiusMultiplier));
+
     // Render Nodes
     const nodeSelection = g
       .append('g')
@@ -156,31 +177,33 @@ export const GraphViewModal: React.FC<{
       .attr('class', 'node-group cursor-pointer')
       .call(dragBehavior as any);
 
-    // Node Circle
+    // Node Circle (Obsidian aesthetic palette)
     nodeSelection
       .append('circle')
-      .attr('r', (d: D3Node) => Math.min(24, Math.max(5, 5 + (d.backlink_count || 0) * nodeRadiusMultiplier)))
+      .attr('r', getNodeRadius)
       .attr('fill', (d: D3Node) => {
-        if (d.backlink_count >= 3) return '#3b82f6'; // Hub note
-        if (d.tags.length > 0) return '#10b981';     // Categorized note
-        return '#8b5cf6';                            // Standard note
+        if (d.backlink_count >= 3) return '#60a5fa'; // Hub note
+        if (d.tags.length > 0) return '#34d399';     // Tagged note
+        return '#a78bfa';                            // Standard note
       })
-      .attr('stroke', '#1f1f1f')
+      .attr('stroke', '#171717')
       .attr('stroke-width', 1.5)
-      .attr('class', 'transition-opacity duration-150');
+      .attr('class', 'transition-all duration-150');
 
-    // Node Text Label
+    // Node Text Label (centered directly below circle ala Obsidian)
     const textSelection = nodeSelection
       .append('text')
       .text((d: D3Node) => d.title)
-      .attr('x', (d: D3Node) => Math.min(24, Math.max(5, 5 + (d.backlink_count || 0) * nodeRadiusMultiplier)) + 4)
-      .attr('y', 3.5)
-      .attr('fill', '#ececec')
+      .attr('text-anchor', 'middle')
+      .attr('x', 0)
+      .attr('y', (d: D3Node) => getNodeRadius(d) + 11)
+      .attr('fill', '#d4d4d4')
       .attr('font-size', '10px')
-      .attr('font-family', 'sans-serif')
-      .attr('font-weight', '500')
-      .attr('opacity', showAllLabels ? 0.9 : 0)
-      .attr('class', 'pointer-events-none transition-opacity duration-150');
+      .attr('font-family', 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif')
+      .attr('font-weight', '400')
+      .attr('letter-spacing', '0.01em')
+      .attr('opacity', (d: D3Node) => calculateTextOpacity(d, currentScale))
+      .attr('class', 'pointer-events-none transition-opacity duration-150 select-none');
 
     // Interactive Hover & Highlight logic (Obsidian style)
     const connectedMap: Record<string, Set<string>> = {};
@@ -195,13 +218,13 @@ export const GraphViewModal: React.FC<{
     });
 
     nodeSelection
-      .on('mouseenter', (event: MouseEvent, d: D3Node) => {
+      .on('mouseenter', (_event: MouseEvent, d: D3Node) => {
         const neighbors = connectedMap[d.id] || new Set([d.id]);
 
         // Dim unconnected nodes
-        nodeSelection.style('opacity', (n: D3Node) => (neighbors.has(n.id) ? 1 : 0.12));
+        nodeSelection.style('opacity', (n: D3Node) => (neighbors.has(n.id) ? 1 : 0.15));
 
-        // Dim unconnected links
+        // Dim unconnected links and highlight connected edges
         linkSelection
           .style('opacity', (l: any) => {
             const sId = typeof l.source === 'object' ? l.source.id : l.source;
@@ -212,20 +235,31 @@ export const GraphViewModal: React.FC<{
             const sId = typeof l.source === 'object' ? l.source.id : l.source;
             const tId = typeof l.target === 'object' ? l.target.id : l.target;
             return sId === d.id || tId === d.id ? '#60a5fa' : '#3a3a3a';
+          })
+          .attr('stroke-width', (l: any) => {
+            const sId = typeof l.source === 'object' ? l.source.id : l.source;
+            const tId = typeof l.target === 'object' ? l.target.id : l.target;
+            return sId === d.id || tId === d.id ? 1.8 : 1.2;
           });
 
-        // Always show label on hover
-        textSelection.style('opacity', (n: D3Node) => (neighbors.has(n.id) ? 1 : showAllLabels ? 0.1 : 0));
-
-        // Tooltip
-        const [mx, my] = d3.pointer(event, containerRef.current);
-        setHoveredNode({ node: d, x: mx, y: my });
+        // Highlight labels of hovered note and connected neighbors
+        textSelection
+          .style('opacity', (n: D3Node) => (neighbors.has(n.id) ? 1 : 0.08))
+          .attr('fill', (n: D3Node) =>
+            n.id === d.id ? '#ffffff' : neighbors.has(n.id) ? '#ececec' : '#707070'
+          )
+          .attr('font-weight', (n: D3Node) => (neighbors.has(n.id) ? '600' : '400'));
       })
       .on('mouseleave', () => {
         nodeSelection.style('opacity', 1);
-        linkSelection.style('opacity', 0.65).attr('stroke', '#3a3a3a');
-        textSelection.style('opacity', showAllLabels ? 0.9 : 0);
-        setHoveredNode(null);
+        linkSelection
+          .style('opacity', 0.65)
+          .attr('stroke', '#3a3a3a')
+          .attr('stroke-width', 1.2);
+        textSelection
+          .style('opacity', (d: D3Node) => calculateTextOpacity(d, currentScale))
+          .attr('fill', '#d4d4d4')
+          .attr('font-weight', '400');
       })
       .on('click', (_event: MouseEvent, d: D3Node) => {
         if (onOpenNote) {
@@ -335,46 +369,6 @@ export const GraphViewModal: React.FC<{
       {/* Canvas Area */}
       <div ref={containerRef} className="flex-1 w-full h-full relative overflow-hidden bg-[#141414]">
         <svg ref={svgRef} className="w-full h-full block cursor-grab active:cursor-grabbing" />
-
-        {/* Hover Tooltip Card */}
-        {hoveredNode && (
-          <div
-            style={{
-              left: Math.min(hoveredNode.x + 14, (containerRef.current?.clientWidth || 600) - 240),
-              top: Math.min(hoveredNode.y + 14, (containerRef.current?.clientHeight || 400) - 150),
-            }}
-            className="pointer-events-none absolute z-30 p-2.5 px-3 rounded-xl bg-[#262626] border border-[#383838] shadow-xl text-xs space-y-1.5 min-w-[180px] max-w-[240px]"
-          >
-            <div className="font-semibold text-[#ececec] flex items-center gap-1.5 truncate">
-              <FileText className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-              <span className="truncate">{hoveredNode.node.title}</span>
-            </div>
-            <div className="flex items-center gap-3 text-[11px] text-[#707070] font-mono">
-              <span className="flex items-center gap-1">
-                <Link className="w-3 h-3 text-emerald-400" />
-                {hoveredNode.node.backlink_count} backlinks
-              </span>
-              <span>•</span>
-              <span>{hoveredNode.node.link_count} outbound</span>
-            </div>
-            {hoveredNode.node.tags.length > 0 && (
-              <div className="flex items-center gap-1 flex-wrap pt-0.5">
-                {hoveredNode.node.tags.map((t) => (
-                  <span
-                    key={t}
-                    className="px-1.5 py-0.2 rounded bg-[#1f1f1f] text-[9px] text-[#b4b4b4] font-mono flex items-center gap-0.5"
-                  >
-                    <Tag className="w-2.5 h-2.5 text-purple-400" />
-                    #{t}
-                  </span>
-                ))}
-              </div>
-            )}
-            <div className="text-[10px] text-blue-400/80 pt-0.5">
-              Klik node untuk membuka note
-            </div>
-          </div>
-        )}
 
         {/* Corner Controls Panel (Obsidian style) */}
         <AnimatePresence>
