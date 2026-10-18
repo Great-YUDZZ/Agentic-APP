@@ -3,16 +3,10 @@ import { MultiAgentDiscussion } from './MultiAgentDiscussion';
 import { AgentHierarchyTree } from './AgentHierarchyTree';
 import { TaskKanban } from './TaskKanban';
 import { DiffViewer } from './DiffViewer';
-import { PlanWorkspace } from './PlanWorkspace';
 import { useStore } from '../../store/useStore';
 
 export const BuildStudio: React.FC = () => {
-  const { activeStudioTab, buildDiscussion } = useStore();
-  const buildSubMode = buildDiscussion.buildSubMode || 'plan';
-
-  if (buildSubMode === 'plan') {
-    return <PlanWorkspace />;
-  }
+  const { activeStudioTab } = useStore();
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[#212121] overflow-hidden relative">

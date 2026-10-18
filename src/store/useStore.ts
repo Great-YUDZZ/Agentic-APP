@@ -1280,15 +1280,29 @@ ATURAN KOMUNIKASI & TUGAS ANDA SEKARANG:
 
     const currentPlanningMsgs = s.buildDiscussion.planningMessages || [];
     const updatedPlanningMessages = [...currentPlanningMsgs, userMsg];
+    const currentMainMessages = s.buildDiscussion.messages || [];
+    const updatedMainMessages = [...currentMainMessages, userMsg];
 
     set((state) => ({
       isOrchestratorThinking: true,
+      isWorking: true,
       buildDiscussion: {
         ...state.buildDiscussion,
         project_goal: state.buildDiscussion.project_goal || content.trim(),
         planningMessages: updatedPlanningMessages,
+        messages: updatedMainMessages,
       },
     }));
+
+    // Simpan pesan user planning ke SQLite
+    const targetSessionId = s.activeSessionId || s.createNewSession(content.trim().slice(0, 30), 'build');
+    s.saveChatMessageToDb({
+      id: userMsg.id,
+      session_id: targetSessionId,
+      role: 'user',
+      content: userMsg.content,
+      created_at: new Date().toISOString(),
+    });
 
     try {
       const model = s.selectedModel;
@@ -1416,17 +1430,28 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
 
       set((state) => ({
         isOrchestratorThinking: false,
+        isWorking: false,
         buildDiscussion: {
           ...state.buildDiscussion,
           planningMessages: [...(state.buildDiscussion.planningMessages || []), orchMsg],
+          messages: [...(state.buildDiscussion.messages || []), orchMsg],
           draftPlanTasks: extractedTasks.length > 0 ? extractedTasks : state.buildDiscussion.draftPlanTasks,
           recommendedSquad: squadRecs.length > 0 ? squadRecs : state.buildDiscussion.recommendedSquad,
         },
       }));
 
+      // Simpan pesan Lead Orchestrator ke SQLite
+      s.saveChatMessageToDb({
+        id: orchMsg.id,
+        session_id: targetSessionId,
+        role: 'assistant',
+        content: `[Lead Orchestrator - Rencana Proyek]\n${orchMsg.content}`,
+        created_at: new Date().toISOString(),
+      });
+
       s.addToast('success', 'Rencana proyek berhasil dirumuskan oleh Lead Orchestrator.');
     } catch (err: unknown) {
-      set({ isOrchestratorThinking: false });
+      set({ isOrchestratorThinking: false, isWorking: false });
       const errMsg = err instanceof Error ? err.message : String(err);
       s.addToast('error', `Gagal merumuskan rencana: ${errMsg}`);
     }

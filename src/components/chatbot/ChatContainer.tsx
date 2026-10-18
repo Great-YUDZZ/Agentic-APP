@@ -928,13 +928,17 @@ export const ChatContainer: React.FC = () => {
               {/* ChatGPT Iconic Round Arrow Send Button */}
               <button
                 onClick={() => handleSendMessage()}
-                disabled={!inputPrompt.trim() || isGenerating}
+                disabled={!inputPrompt.trim()}
                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                  inputPrompt.trim() && !isGenerating
+                  inputPrompt.trim()
                     ? 'bg-[#ececec] text-black hover:bg-white'
                     : 'bg-[#404040] text-[#707070] cursor-not-allowed'
                 }`}
-                title="Kirim pesan [Enter]"
+                title={
+                  (isGenerating || isStreaming || isWorking) && settings.queuedMessages === 'queue'
+                    ? 'Masukkan ke antrean pesan [Enter]'
+                    : 'Kirim pesan [Enter]'
+                }
               >
                 <ArrowUp className="w-4 h-4 stroke-[2.5]" />
               </button>

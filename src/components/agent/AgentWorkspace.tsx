@@ -67,6 +67,10 @@ export const AgentWorkspace: React.FC = () => {
     addToast,
     addLog,
     settings,
+    updateSettings,
+    isStreaming,
+    isWorking,
+    setIsWorking,
     queuedMessagesBuffer,
     addQueuedMessage,
     processNextQueuedMessage,
@@ -184,16 +188,16 @@ export const AgentWorkspace: React.FC = () => {
     const currentTask = (explicitTask !== undefined ? explicitTask : taskInput).trim();
     if ((!currentTask && attachedFiles.length === 0) || !activeAgent) return;
 
-    if (isExecuting) {
+    const isBusy = isExecuting || isWorking || isStreaming;
+    if (isBusy && explicitTask === undefined) {
       if (settings.queuedMessages === 'queue') {
         addQueuedMessage(currentTask);
-        if (explicitTask === undefined) {
-          setTaskInput('');
-          setAttachedFiles([]);
-        }
+        setTaskInput('');
+        setAttachedFiles([]);
         addToast('info', 'Tugas agent ditambahkan ke antrean.');
         return;
       }
+      // When settings.queuedMessages === 'immediate', send immediately without queuing
     }
 
     const filesToAttach = [...attachedFiles];
@@ -218,6 +222,7 @@ export const AgentWorkspace: React.FC = () => {
     saveChatMessageToDb(userMsg);
 
     setIsExecuting(true);
+    setIsWorking(true);
     setActiveReasoning('');
     setAgentOutput('');
     setExecutionSteps([]);
@@ -374,6 +379,7 @@ Sebagai agent spesialis, berikan:
       setAgentOutput(`Kendala eksekusi: ${errMsg}`);
     } finally {
       setIsExecuting(false);
+      setIsWorking(false);
 
       // Check planReviewPolicy if task was a plan
       const isPlan = currentTask.startsWith('/plan');
@@ -396,6 +402,10 @@ Sebagai agent spesialis, berikan:
             message: `Plan policy is never_ask. Automatically approved plan: ${currentTask.slice(0, 40)}`,
             timestamp: new Date().toLocaleTimeString(),
           });
+          const planTitle = currentTask.replace(/^\/plan\s*/, '').slice(0, 40) || 'Agent Task Plan';
+          setTimeout(() => {
+            handleRunTask(`Lanjutkan eksekusi rencana: "${planTitle}".`);
+          }, 300);
         }
       }
 
@@ -526,7 +536,19 @@ Sebagai agent spesialis, berikan:
               </div>
             </div>
 
-            <div className="flex items-center gap-1 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => updateSettings({ verboseAgentChat: !settings.verboseAgentChat })}
+                title={settings.verboseAgentChat ? 'Sembunyikan langkah pemikiran rinci' : 'Tampilkan langkah pemikiran rinci'}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs border transition-colors ${
+                  settings.verboseAgentChat
+                    ? 'bg-blue-600/15 border-blue-500/40 text-blue-400'
+                    : 'text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#383838] border-[#383838]'
+                }`}
+              >
+                <Cpu className="w-3.5 h-3.5" />
+                <span className="text-[11px] font-mono">Verbose {settings.verboseAgentChat ? 'ON' : 'OFF'}</span>
+              </button>
               <button
                 onClick={() => handleOpenEdit(activeAgent)}
                 title="Edit agent ini"

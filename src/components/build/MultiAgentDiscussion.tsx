@@ -60,10 +60,17 @@ export const MultiAgentDiscussion: React.FC = () => {
     isStrictApprovalMode,
     toggleStrictApprovalMode,
     settings,
+    isStreaming,
+    isWorking,
+    setIsWorking,
     queuedMessagesBuffer,
     addQueuedMessage,
     processNextQueuedMessage,
     setBuildSubMode,
+    sendPlanningMessage,
+    approveAndDispatchPlan,
+    autoSpawnRecommendedSquad,
+    isOrchestratorThinking,
   } = useStore();
 
   const convWidthClass = getConversationWidthClass(settings?.conversationWidth);
@@ -184,29 +191,38 @@ export const MultiAgentDiscussion: React.FC = () => {
       explicitChat !== undefined ? [] : attachedFiles
     );
 
-    if (isThinkingTurn) {
+    const isBusy = isThinkingTurn || isWorking || isStreaming;
+    if (isBusy && explicitChat === undefined) {
       if (settings.queuedMessages === 'queue') {
         addQueuedMessage(finalContent);
-        if (explicitChat === undefined) {
-          setChatInput('');
-          setAttachedFiles([]);
-        }
+        setChatInput('');
+        setAttachedFiles([]);
         addToast('info', 'Pesan operator dimasukkan ke antrean.');
         return;
       }
+      // When settings.queuedMessages === 'immediate', send immediately without queuing
     }
 
     if (explicitChat === undefined) {
       setChatInput('');
       setAttachedFiles([]);
     }
+
+    if (buildDiscussion.buildSubMode === 'plan') {
+      if (isOrchestratorThinking) return;
+      await sendPlanningMessage(finalContent);
+      return;
+    }
+
     setIsThinkingTurn(true);
+    setIsWorking(true);
 
     try {
       const specificAgentId = targetMention === 'all' ? undefined : targetMention;
       await sendOperatorMessage(finalContent, specificAgentId);
     } finally {
       setIsThinkingTurn(false);
+      setIsWorking(false);
 
       if (
         document.hidden &&
@@ -238,12 +254,14 @@ export const MultiAgentDiscussion: React.FC = () => {
   };
 
   const handleStepNextTurn = async () => {
-    if (isThinkingTurn) return;
+    if (isThinkingTurn || isWorking || isStreaming) return;
     setIsThinkingTurn(true);
+    setIsWorking(true);
     try {
       await advanceDiscussionTurn();
     } finally {
       setIsThinkingTurn(false);
+      setIsWorking(false);
 
       if (settings.queuedMessages === 'queue') {
         const nextChat = processNextQueuedMessage();
@@ -383,6 +401,22 @@ export const MultiAgentDiscussion: React.FC = () => {
           })
         )}
 
+        {isOrchestratorThinking && (
+          <div className="flex justify-start w-full">
+            <div className="max-w-[75%] p-3.5 rounded-2xl rounded-tl-sm bg-[#262626] border border-[#383838] flex items-center gap-3 text-xs text-[#b4b4b4]">
+              <div className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-xs bg-emerald-600 animate-pulse">
+                <Bot className="w-3.5 h-3.5" />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                <span>
+                  <strong>Lead Orchestrator</strong> sedang merumuskan arsitektur &amp; rencana proyek...
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {isThinkingTurn && (
           <div className="flex justify-start w-full">
             <div className="max-w-[75%] p-3.5 rounded-2xl rounded-tl-sm bg-[#262626] border border-[#383838] flex items-center gap-3 text-xs text-[#b4b4b4]">
@@ -421,6 +455,46 @@ export const MultiAgentDiscussion: React.FC = () => {
                 </span>
               </div>
               <span className="text-[11px] text-[#707070]">Diproses berurutan</span>
+            </div>
+          )}
+
+          {/* Draft Plan Floating Action Card */}
+          {buildDiscussion.draftPlanTasks && buildDiscussion.draftPlanTasks.length > 0 && (
+            <div className="flex items-center justify-between p-2.5 px-4 rounded-2xl bg-[#262626] border border-[#383838] text-xs shadow-lg flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">
+                  <Sparkles className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <div className="font-medium text-[#ececec]">
+                    Rencana Proyek Siap ({buildDiscussion.draftPlanTasks.length} Tugas Terdistribusi)
+                  </div>
+                  <div className="text-[11px] text-[#b4b4b4]">
+                    Disusun oleh Lead Orchestrator. Setujui rencana untuk mulai eksekusi di Fase Build.
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {customAgents.length < 2 && (
+                  <button
+                    type="button"
+                    onClick={() => autoSpawnRecommendedSquad()}
+                    className="px-3 py-1.5 rounded-xl bg-[#212121] hover:bg-[#303030] text-[#ececec] border border-[#383838] font-medium transition-colors text-xs flex items-center gap-1.5"
+                  >
+                    <Users className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Buat Tim Otomatis</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => approveAndDispatchPlan()}
+                  className="px-3.5 py-1.5 rounded-xl bg-[#ececec] hover:bg-white text-[#171717] font-medium transition-colors text-xs flex items-center gap-1.5 shadow-sm"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Setujui &amp; Bagikan Tugas ke Tim</span>
+                </button>
+              </div>
             </div>
           )}
 
@@ -649,7 +723,9 @@ export const MultiAgentDiscussion: React.FC = () => {
               onChange={(e) => setChatInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={
-                buildDiscussion.status === 'running'
+                buildDiscussion.buildSubMode === 'plan'
+                  ? 'Sesi Planning: Diskusikan arsitektur dan rencana proyek dengan Lead Orchestrator...'
+                  : buildDiscussion.status === 'running'
                   ? 'Beri arahan, tanyakan sesuatu, atau minta kode ke tim agent...'
                   : 'Ketik pesan atau target proyek untuk memulai diskusi tim...'
               }
@@ -684,23 +760,30 @@ export const MultiAgentDiscussion: React.FC = () => {
                 </button>
 
                 {/* Target Mention Select Pill (Harmonized h-8, matching border & bg) */}
-                <CustomSelect
-                  value={targetMention}
-                  options={[
-                    { value: 'all', label: 'Semua Tim' },
-                    ...customAgents
-                      .filter((a) => selectedAgentIds.includes(a.id))
-                      .map((agent) => ({
-                        value: agent.id,
-                        label: `@${agent.name}`,
-                      })),
-                  ]}
-                  onChange={(val) => setTargetMention(val)}
-                  direction="up"
-                  align="left"
-                  icon={<AtSign className="w-3.5 h-3.5 text-[#b4b4b4]" />}
-                  buttonClassName="h-8 rounded-full bg-[#212121] hover:bg-[#262626] border-[#383838] px-3"
-                />
+                {buildDiscussion.buildSubMode === 'plan' ? (
+                  <div className="h-8 flex items-center gap-1.5 px-3 rounded-full bg-[#212121] border border-[#383838] text-xs text-[#ececec]">
+                    <Bot className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>@Lead Orchestrator</span>
+                  </div>
+                ) : (
+                  <CustomSelect
+                    value={targetMention}
+                    options={[
+                      { value: 'all', label: 'Semua Tim' },
+                      ...customAgents
+                        .filter((a) => selectedAgentIds.includes(a.id))
+                        .map((agent) => ({
+                          value: agent.id,
+                          label: `@${agent.name}`,
+                        })),
+                    ]}
+                    onChange={(val) => setTargetMention(val)}
+                    direction="up"
+                    align="left"
+                    icon={<AtSign className="w-3.5 h-3.5 text-[#b4b4b4]" />}
+                    buttonClassName="h-8 rounded-full bg-[#212121] hover:bg-[#262626] border-[#383838] px-3"
+                  />
+                )}
 
                 {/* Approval Mode Toggle: Ask for approval vs Strict (Harmonized h-8) */}
                 <button
@@ -735,13 +818,22 @@ export const MultiAgentDiscussion: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setBuildSubMode('plan')}
-                    className="px-2.5 py-1 rounded-full text-xs font-medium text-[#707070] hover:text-[#ececec] transition-colors"
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                      buildDiscussion.buildSubMode === 'plan'
+                        ? 'bg-[#383838] text-[#ececec]'
+                        : 'text-[#707070] hover:text-[#ececec]'
+                    }`}
                   >
                     Plan
                   </button>
                   <button
                     type="button"
-                    className="px-2.5 py-1 rounded-full text-xs font-medium bg-[#383838] text-[#ececec]"
+                    onClick={() => setBuildSubMode('build')}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                      buildDiscussion.buildSubMode === 'build' || !buildDiscussion.buildSubMode
+                        ? 'bg-[#383838] text-[#ececec]'
+                        : 'text-[#707070] hover:text-[#ececec]'
+                    }`}
                   >
                     Build
                   </button>
