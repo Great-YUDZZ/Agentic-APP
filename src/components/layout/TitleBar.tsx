@@ -103,40 +103,42 @@ export const TitleBar: React.FC = () => {
         </div>
       </div>
 
-      {/* Center: Flat Segmented Capsule Pill Switcher (Exact 50% Horizontal Center) */}
-      <div
-        style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}
-        className="flex items-center gap-1 bg-[#212121] p-1 rounded-full border border-[#303030] z-10"
-      >
-        {MODES.map((mode) => {
-          const Icon = mode.icon;
-          const isActive = currentMode === mode.id;
+      {/* Center: Flat Segmented Capsule Pill Switcher (Exact 50% Horizontal Center, hidden in Vault) */}
+      {!isVaultPageOpen && (
+        <div
+          style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}
+          className="flex items-center gap-1 bg-[#212121] p-1 rounded-full border border-[#303030] z-10"
+        >
+          {MODES.map((mode) => {
+            const Icon = mode.icon;
+            const isActive = currentMode === mode.id;
 
-          return (
-            <button
-              key={mode.id}
-              onClick={() => setMode(mode.id)}
-              className={`relative flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                isActive ? 'text-[#ececec]' : 'text-[#b4b4b4] hover:text-[#ececec]'
-              }`}
-            >
-              {isActive && (
-                <motion.div
-                  layoutId="activeModeIndicator"
-                  className="absolute inset-0 bg-[#2f2f2f] border border-[#383838] rounded-full -z-0"
-                  transition={{ type: 'spring', stiffness: 450, damping: 35 }}
-                />
-              )}
-              <Icon className="w-3.5 h-3.5 relative z-10" />
-              <span className="relative z-10">{mode.label}</span>
-            </button>
-          );
-        })}
-      </div>
+            return (
+              <button
+                key={mode.id}
+                onClick={() => setMode(mode.id)}
+                className={`relative flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                  isActive ? 'text-[#ececec]' : 'text-[#b4b4b4] hover:text-[#ececec]'
+                }`}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="activeModeIndicator"
+                    className="absolute inset-0 bg-[#2f2f2f] border border-[#383838] rounded-full -z-0"
+                    transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                  />
+                )}
+                <Icon className="w-3.5 h-3.5 relative z-10" />
+                <span className="relative z-10">{mode.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Right Controls: Studio Tab Dropdown (in Build Mode) or Terminal Toggle (in Agent Mode) */}
       <div className="flex items-center gap-2">
-        {currentMode === 'build' ? (
+        {!isVaultPageOpen && currentMode === 'build' ? (
           <div className="relative">
             <button
               onClick={() => setIsStudioMenuOpen(!isStudioMenuOpen)}
@@ -186,7 +188,7 @@ export const TitleBar: React.FC = () => {
               </div>
             )}
           </div>
-        ) : currentMode === 'agent' ? (
+        ) : !isVaultPageOpen && currentMode === 'agent' ? (
           <button
             onClick={() => setTerminalOpen(!isTerminalOpen)}
             title={isTerminalOpen ? 'Tutup Terminal [Ctrl+`]' : 'Buka Terminal [Ctrl+`]'}
