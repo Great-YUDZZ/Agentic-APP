@@ -167,6 +167,29 @@ export const GraphViewModal: React.FC<{
     const getNodeRadius = (d: D3Node) =>
       Math.min(22, Math.max(5, 5 + (d.backlink_count || 0) * nodeRadiusMultiplier));
 
+    // Helper for Obsidian-style node color groups
+    const getNodeColor = (d: D3Node) => {
+      // Hub notes with multiple connections (Map of Content)
+      if (d.backlink_count >= 4) return '#60a5fa'; // Blue (Hub / MoC)
+      if (d.tags.some((t) => ['architecture', 'rust', 'tokio', 'core'].includes(t.toLowerCase()))) {
+        return '#a78bfa'; // Purple (Architecture & Engine)
+      }
+      if (d.tags.some((t) => ['ui-ux', 'flat-design', 'tailwind', 'design'].includes(t.toLowerCase()))) {
+        return '#34d399'; // Emerald (UI & Design)
+      }
+      if (d.tags.some((t) => ['safety', 'approval', 'hitl', 'security'].includes(t.toLowerCase()))) {
+        return '#fbbf24'; // Amber (Safety & HITL)
+      }
+      if (d.tags.some((t) => ['multi-agent', 'orchestrator', 'dag'].includes(t.toLowerCase()))) {
+        return '#f87171'; // Rose (Multi-Agent & Orchestrator)
+      }
+      if (d.tags.some((t) => ['vault', 'knowledge-graph', 'd3', 'physics'].includes(t.toLowerCase()))) {
+        return '#38bdf8'; // Sky (Knowledge Graph / Vault)
+      }
+      if (d.tags.length > 0) return '#c084fc'; // Violet (General Tagged Note)
+      return '#9ca3af'; // Neutral Slate (Standard Note)
+    };
+
     // Render Nodes
     const nodeSelection = g
       .append('g')
@@ -178,15 +201,11 @@ export const GraphViewModal: React.FC<{
       .attr('class', 'node-group cursor-pointer')
       .call(dragBehavior as any);
 
-    // Node Circle (Flat Design Master uniform surfaces - zero rainbow/blue/green/purple)
+    // Node Circle (Obsidian-style color coding by tags and connections)
     nodeSelection
       .append('circle')
       .attr('r', getNodeRadius)
-      .attr('fill', (d: D3Node) => {
-        if (d.backlink_count >= 3) return '#ececec'; // Hub note - primary high contrast
-        if (d.tags.length > 0) return '#b4b4b4';     // Tagged note - secondary neutral
-        return '#707070';                            // Standard note - muted solid
-      })
+      .attr('fill', getNodeColor)
       .attr('stroke', '#171717')
       .attr('stroke-width', 1.5)
       .attr('class', 'transition-all duration-150');
@@ -228,7 +247,7 @@ export const GraphViewModal: React.FC<{
         // Dim unconnected nodes
         nodeSelection.style('opacity', (n: D3Node) => (neighbors.has(n.id) ? 1 : 0.15));
 
-        // Dim unconnected links and highlight connected edges (uniform flat tone)
+        // Dim unconnected links and highlight connected edges with the hovered node color
         linkSelection
           .style('opacity', (l: any) => {
             const sId = typeof l.source === 'object' ? l.source.id : l.source;
@@ -238,12 +257,12 @@ export const GraphViewModal: React.FC<{
           .attr('stroke', (l: any) => {
             const sId = typeof l.source === 'object' ? l.source.id : l.source;
             const tId = typeof l.target === 'object' ? l.target.id : l.target;
-            return sId === d.id || tId === d.id ? '#ececec' : '#383838';
+            return sId === d.id || tId === d.id ? getNodeColor(d) : '#383838';
           })
           .attr('stroke-width', (l: any) => {
             const sId = typeof l.source === 'object' ? l.source.id : l.source;
             const tId = typeof l.target === 'object' ? l.target.id : l.target;
-            return sId === d.id || tId === d.id ? 1.8 : 1.2;
+            return sId === d.id || tId === d.id ? 2 : 1.2;
           });
 
         // Highlight labels of hovered note and connected neighbors
@@ -465,6 +484,39 @@ export const GraphViewModal: React.FC<{
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Obsidian-style Floating Color Legend at Bottom-Left */}
+        <div className="absolute bottom-4 left-4 z-20 p-2 px-3 rounded-xl bg-[#212121]/90 backdrop-blur-sm border border-[#383838] flex items-center gap-3 text-[11px] text-[#b4b4b4] pointer-events-none select-none flex-wrap max-w-[85vw] shadow-lg">
+          <span className="font-semibold text-[#ececec]">Grup:</span>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#60a5fa]" />
+            <span>Hub (MoC)</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#a78bfa]" />
+            <span>Arsitektur</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#34d399]" />
+            <span>UI / Desain</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#fbbf24]" />
+            <span>Safety / HITL</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#f87171]" />
+            <span>Multi-Agent</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#38bdf8]" />
+            <span>Vault</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#9ca3af]" />
+            <span>Standar</span>
+          </div>
+        </div>
       </div>
     </>
   );
