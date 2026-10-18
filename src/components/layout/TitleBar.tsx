@@ -41,6 +41,7 @@ export const TitleBar: React.FC = () => {
     addToast,
     addLog,
     pendingDeleteRequests,
+    isVaultPageOpen,
     setIsVaultPageOpen,
     setActiveVaultTab,
   } = useStore();
@@ -201,7 +202,7 @@ export const TitleBar: React.FC = () => {
         ) : null}
 
         {/* Global Vault Pending Approvals Button */}
-        {pendingDeleteRequests.length > 0 && (
+        {pendingDeleteRequests.length > 0 && !isVaultPageOpen && (
           <button
             type="button"
             onClick={() => {

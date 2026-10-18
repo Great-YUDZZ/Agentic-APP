@@ -330,7 +330,7 @@ export const GraphViewModal: React.FC<{
           </div>
           <div>
             <h2 className="text-sm font-semibold text-[#ececec]">
-              Graph View (Visualisasi Wikilink ala Obsidian)
+              Graph View
             </h2>
             <p className="text-xs text-[#b4b4b4]">
               {snapshot
