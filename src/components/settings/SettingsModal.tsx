@@ -17,6 +17,7 @@ import {
   Palette,
   Boxes,
   Folder,
+  FolderUp,
   Command,
   MessageSquare,
   Monitor,
@@ -123,6 +124,7 @@ export const SettingsModal: React.FC = () => {
     uninstallSkill,
     workspaceProjectRoot,
     pickAndSetWorkspaceRoot,
+    pickAndScanLocalSkills,
   } = useStore();
 
   const [activeSection, setActiveSection] = useState<SettingsSection>('general');
@@ -1255,10 +1257,19 @@ export const SettingsModal: React.FC = () => {
                       Kemampuan khusus yang dapat diaktifkan oleh agen otonom.
                     </p>
                   </div>
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2">
                     <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-[#282828] border border-[#383838] text-emerald-400">
                       {installedSkills.length} Terpasang
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => pickAndScanLocalSkills()}
+                      className="px-3 py-1.5 rounded-xl bg-[#212121] hover:bg-[#2d2d2d] border border-[#383838] text-xs font-medium text-[#ececec] transition-colors flex items-center gap-1.5"
+                      title="Pilih folder lokal di laptop Anda untuk diimpor"
+                    >
+                      <FolderUp className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Impor Direktori Lokal</span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => setIsCreateSkillModalOpen(true)}
@@ -1273,14 +1284,24 @@ export const SettingsModal: React.FC = () => {
                 {installedSkills.length === 0 ? (
                   <div className="p-8 text-center border border-dashed border-[#383838] rounded-2xl text-xs text-[#707070] space-y-3">
                     <p>Belum ada skills yang terpasang di proyek ini.</p>
-                    <button
-                      type="button"
-                      onClick={() => setIsCreateSkillModalOpen(true)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#262626] hover:bg-[#303030] border border-[#383838] text-xs font-medium text-[#ececec] transition-colors"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Buat Skill Pertama</span>
-                    </button>
+                    <div className="flex items-center justify-center gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => pickAndScanLocalSkills()}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#212121] hover:bg-[#2d2d2d] border border-[#383838] text-xs font-medium text-[#ececec] transition-colors"
+                      >
+                        <FolderUp className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Impor dari Direktori Lokal</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsCreateSkillModalOpen(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#262626] hover:bg-[#303030] border border-[#383838] text-xs font-medium text-[#ececec] transition-colors"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Buat Skill Pertama</span>
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-2.5">

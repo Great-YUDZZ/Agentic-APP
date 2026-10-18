@@ -17,6 +17,7 @@ import {
   TerminalTab,
   TerminalLog,
   InstalledSkill,
+  DiscoveredSkill,
   CodeReviewItem,
   StudioTab,
   AppSettings,
@@ -60,6 +61,19 @@ interface AppStore {
   installSkill: (skill: Omit<InstalledSkill, 'id' | 'installed_at'>) => Promise<void>;
   uninstallSkill: (skillId: string) => Promise<void>;
   importSkillFromText: (name: string, content: string, location: 'project' | 'global') => Promise<void>;
+  isLocalSkillImportModalOpen: boolean;
+  setLocalSkillImportModalOpen: (open: boolean) => void;
+  localDiscoveredSkills: DiscoveredSkill[];
+  setLocalDiscoveredSkills: (skills: DiscoveredSkill[]) => void;
+  localImportSourcePath: string;
+  setLocalImportSourcePath: (path: string) => void;
+  openLocalSkillImport: () => Promise<void>;
+  closeLocalSkillImport: () => void;
+  pickAndScanLocalSkills: () => Promise<void>;
+  confirmImportLocalSkills: (
+    skillsToImport: Array<{ sourcePath: string; name: string; description?: string }>,
+    targetLocation: 'project' | 'global'
+  ) => Promise<number>;
 
   // Modes & Navigation
   currentMode: AppMode;
@@ -1403,35 +1417,147 @@ ATURAN KOMUNIKASI & TUGAS ANDA SEKARANG:
   // Skills Management Implementation
   isSkillsModalOpen: false,
   setSkillsModalOpen: (isSkillsModalOpen) => set({ isSkillsModalOpen }),
-  installedSkills: [
-    {
-      id: 'skill-antislop',
-      name: 'Anti-Slop Clean UI & Code',
-      description: 'Enforces human-level taste, zero generic AI slop, and clean architecture without boilerplate.',
-      location: 'project',
-      path: '/home/yudz/Agentic/skills/antislop/SKILL.md',
-      content: '# Anti-Slop Guidelines\nZero generic blue-purple gradients. Clear contrast and clean code.',
-      installed_at: new Date().toISOString(),
-    },
-    {
-      id: 'skill-rust-tokio',
-      name: 'Rust & Tokio Native Engine',
-      description: 'Tokio async patterns, SQLite thread safety, and zero-allocation memory management.',
-      location: 'project',
-      path: '/home/yudz/Agentic/skills/rust-tokio/SKILL.md',
-      content: '# Rust Tokio Best Practices\nUse Tokio channels and sync primitives properly.',
-      installed_at: new Date().toISOString(),
-    },
-    {
-      id: 'skill-react19-framer',
-      name: 'React 19 & Framer Motion',
-      description: 'Spring physics, layoutId morphs, tactile feedback, and accessible animations.',
-      location: 'global',
-      path: '/home/yudz/.agentic/skills/react-motion/SKILL.md',
-      content: '# Framer Motion Guidelines\nUse spring physics damping 35, stiffness 450.',
-      installed_at: new Date().toISOString(),
-    },
-  ],
+  isLocalSkillImportModalOpen: false,
+  setLocalSkillImportModalOpen: (isLocalSkillImportModalOpen) => set({ isLocalSkillImportModalOpen }),
+  localDiscoveredSkills: [],
+  setLocalDiscoveredSkills: (localDiscoveredSkills) => set({ localDiscoveredSkills }),
+  localImportSourcePath: '',
+  setLocalImportSourcePath: (localImportSourcePath) => set({ localImportSourcePath }),
+
+  openLocalSkillImport: async () => {
+    await get().pickAndScanLocalSkills();
+  },
+  closeLocalSkillImport: () => {
+    set({
+      isLocalSkillImportModalOpen: false,
+      localDiscoveredSkills: [],
+      localImportSourcePath: '',
+    });
+  },
+
+  pickAndScanLocalSkills: async () => {
+    try {
+      if ((window as any).__TAURI_INTERNALS__) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const chosenPath = (await invoke('pick_local_directory')) as string | null;
+        if (!chosenPath) return;
+
+        const results = (await invoke('scan_local_skills_directory', {
+          directoryPath: chosenPath,
+        })) as DiscoveredSkill[];
+
+        if (!results || results.length === 0) {
+          get().addToast('warning', 'Tidak ditemukan file SKILL.md di direktori tersebut.');
+          return;
+        }
+
+        set({
+          localImportSourcePath: chosenPath,
+          localDiscoveredSkills: results,
+          isLocalSkillImportModalOpen: true,
+        });
+      } else {
+        get().addToast('info', 'File picker lokal hanya aktif pada desktop native Tauri.');
+      }
+    } catch (err: any) {
+      get().addToast('error', `Gagal memindai folder skill: ${err?.message || err}`);
+    }
+  },
+
+  confirmImportLocalSkills: async (skillsToImport, targetLocation) => {
+    if (skillsToImport.length === 0) return 0;
+    let importedCount = 0;
+    const newInstalledList = [...get().installedSkills];
+
+    if ((window as any).__TAURI_INTERNALS__) {
+      const { invoke } = await import('@tauri-apps/api/core');
+      for (const item of skillsToImport) {
+        try {
+          const res = (await invoke('copy_skill_folder', {
+            sourcePath: item.sourcePath,
+            targetLocation,
+            customName: item.name,
+            description: item.description,
+          })) as InstalledSkill;
+
+          if (res) {
+            newInstalledList.push(res);
+            importedCount++;
+          }
+        } catch (err) {
+          console.warn(`Gagal menyalin skill ${item.name}:`, err);
+        }
+      }
+    } else {
+      // Web fallback
+      for (const item of skillsToImport) {
+        newInstalledList.push({
+          id: `skill-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          name: item.name,
+          description: item.description || 'Skill lokal terpasang',
+          location: targetLocation,
+          path: item.sourcePath,
+          content: `# ${item.name}\n${item.description || ''}`,
+          installed_at: new Date().toISOString(),
+        });
+        importedCount++;
+      }
+    }
+
+    set({ installedSkills: newInstalledList });
+    try {
+      localStorage.setItem('agentic_installed_skills', JSON.stringify(newInstalledList));
+    } catch (_) {}
+
+    if (importedCount > 0) {
+      get().addToast(
+        'success',
+        `Berhasil menyalin & memasang ${importedCount} skill ke ${targetLocation === 'project' ? 'Project' : 'Global'}.`
+      );
+    }
+    return importedCount;
+  },
+
+  installedSkills: (() => {
+    try {
+      const raw = localStorage.getItem('agentic_installed_skills');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.warn('Gagal membaca agentic_installed_skills dari localStorage:', e);
+    }
+    return [
+      {
+        id: 'skill-antislop',
+        name: 'Anti-Slop Clean UI & Code',
+        description: 'Enforces human-level taste, zero generic AI slop, and clean architecture without boilerplate.',
+        location: 'project',
+        path: '/home/yudz/Agentic/skills/antislop/SKILL.md',
+        content: '# Anti-Slop Guidelines\nZero generic blue-purple gradients. Clear contrast and clean code.',
+        installed_at: new Date().toISOString(),
+      },
+      {
+        id: 'skill-rust-tokio',
+        name: 'Rust & Tokio Native Engine',
+        description: 'Tokio async patterns, SQLite thread safety, and zero-allocation memory management.',
+        location: 'project',
+        path: '/home/yudz/Agentic/skills/rust-tokio/SKILL.md',
+        content: '# Rust Tokio Best Practices\nUse Tokio channels and sync primitives properly.',
+        installed_at: new Date().toISOString(),
+      },
+      {
+        id: 'skill-react19-framer',
+        name: 'React 19 & Framer Motion',
+        description: 'Spring physics, layoutId morphs, tactile feedback, and accessible animations.',
+        location: 'global',
+        path: '/home/yudz/.agentic/skills/react-motion/SKILL.md',
+        content: '# Framer Motion Guidelines\nUse spring physics damping 35, stiffness 450.',
+        installed_at: new Date().toISOString(),
+      },
+    ];
+  })(),
   installSkill: async (skill) => {
     const id = `skill-${Date.now()}`;
     const fullSkill: InstalledSkill = {
@@ -1439,16 +1565,20 @@ ATURAN KOMUNIKASI & TUGAS ANDA SEKARANG:
       id,
       installed_at: new Date().toISOString(),
     };
-    set((s) => ({
-      installedSkills: [...s.installedSkills, fullSkill],
-    }));
+    const nextList = [...get().installedSkills, fullSkill];
+    set({ installedSkills: nextList });
+    try {
+      localStorage.setItem('agentic_installed_skills', JSON.stringify(nextList));
+    } catch (_) {}
     get().addToast('success', `Skill "${skill.name}" successfully installed!`);
   },
   uninstallSkill: async (skillId) => {
     const skill = get().installedSkills.find((s) => s.id === skillId);
-    set((s) => ({
-      installedSkills: s.installedSkills.filter((s) => s.id !== skillId),
-    }));
+    const nextList = get().installedSkills.filter((s) => s.id !== skillId);
+    set({ installedSkills: nextList });
+    try {
+      localStorage.setItem('agentic_installed_skills', JSON.stringify(nextList));
+    } catch (_) {}
     get().addToast('info', `Skill "${skill?.name || skillId}" uninstalled.`);
   },
   importSkillFromText: async (name, content, location) => {
@@ -1466,9 +1596,11 @@ ATURAN KOMUNIKASI & TUGAS ANDA SEKARANG:
       installed_at: new Date().toISOString(),
     };
 
-    set((s) => ({
-      installedSkills: [...s.installedSkills, newSkill],
-    }));
+    const nextList = [...get().installedSkills, newSkill];
+    set({ installedSkills: nextList });
+    try {
+      localStorage.setItem('agentic_installed_skills', JSON.stringify(nextList));
+    } catch (_) {}
     get().addToast('success', `Imported "${name}" to ${location} directory!`);
   },
 

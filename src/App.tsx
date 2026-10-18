@@ -7,6 +7,7 @@ import { BuildStudio } from './components/build/BuildStudio';
 import { SettingsModal } from './components/settings/SettingsModal';
 import { TerminalPanel } from './components/terminal/TerminalPanel';
 import { SkillsModal } from './components/skills/SkillsModal';
+import { LocalSkillImportModal } from './components/skills/LocalSkillImportModal';
 import { CodeReviewModal } from './components/build/CodeReviewModal';
 import { ToastFeedback } from './components/common/ToastFeedback';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
@@ -61,6 +62,7 @@ export const App: React.FC = () => {
 
         {/* Global Floating Modals */}
         <SkillsModal />
+        <LocalSkillImportModal />
         <CodeReviewModal />
         <SettingsModal />
         <ToastFeedback />

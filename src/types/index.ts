@@ -148,6 +148,16 @@ export interface InstalledSkill {
   installed_at: string;
 }
 
+export interface DiscoveredSkill {
+  name: string;
+  description: string;
+  path: string;
+  has_skill_file: boolean;
+  content_preview: string;
+  selected?: boolean;
+  custom_name?: string;
+}
+
 export interface CodeReviewItem {
   id: string;
   filename: string;

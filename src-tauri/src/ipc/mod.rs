@@ -956,6 +956,281 @@ pub async fn get_system_theme() -> Result<String, String> {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiscoveredSkillInfo {
+    pub name: String,
+    pub description: String,
+    pub path: String,
+    pub has_skill_file: bool,
+    pub content_preview: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InstalledSkillResult {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub location: String,
+    pub path: String,
+    pub content: String,
+    pub installed_at: String,
+}
+
+fn parse_skill_metadata(dir: &std::path::Path) -> Option<DiscoveredSkillInfo> {
+    let skill_files = ["SKILL.md", "skill.md", "Skill.md", "README.md"];
+    let mut found_file = None;
+    for fname in skill_files {
+        let candidate = dir.join(fname);
+        if candidate.is_file() {
+            found_file = Some(candidate);
+            break;
+        }
+    }
+
+    let file_path = found_file?;
+    let content = std::fs::read_to_string(&file_path).ok()?;
+
+    let mut name = String::new();
+    let mut description = String::new();
+
+    // Check YAML frontmatter: between --- and ---
+    let trimmed = content.trim_start();
+    if trimmed.starts_with("---") {
+        let rest = &trimmed[3..];
+        if let Some(end_idx) = rest.find("---") {
+            let frontmatter = &rest[..end_idx];
+            for line in frontmatter.lines() {
+                let line_trimmed = line.trim();
+                if line_trimmed.to_lowercase().starts_with("name:") {
+                    name = line_trimmed[5..].trim().trim_matches('"').trim_matches('\'').to_string();
+                } else if line_trimmed.to_lowercase().starts_with("description:") {
+                    description = line_trimmed[12..].trim().trim_matches('"').trim_matches('\'').to_string();
+                }
+            }
+        }
+    }
+
+    // Fallback name: first markdown # Header
+    if name.is_empty() {
+        for line in content.lines() {
+            let line_trimmed = line.trim();
+            if line_trimmed.starts_with("# ") {
+                name = line_trimmed[2..].trim().to_string();
+                break;
+            }
+        }
+    }
+
+    // Fallback to directory name
+    if name.is_empty() {
+        if let Some(folder_name) = dir.file_name().and_then(|f| f.to_str()) {
+            name = folder_name.replace('-', " ").replace('_', " ");
+        } else {
+            name = "Custom Local Skill".to_string();
+        }
+    }
+
+    // Fallback description: first non-header non-empty line
+    if description.is_empty() {
+        for line in content.lines() {
+            let line_trimmed = line.trim();
+            if !line_trimmed.is_empty() && !line_trimmed.starts_with('#') && !line_trimmed.starts_with("---") {
+                let end = line_trimmed.len().min(140);
+                description = line_trimmed[..end].to_string();
+                if line_trimmed.len() > 140 {
+                    description.push_str("...");
+                }
+                break;
+            }
+        }
+    }
+
+    if description.is_empty() {
+        description = "Instruksi skill diimpor dari direktori lokal.".to_string();
+    }
+
+    let preview = if content.len() > 300 {
+        format!("{}...", &content[..300])
+    } else {
+        content.clone()
+    };
+
+    Some(DiscoveredSkillInfo {
+        name,
+        description,
+        path: dir.to_string_lossy().to_string(),
+        has_skill_file: true,
+        content_preview: preview,
+    })
+}
+
+fn copy_dir_all(src: impl AsRef<std::path::Path>, dst: impl AsRef<std::path::Path>) -> std::io::Result<()> {
+    std::fs::create_dir_all(&dst)?;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        if ty.is_dir() {
+            copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
+        } else {
+            std::fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn pick_local_directory() -> Result<Option<String>, String> {
+    tokio::task::spawn_blocking(move || {
+        #[cfg(target_os = "linux")]
+        {
+            let output = std::process::Command::new("zenity")
+                .args(["--file-selection", "--directory", "--title=Pilih Direktori Skill"])
+                .output();
+
+            if let Ok(out) = output {
+                if out.status.success() {
+                    let path_str = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                    if !path_str.is_empty() {
+                        return Ok(Some(path_str));
+                    }
+                }
+                return Ok(None);
+            }
+
+            let kdialog_output = std::process::Command::new("kdialog")
+                .args(["--getexistingdirectory", "--title", "Pilih Direktori Skill"])
+                .output();
+
+            if let Ok(out) = kdialog_output {
+                if out.status.success() {
+                    let path_str = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                    if !path_str.is_empty() {
+                        return Ok(Some(path_str));
+                    }
+                }
+            }
+
+            Ok(None)
+        }
+
+        #[cfg(not(target_os = "linux"))]
+        {
+            Ok(None)
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn scan_local_skills_directory(
+    directory_path: String,
+) -> Result<Vec<DiscoveredSkillInfo>, String> {
+    tokio::task::spawn_blocking(move || {
+        let p = std::path::Path::new(&directory_path);
+        if !p.exists() || !p.is_dir() {
+            return Err("Direktori tidak ditemukan atau bukan sebuah folder.".to_string());
+        }
+
+        let mut results = Vec::new();
+
+        // 1. Cek apakah folder yang dipilih sendiri adalah folder skill
+        if let Some(info) = parse_skill_metadata(p) {
+            results.push(info);
+            return Ok(results);
+        }
+
+        // 2. Jika bukan, pindai subdirektori level 1 di dalamnya
+        let entries = std::fs::read_dir(p).map_err(|e| format!("Gagal membaca direktori: {}", e))?;
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                if let Some(info) = parse_skill_metadata(&path) {
+                    results.push(info);
+                }
+            }
+        }
+
+        Ok(results)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn copy_skill_folder(
+    state: State<'_, AppState>,
+    source_path: String,
+    target_location: String,
+    custom_name: String,
+    description: Option<String>,
+) -> Result<InstalledSkillResult, String> {
+    let workspace_root = state.tool_runner.workspace_root();
+    tokio::task::spawn_blocking(move || {
+        let src = std::path::Path::new(&source_path);
+        if !src.exists() || !src.is_dir() {
+            return Err(format!("Jalur sumber skill tidak valid: {}", source_path));
+        }
+
+        let safe_folder_name = custom_name
+            .to_lowercase()
+            .chars()
+            .map(|c| if c.is_alphanumeric() { c } else { '-' })
+            .collect::<String>()
+            .split('-')
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<_>>()
+            .join("-");
+
+        let folder_name = if safe_folder_name.is_empty() {
+            "custom-skill".to_string()
+        } else {
+            safe_folder_name
+        };
+
+        let target_dir = if target_location == "global" {
+            let home = dirs::home_dir().ok_or_else(|| "Gagal mendapatkan home direktori pengguna.".to_string())?;
+            home.join(".agentic").join("skills").join(&folder_name)
+        } else {
+            workspace_root.join("skills").join(&folder_name)
+        };
+
+        // Salin seluruh isi folder secara rekursif
+        copy_dir_all(src, &target_dir).map_err(|e| format!("Gagal menyalin folder skill: {}", e))?;
+
+        let skill_file_path = target_dir.join("SKILL.md");
+        let desc = description.unwrap_or_else(|| "Skill lokal berhasil diimpor.".to_string());
+
+        // Jika SKILL.md sudah ada, baca atau perbarui nama judulnya
+        let final_content = if skill_file_path.exists() {
+            let original_content = std::fs::read_to_string(&skill_file_path).unwrap_or_default();
+            if !original_content.contains(&custom_name) {
+                format!("# {}\n{}\n\n{}", custom_name, desc, original_content)
+            } else {
+                original_content
+            }
+        } else {
+            format!("# {}\n{}\n\nInstruksi skill siap digunakan.", custom_name, desc)
+        };
+
+        let _ = std::fs::write(&skill_file_path, &final_content);
+
+        let id = format!("skill-{}", chrono::Utc::now().timestamp_millis());
+
+        Ok(InstalledSkillResult {
+            id,
+            name: custom_name,
+            description: desc,
+            location: target_location,
+            path: skill_file_path.to_string_lossy().to_string(),
+            content: final_content,
+            installed_at: chrono::Utc::now().to_rfc3339(),
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -5,6 +5,7 @@ import {
   X,
   Download,
   FolderPlus,
+  FolderUp,
   Trash2,
   HardDrive,
   FolderGit2,
@@ -50,6 +51,7 @@ export const SkillsModal: React.FC = () => {
     installSkill,
     uninstallSkill,
     importSkillFromText,
+    pickAndScanLocalSkills,
     addToast,
   } = useStore();
 
@@ -165,8 +167,20 @@ export const SkillsModal: React.FC = () => {
               </button>
             </div>
 
-            {/* Target Location Toggle (Project vs Global) */}
-            <div className="flex items-center gap-1.5 text-xs text-[#b4b4b4]">
+            {/* Right Action: Import Local Folder & Location Toggle */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => pickAndScanLocalSkills()}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#212121] hover:bg-[#2d2d2d] border border-[#303030] text-xs font-medium text-[#ececec] transition-colors"
+                title="Pilih folder di laptop/komputer Anda yang berisi SKILL.md"
+              >
+                <FolderUp className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Impor Folder Lokal</span>
+              </button>
+
+              {/* Target Location Toggle (Project vs Global) */}
+              <div className="flex items-center gap-1.5 text-xs text-[#b4b4b4]">
               <span className="text-[11px]">Lokasi Simpan:</span>
               <div className="flex items-center bg-[#212121] rounded-lg p-0.5 border border-[#303030]">
                 <button
@@ -196,6 +210,7 @@ export const SkillsModal: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
 
           {/* Body Content */}
           <div className="flex-1 overflow-y-auto p-5 bg-[#171717]">
@@ -305,7 +320,37 @@ export const SkillsModal: React.FC = () => {
             )}
 
             {activeTab === 'import' && (
-              <form onSubmit={handleCustomImport} className="space-y-3.5">
+              <div className="space-y-4">
+                {/* Local Folder Import Card */}
+                <div className="p-3.5 rounded-xl bg-[#212121] border border-[#303030] flex items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-xs font-semibold text-[#ececec] flex items-center gap-1.5">
+                      <FolderUp className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Impor dari Direktori Lokal Komputer</span>
+                    </h4>
+                    <p className="text-[11px] text-[#707070] mt-0.5">
+                      Pilih folder skill lokal (berisi SKILL.md) atau folder kumpulan skill untuk dipindai otomatis.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => pickAndScanLocalSkills()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#ececec] hover:bg-white text-black text-xs font-medium transition-colors shrink-0"
+                  >
+                    <FolderUp className="w-3.5 h-3.5" />
+                    <span>Pilih Direktori</span>
+                  </button>
+                </div>
+
+                <div className="relative flex py-1 items-center">
+                  <div className="flex-grow border-t border-[#262626]"></div>
+                  <span className="flex-shrink mx-3 text-[10px] text-[#555] uppercase tracking-wider">
+                    Atau Buat Manual
+                  </span>
+                  <div className="flex-grow border-t border-[#262626]"></div>
+                </div>
+
+                <form onSubmit={handleCustomImport} className="space-y-3.5">
                 <div>
                   <label className="block text-xs font-medium text-[#b4b4b4] mb-1">
                     Nama Skill
@@ -342,7 +387,8 @@ export const SkillsModal: React.FC = () => {
                   </button>
                 </div>
               </form>
-            )}
+            </div>
+          )}
           </div>
         </motion.div>
       </div>

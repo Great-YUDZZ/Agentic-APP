@@ -63,6 +63,9 @@ pub fn run() {
             ipc::set_prevent_sleep,
             ipc::send_desktop_notification,
             ipc::get_system_theme,
+            ipc::pick_local_directory,
+            ipc::scan_local_skills_directory,
+            ipc::copy_skill_folder,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
