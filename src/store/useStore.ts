@@ -312,212 +312,7 @@ const loadSavedSettings = (): AppSettings => {
   return DEFAULT_SETTINGS;
 };
 
-const DUMMY_DELETE_REQUESTS: DeleteRequest[] = [
-  {
-    request_id: 'del-req-101',
-    agent_id: 'rust-core-engineer',
-    note_title: 'Spesifikasi Router Lama (v0.8)',
-    reason: 'Arsitektur router v0.8 telah digantikan sepenuhnya oleh Tauri 2.0 Tokio router pada topik NO.7. Note ini berisi referensi konfigurasi usang yang dapat membingungkan agen lain.',
-    requested_at: Math.floor(Date.now() / 1000) - 3600 * 2,
-    note_content_preview: '# Spesifikasi Router Lama (v0.8)\n\nRouter ini menggunakan sinkronisasi thread primitif dengan standard mpsc channel.\n\n## Alur Eksekusi\n1. Worker menerima payload JSON mentah\n2. Melakukan blocking IO pada std::fs\n3. Tidak ada sandboxing direktori\n\n## Status\nDEPRECATED sejak implementasi Tokio Broadcast Event Bus dan Sandbox Path Confinement.',
-  },
-  {
-    request_id: 'del-req-102',
-    agent_id: 'agentic-engine-architect',
-    note_title: 'Catatan Eksperimen Token Sliding Window',
-    reason: 'Hasil benchmarking token sliding window sudah dirangkum ke dalam 01 - Arsitektur & Core Engine.md. Berkas sementara ini tidak lagi diperlukan.',
-    requested_at: Math.floor(Date.now() / 1000) - 1800,
-    note_content_preview: '# Catatan Eksperimen Token Sliding Window\n\n- Model: gemini-2.5-pro\n- Context limit: 1,000,000 tokens\n- Truncation threshold: 80%\n- Observasi: Windowing 4-turn menjaga persistensi memori percakapan secara optimal.\n- Rekomendasi: Gunakan auto-summarization sebelum context sliding trigger.',
-  },
-];
 
-const DUMMY_TRASH_NOTES: TrashItem[] = [
-  {
-    file_name: 'deprecated_config_v1.md.20261017_112000.trash',
-    original_title: 'Konfigurasi Provider v1',
-    deleted_at: Math.floor(Date.now() / 1000) - 86400 * 1,
-    size_bytes: 2450,
-  },
-  {
-    file_name: 'old_prompt_templates.md.20261016_094500.trash',
-    original_title: 'Template Prompt Lama',
-    deleted_at: Math.floor(Date.now() / 1000) - 86400 * 2,
-    size_bytes: 4120,
-  },
-  {
-    file_name: 'scratchpad_testing.md.20261018_081500.trash',
-    original_title: 'Scratchpad Pengujian Endpoint',
-    deleted_at: Math.floor(Date.now() / 1000) - 3600 * 6,
-    size_bytes: 1820,
-  },
-];
-
-const DUMMY_AUDIT_LOG: VaultAuditEntry[] = [
-  {
-    id: 'audit-001',
-    timestamp: Math.floor(Date.now() / 1000) - 7200,
-    action: 'CREATE',
-    note_title: '00 - Index (Map of Content)',
-    agent_id: 'lead-orchestrator',
-    diff_summary: '+ Inisialisasi peta koneksi wikilink seluruh note proyek',
-    previous_content: undefined,
-  },
-  {
-    id: 'audit-002',
-    timestamp: Math.floor(Date.now() / 1000) - 5400,
-    action: 'CREATE',
-    note_title: '01 - Arsitektur & Core Engine',
-    agent_id: 'rust-core-engineer',
-    diff_summary: '+ Dokumentasi Tauri 2.0 IPC, Tokio runtime, dan database SQLite',
-    previous_content: undefined,
-  },
-  {
-    id: 'audit-003',
-    timestamp: Math.floor(Date.now() / 1000) - 3600,
-    action: 'EDIT',
-    note_title: '02 - Desain UI & Filosofi Anti-Slop',
-    agent_id: 'frontend-ui-specialist',
-    diff_summary: '~ Pembaharuan standar flat design ChatGPT (#212121, border 1px, 4 boundary states)',
-    previous_content: '# Standar Desain Lama\nMenggunakan gradien ungu slop dan backdrop blur...',
-  },
-  {
-    id: 'audit-004',
-    timestamp: Math.floor(Date.now() / 1000) - 1800,
-    action: 'DELETE',
-    note_title: 'deprecated_config_v1',
-    agent_id: 'system',
-    diff_summary: '- Soft delete note ke folder .trash/ setelah persetujuan operator',
-    previous_content: '# Konfigurasi Provider v1\nApi keys disimpan dalam json biasa...',
-  },
-  {
-    id: 'audit-005',
-    timestamp: Math.floor(Date.now() / 1000) - 900,
-    action: 'RESTORE',
-    note_title: 'theme_tokens',
-    agent_id: 'user',
-    diff_summary: '<- Pemulihan note dari .trash/ kembali ke direktori root vault',
-    previous_content: undefined,
-  },
-];
-
-const DUMMY_GRAPH_SNAPSHOT: GraphSnapshot = {
-  nodes: [
-    {
-      id: '00 - Index (Map of Content)',
-      title: '00 - Index (Map of Content)',
-      backlink_count: 6,
-      link_count: 5,
-      word_count: 420,
-      tags: ['hub', 'map-of-content'],
-    },
-    {
-      id: '01 - Arsitektur & Core Engine',
-      title: '01 - Arsitektur & Core Engine',
-      backlink_count: 4,
-      link_count: 3,
-      word_count: 680,
-      tags: ['architecture', 'rust', 'tokio'],
-    },
-    {
-      id: '02 - Desain UI & Filosofi Anti-Slop',
-      title: '02 - Desain UI & Filosofi Anti-Slop',
-      backlink_count: 3,
-      link_count: 2,
-      word_count: 510,
-      tags: ['ui-ux', 'flat-design', 'tailwind'],
-    },
-    {
-      id: '04 - Fitur Mode Agent & HITL',
-      title: '04 - Fitur Mode Agent & HITL',
-      backlink_count: 4,
-      link_count: 2,
-      word_count: 390,
-      tags: ['safety', 'approval', 'hitl'],
-    },
-    {
-      id: '05 - Fitur Mode Build Studio',
-      title: '05 - Fitur Mode Build Studio',
-      backlink_count: 4,
-      link_count: 3,
-      word_count: 730,
-      tags: ['multi-agent', 'orchestrator', 'dag'],
-    },
-    {
-      id: 'Universal Context Vault ala Obsidian',
-      title: 'Universal Context Vault ala Obsidian',
-      backlink_count: 5,
-      link_count: 4,
-      word_count: 620,
-      tags: ['vault', 'knowledge-graph'],
-    },
-    {
-      id: 'Visualisasi D3 Wikilink Graph',
-      title: 'Visualisasi D3 Wikilink Graph',
-      backlink_count: 2,
-      link_count: 1,
-      word_count: 310,
-      tags: ['graph', 'd3', 'physics'],
-    },
-    {
-      id: 'Sandbox Tools Runner & Path Confinement',
-      title: 'Sandbox Tools Runner & Path Confinement',
-      backlink_count: 2,
-      link_count: 2,
-      word_count: 450,
-      tags: ['security', 'sandbox'],
-    },
-    {
-      id: 'SQLite Local Persistence & CRUD',
-      title: 'SQLite Local Persistence & CRUD',
-      backlink_count: 2,
-      link_count: 1,
-      word_count: 380,
-      tags: ['database', 'sqlite'],
-    },
-    {
-      id: 'Dynamic Model Selector & Endpoint Hub',
-      title: 'Dynamic Model Selector & Endpoint Hub',
-      backlink_count: 2,
-      link_count: 1,
-      word_count: 290,
-      tags: ['models', 'providers', 'gemini'],
-    },
-    {
-      id: 'Theme & Flat Surface Standard',
-      title: 'Theme & Flat Surface Standard',
-      backlink_count: 1,
-      link_count: 1,
-      word_count: 220,
-      tags: ['theme', 'anti-slop'],
-    },
-    {
-      id: 'Audit Trail Log (.audit.jsonl)',
-      title: 'Audit Trail Log (.audit.jsonl)',
-      backlink_count: 3,
-      link_count: 1,
-      word_count: 340,
-      tags: ['audit', 'security'],
-    },
-  ],
-  edges: [
-    { source: '00 - Index (Map of Content)', target: '01 - Arsitektur & Core Engine' },
-    { source: '00 - Index (Map of Content)', target: '02 - Desain UI & Filosofi Anti-Slop' },
-    { source: '00 - Index (Map of Content)', target: '04 - Fitur Mode Agent & HITL' },
-    { source: '00 - Index (Map of Content)', target: '05 - Fitur Mode Build Studio' },
-    { source: '00 - Index (Map of Content)', target: 'Universal Context Vault ala Obsidian' },
-    { source: '01 - Arsitektur & Core Engine', target: 'SQLite Local Persistence & CRUD' },
-    { source: '01 - Arsitektur & Core Engine', target: 'Sandbox Tools Runner & Path Confinement' },
-    { source: '01 - Arsitektur & Core Engine', target: '05 - Fitur Mode Build Studio' },
-    { source: '02 - Desain UI & Filosofi Anti-Slop', target: 'Theme & Flat Surface Standard' },
-    { source: '02 - Desain UI & Filosofi Anti-Slop', target: 'Universal Context Vault ala Obsidian' },
-    { source: 'Universal Context Vault ala Obsidian', target: 'Visualisasi D3 Wikilink Graph' },
-    { source: 'Universal Context Vault ala Obsidian', target: 'Audit Trail Log (.audit.jsonl)' },
-    { source: '04 - Fitur Mode Agent & HITL', target: 'Universal Context Vault ala Obsidian' },
-    { source: '05 - Fitur Mode Build Studio', target: 'Dynamic Model Selector & Endpoint Hub' },
-    { source: '05 - Fitur Mode Build Studio', target: '04 - Fitur Mode Agent & HITL' },
-    { source: 'Sandbox Tools Runner & Path Confinement', target: 'Audit Trail Log (.audit.jsonl)' },
-  ],
-};
 
 export const useStore = create<AppStore>((set, get) => ({
   // Studio View Navigation (Build Mode)
@@ -2273,9 +2068,9 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
   setIsVaultPageOpen: (isVaultPageOpen) => set({ isVaultPageOpen }),
   activeVaultTab: 'graph',
   setActiveVaultTab: (activeVaultTab) => set({ activeVaultTab }),
-  pendingDeleteRequests: DUMMY_DELETE_REQUESTS,
-  trashNotes: DUMMY_TRASH_NOTES,
-  vaultAuditLog: DUMMY_AUDIT_LOG,
+  pendingDeleteRequests: [],
+  trashNotes: [],
+  vaultAuditLog: [],
   isPendingApprovalsModalOpen: false,
   setPendingApprovalsModalOpen: (isPendingApprovalsModalOpen) => set({ isPendingApprovalsModalOpen }),
   isTrashModalOpen: false,
@@ -2289,17 +2084,9 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       const list = await invoke<DeleteRequest[]>('get_pending_delete_requests');
-      if (list && list.length > 0) {
-        set({ pendingDeleteRequests: list });
-      } else {
-        set((state) => ({
-          pendingDeleteRequests: state.pendingDeleteRequests.length > 0 ? state.pendingDeleteRequests : DUMMY_DELETE_REQUESTS,
-        }));
-      }
+      set({ pendingDeleteRequests: list || [] });
     } catch {
-      set((state) => ({
-        pendingDeleteRequests: state.pendingDeleteRequests.length > 0 ? state.pendingDeleteRequests : DUMMY_DELETE_REQUESTS,
-      }));
+      set({ pendingDeleteRequests: [] });
     }
   },
 
@@ -2414,17 +2201,9 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       const list = await invoke<TrashItem[]>('list_trash_notes');
-      if (list && list.length > 0) {
-        set({ trashNotes: list });
-      } else {
-        set((state) => ({
-          trashNotes: state.trashNotes.length > 0 ? state.trashNotes : DUMMY_TRASH_NOTES,
-        }));
-      }
+      set({ trashNotes: list || [] });
     } catch {
-      set((state) => ({
-        trashNotes: state.trashNotes.length > 0 ? state.trashNotes : DUMMY_TRASH_NOTES,
-      }));
+      set({ trashNotes: [] });
     }
   },
 
@@ -2479,17 +2258,9 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       const entries = await invoke<VaultAuditEntry[]>('get_vault_audit_log', { limit });
-      if (entries && entries.length > 0) {
-        set({ vaultAuditLog: entries });
-      } else {
-        set((state) => ({
-          vaultAuditLog: state.vaultAuditLog.length > 0 ? state.vaultAuditLog : DUMMY_AUDIT_LOG,
-        }));
-      }
+      set({ vaultAuditLog: entries || [] });
     } catch {
-      set((state) => ({
-        vaultAuditLog: state.vaultAuditLog.length > 0 ? state.vaultAuditLog : DUMMY_AUDIT_LOG,
-      }));
+      set({ vaultAuditLog: [] });
     }
   },
 
@@ -2497,12 +2268,12 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       const snapshot = await invoke<GraphSnapshot>('get_graph_snapshot');
-      if (snapshot && snapshot.nodes && snapshot.nodes.length > 0) {
+      if (snapshot && snapshot.nodes) {
         return snapshot;
       }
-      return DUMMY_GRAPH_SNAPSHOT;
+      return { nodes: [], edges: [] };
     } catch {
-      return DUMMY_GRAPH_SNAPSHOT;
+      return { nodes: [], edges: [] };
     }
   },
 
