@@ -19,7 +19,6 @@ import {
   Folder,
   FolderUp,
   Command,
-  MessageSquare,
   Monitor,
   Sun,
   Moon,
@@ -362,16 +361,6 @@ export const SettingsModal: React.FC = () => {
               <Command className="w-3.5 h-3.5" />
               <span>Shortcuts</span>
             </button>
-
-            <a
-              href="https://github.com/Great-YUDZZ/Agentic-APP/issues"
-              target="_blank"
-              rel="noreferrer"
-              className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-[#707070] hover:text-[#ececec] transition-colors rounded-lg hover:bg-[#212121]"
-            >
-              <MessageSquare className="w-3.5 h-3.5" />
-              <span>Provide Feedback</span>
-            </a>
           </div>
         </div>
 
