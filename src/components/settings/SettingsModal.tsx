@@ -474,7 +474,7 @@ export const SettingsModal: React.FC = () => {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium text-[#ececec]">Installed Skills</span>
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#1e1e1e] border border-[#383838] text-emerald-400">
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#1e1e1e] border border-[#383838] text-[#b4b4b4]">
                             {installedSkills.length} Aktif
                           </span>
                         </div>
@@ -822,12 +822,12 @@ export const SettingsModal: React.FC = () => {
                         <span className="text-[#707070]">// Greet a user by name</span>
                         <br />
                         <span className="text-blue-400">const</span>{' '}
-                        <span className="text-emerald-400">greet</span> = (
+                        <span className="text-[#ececec]">greet</span> = (
                         <span className="text-amber-300">name</span>: <span className="text-cyan-300">string</span>
                         ) =&gt; &#123;
                         <br />
                         &nbsp;&nbsp;<span className="text-rose-400">return</span>{' '}
-                        <span className="text-emerald-300">`Hello, $&#123;name&#125;!`</span>;
+                        <span className="text-[#b4b4b4]">`Hello, $&#123;name&#125;!`</span>;
                         <br />
                         &#125;;
                       </div>
@@ -949,7 +949,7 @@ export const SettingsModal: React.FC = () => {
                           : 'text-[#b4b4b4] hover:text-white hover:bg-[#282828]'
                       }`}
                     >
-                      <Cloud className="w-3.5 h-3.5 text-emerald-400" />
+                      <Cloud className="w-3.5 h-3.5 text-[#ececec]" />
                       <span>Standard Providers</span>
                     </button>
                   </div>
@@ -1019,7 +1019,7 @@ export const SettingsModal: React.FC = () => {
                                   onClick={() => toggleApiKey(k.provider)}
                                   className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
                                     k.is_active
-                                      ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
+                                      ? 'bg-[#383838] border border-[#4f4f4f] text-[#ececec]'
                                       : 'bg-[#1e1e1e] border border-[#383838] text-[#707070]'
                                   }`}
                                 >
@@ -1104,7 +1104,7 @@ export const SettingsModal: React.FC = () => {
                                     <Activity
                                       className={`w-3.5 h-3.5 ${
                                         status === 'testing' ? 'animate-pulse text-amber-400' : ''
-                                      } ${status === 'success' ? 'text-emerald-400' : ''}`}
+                                      } ${status === 'success' ? 'text-[#ececec]' : ''}`}
                                     />
                                     <span>
                                       {status === 'testing'
@@ -1161,7 +1161,7 @@ export const SettingsModal: React.FC = () => {
                                   onClick={() => toggleApiKey(provider.id)}
                                   className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
                                     existingKey.is_active
-                                      ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
+                                      ? 'bg-[#383838] border border-[#4f4f4f] text-[#ececec]'
                                       : 'bg-[#1e1e1e] border border-[#383838] text-[#707070]'
                                   }`}
                                 >
@@ -1219,7 +1219,7 @@ export const SettingsModal: React.FC = () => {
                               <Activity
                                 className={`w-3.5 h-3.5 ${
                                   status === 'testing' ? 'animate-pulse text-amber-400' : ''
-                                } ${status === 'success' ? 'text-emerald-400' : ''}`}
+                                } ${status === 'success' ? 'text-[#ececec]' : ''}`}
                               />
                               <span>
                                 {status === 'testing'
@@ -1258,7 +1258,7 @@ export const SettingsModal: React.FC = () => {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-[#282828] border border-[#383838] text-emerald-400">
+                    <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-[#282828] border border-[#383838] text-[#ececec]">
                       {installedSkills.length} Terpasang
                     </span>
                     <button
@@ -1267,7 +1267,7 @@ export const SettingsModal: React.FC = () => {
                       className="px-3 py-1.5 rounded-xl bg-[#212121] hover:bg-[#2d2d2d] border border-[#383838] text-xs font-medium text-[#ececec] transition-colors flex items-center gap-1.5"
                       title="Pilih folder lokal di laptop Anda untuk diimpor"
                     >
-                      <FolderUp className="w-3.5 h-3.5 text-emerald-400" />
+                      <FolderUp className="w-3.5 h-3.5 text-[#ececec]" />
                       <span>Impor Direktori Lokal</span>
                     </button>
                     <button
@@ -1290,7 +1290,7 @@ export const SettingsModal: React.FC = () => {
                         onClick={() => pickAndScanLocalSkills()}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#212121] hover:bg-[#2d2d2d] border border-[#383838] text-xs font-medium text-[#ececec] transition-colors"
                       >
-                        <FolderUp className="w-3.5 h-3.5 text-emerald-400" />
+                        <FolderUp className="w-3.5 h-3.5 text-[#ececec]" />
                         <span>Impor dari Direktori Lokal</span>
                       </button>
                       <button

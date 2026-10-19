@@ -57,7 +57,7 @@ const BUILTIN_SKILLS = [
 
 const AVATAR_COLORS = [
   '#3b82f6', // Blue
-  '#10b981', // Emerald
+  '#737373', // Slate Neutral
   '#f59e0b', // Amber
   '#8b5cf6', // Violet
   '#ec4899', // Pink

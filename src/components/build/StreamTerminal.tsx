@@ -46,7 +46,7 @@ export const StreamTerminal: React.FC = () => {
   const getBadgeStyle = (level: AgentLog['level']) => {
     switch (level) {
       case 'EXEC':
-        return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+        return 'bg-[#282828] text-[#ececec] border-[#383838]';
       case 'WARN':
         return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
       case 'FAIL':
@@ -115,7 +115,7 @@ export const StreamTerminal: React.FC = () => {
             className="p-1.5 rounded-lg bg-[#1c1c22] hover:bg-[#26262e] border border-[#2c2c36] text-[#9494a3] hover:text-[#f4f4f7] transition-colors"
             title="Copy logs"
           >
-            {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+            {copied ? <Check className="w-3 h-3 text-[#ececec]" /> : <Copy className="w-3 h-3" />}
           </button>
 
           {/* Clear */}

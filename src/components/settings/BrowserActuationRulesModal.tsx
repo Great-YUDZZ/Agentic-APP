@@ -154,7 +154,7 @@ export const BrowserActuationRulesModal: React.FC<BrowserActuationRulesModalProp
                     : 'text-[#b4b4b4] hover:text-[#ececec]'
                 }`}
               >
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#ececec]" />
                 <span>Allowed ({allowedList.length})</span>
               </button>
               <button
@@ -166,7 +166,7 @@ export const BrowserActuationRulesModal: React.FC<BrowserActuationRulesModalProp
                     : 'text-[#b4b4b4] hover:text-[#ececec]'
                 }`}
               >
-                <Ban className="w-3.5 h-3.5 text-rose-400" />
+                <Ban className="w-3.5 h-3.5 text-[#b4b4b4]" />
                 <span>Blocked ({blockedList.length})</span>
               </button>
             </div>
@@ -217,8 +217,8 @@ export const BrowserActuationRulesModal: React.FC<BrowserActuationRulesModalProp
                     <span
                       className={`px-2 py-0.5 text-[10px] uppercase font-mono font-medium rounded-md border shrink-0 ${
                         activeTab === 'allow'
-                          ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800/50'
-                          : 'bg-rose-950/40 text-rose-400 border-rose-800/50'
+                          ? 'bg-[#2f2f2f] text-[#ececec] border-[#404040]'
+                          : 'bg-[#242424] text-[#b4b4b4] border-[#383838]'
                       }`}
                     >
                       {activeTab}

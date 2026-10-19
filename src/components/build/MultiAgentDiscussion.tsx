@@ -287,7 +287,7 @@ export const MultiAgentDiscussion: React.FC = () => {
       case 'proposal':
         return <Lightbulb className="w-3.5 h-3.5 text-blue-400" />;
       case 'implementation':
-        return <Code className="w-3.5 h-3.5 text-emerald-400" />;
+        return <Code className="w-3.5 h-3.5 text-[#ececec]" />;
       case 'critique':
         return <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />;
       case 'operator_directive':
@@ -404,11 +404,11 @@ export const MultiAgentDiscussion: React.FC = () => {
         {isOrchestratorThinking && (
           <div className="flex justify-start w-full">
             <div className="max-w-[75%] p-3.5 rounded-2xl rounded-tl-sm bg-[#262626] border border-[#383838] flex items-center gap-3 text-xs text-[#b4b4b4]">
-              <div className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-xs bg-emerald-600 animate-pulse">
+              <div className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-xs bg-[#2f2f2f] border border-[#383838] animate-pulse">
                 <Bot className="w-3.5 h-3.5" />
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                <span className="w-2 h-2 rounded-full bg-[#ececec] animate-ping" />
                 <span>
                   <strong>Lead Orchestrator</strong> sedang merumuskan arsitektur &amp; rencana proyek...
                 </span>
@@ -427,7 +427,7 @@ export const MultiAgentDiscussion: React.FC = () => {
                 <Bot className="w-3.5 h-3.5" />
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                <span className="w-2 h-2 rounded-full bg-[#ececec] animate-ping" />
                 <span>
                   <strong>{nextAgent?.name || 'Agent'}</strong> sedang menyusun respons...
                 </span>
@@ -462,7 +462,7 @@ export const MultiAgentDiscussion: React.FC = () => {
           {buildDiscussion.draftPlanTasks && buildDiscussion.draftPlanTasks.length > 0 && (
             <div className="flex items-center justify-between p-2.5 px-4 rounded-2xl bg-[#262626] border border-[#383838] text-xs shadow-lg flex-wrap gap-2">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">
+                <div className="w-6 h-6 rounded-lg bg-[#2f2f2f] text-[#ececec] border border-[#383838] flex items-center justify-center font-bold text-xs shrink-0">
                   <Sparkles className="w-3.5 h-3.5" />
                 </div>
                 <div>
@@ -525,7 +525,7 @@ export const MultiAgentDiscussion: React.FC = () => {
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {buildDiscussion.status === 'running' && (
                     <>
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-mono">
+                      <span className="px-2 py-0.5 rounded-full bg-[#262626] border border-[#383838] text-[#ececec] text-[10px] font-mono">
                         Sesi Berjalan
                       </span>
                       <button
@@ -543,7 +543,7 @@ export const MultiAgentDiscussion: React.FC = () => {
                         title="Mode diskusi otomatis tanpa klik manual"
                         className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
                           isAutoLooping
-                            ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                            ? 'bg-[#383838] border-[#4f4f4f] text-[#ececec]'
                             : 'bg-[#212121] border-[#303030] text-[#b4b4b4] hover:text-[#ececec]'
                         }`}
                       >
@@ -660,7 +660,7 @@ export const MultiAgentDiscussion: React.FC = () => {
                                   <span className="truncate">
                                     (Global: {selectedModel || 'Belum dipilih'})
                                   </span>
-                                  {!agent.model && <Check className="w-3 h-3 text-emerald-400 shrink-0" />}
+                                  {!agent.model && <Check className="w-3 h-3 text-[#ececec] shrink-0" />}
                                 </button>
 
                                 {availableModels.map((m) => {
@@ -683,7 +683,7 @@ export const MultiAgentDiscussion: React.FC = () => {
                                       <span className="truncate">
                                         {m.endpoint_name ? `[${m.endpoint_name}] ${m.id}` : m.id}
                                       </span>
-                                      {isCur && <Check className="w-3 h-3 text-emerald-400 shrink-0" />}
+                                      {isCur && <Check className="w-3 h-3 text-[#ececec] shrink-0" />}
                                     </button>
                                   );
                                 })}
@@ -752,7 +752,7 @@ export const MultiAgentDiscussion: React.FC = () => {
                   title="Unggah file dari direktori lokal"
                   className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors shrink-0 ${
                     attachedFiles.length > 0
-                      ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
+                      ? 'bg-[#383838] border-[#4f4f4f] text-[#ececec]'
                       : 'bg-[#212121] hover:bg-[#262626] border-[#383838] text-[#ececec] hover:text-white'
                   }`}
                 >
@@ -762,7 +762,7 @@ export const MultiAgentDiscussion: React.FC = () => {
                 {/* Target Mention Select Pill (Harmonized h-8, matching border & bg) */}
                 {buildDiscussion.buildSubMode === 'plan' ? (
                   <div className="h-8 flex items-center gap-1.5 px-3 rounded-full bg-[#212121] border border-[#383838] text-xs text-[#ececec]">
-                    <Bot className="w-3.5 h-3.5 text-emerald-400" />
+                    <Bot className="w-3.5 h-3.5 text-[#ececec]" />
                     <span>@Lead Orchestrator</span>
                   </div>
                 ) : (

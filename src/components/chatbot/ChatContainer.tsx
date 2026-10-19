@@ -783,7 +783,7 @@ export const ChatContainer: React.FC = () => {
                                       {groupName}
                                     </span>
                                     {hasActiveModelInGroup && (
-                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                                      <span className="w-1.5 h-1.5 rounded-full bg-[#ececec] shrink-0" />
                                     )}
                                   </div>
                                   <span className="text-[10px] font-mono text-[#707070] shrink-0">
@@ -813,7 +813,7 @@ export const ChatContainer: React.FC = () => {
                                             <div className="flex items-center gap-1.5 flex-wrap">
                                               <span className="font-mono text-[11px] font-medium truncate">{m.id}</span>
                                               {isActive && (
-                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.2 text-[9px] font-sans font-medium rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
+                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.2 text-[9px] font-sans font-medium rounded-full bg-[#2f2f2f] text-[#ececec] border border-[#383838] shrink-0">
                                                   <Check className="w-2.5 h-2.5" />
                                                   <span>Aktif</span>
                                                 </span>
@@ -834,7 +834,7 @@ export const ChatContainer: React.FC = () => {
                                               </div>
                                             )}
                                           </div>
-                                          {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-emerald-400" />}
+                                          {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-[#ececec]" />}
                                         </button>
                                       );
                                     })}

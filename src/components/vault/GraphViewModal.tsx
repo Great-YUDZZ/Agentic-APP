@@ -172,7 +172,7 @@ export const GraphViewModal: React.FC<{
         return '#a78bfa'; // Purple (Architecture & Engine)
       }
       if (d.tags.some((t) => ['ui-ux', 'flat-design', 'tailwind', 'design'].includes(t.toLowerCase()))) {
-        return '#34d399'; // Emerald (UI & Design)
+        return '#ececec'; // Neutral (UI & Design)
       }
       if (d.tags.some((t) => ['safety', 'approval', 'hitl', 'security'].includes(t.toLowerCase()))) {
         return '#fbbf24'; // Amber (Safety & HITL)
@@ -512,7 +512,7 @@ export const GraphViewModal: React.FC<{
               <span>Arsitektur</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#34d399]" />
+              <span className="w-2.5 h-2.5 rounded-full bg-[#ececec]" />
               <span>UI / Desain</span>
             </div>
             <div className="flex items-center gap-1.5">

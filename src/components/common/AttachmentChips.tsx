@@ -22,7 +22,7 @@ function getFileIcon(file: AttachedFile) {
   const ext = file.name.split('.').pop()?.toLowerCase();
   const codeExts = ['ts', 'tsx', 'js', 'jsx', 'py', 'rs', 'json', 'html', 'css', 'scss', 'sql', 'sh', 'yaml', 'yml', 'toml'];
   if (ext && codeExts.includes(ext)) {
-    return <FileCode className="w-3.5 h-3.5 text-emerald-400 shrink-0" />;
+    return <FileCode className="w-3.5 h-3.5 text-[#ececec] shrink-0" />;
   }
   return <FileText className="w-3.5 h-3.5 text-amber-400 shrink-0" />;
 }

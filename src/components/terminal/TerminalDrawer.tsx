@@ -134,7 +134,7 @@ export const TerminalDrawer: React.FC = () => {
                       : 'text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#212121]'
                   }`}
                 >
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#ececec]" />
                   <span>{tab.title}</span>
                   {terminalTabs.length > 1 && (
                     <button
@@ -207,7 +207,7 @@ export const TerminalDrawer: React.FC = () => {
             if (log.type === 'stdin') {
               return (
                 <div key={log.id} className="flex items-center gap-2 text-white">
-                  <span className="text-emerald-400 font-bold">$</span>
+                  <span className="text-[#ececec] font-bold">$</span>
                   <span className="font-semibold">{log.content}</span>
                   <span className="text-[10px] text-[#707070] ml-auto">
                     {log.timestamp}
@@ -260,7 +260,7 @@ export const TerminalDrawer: React.FC = () => {
           onSubmit={handleSubmit}
           className="h-11 bg-[#212121] border-t border-[#303030] px-3 flex items-center gap-2 shrink-0"
         >
-          <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-mono select-none">
+          <div className="flex items-center gap-1.5 text-xs text-[#ececec] font-mono select-none">
             <span>agentic:~/{currentFolderName}</span>
             <span className="font-bold">$</span>
           </div>

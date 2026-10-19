@@ -298,7 +298,7 @@ export const CreateSkillModal: React.FC<CreateSkillModalProps> = ({ isOpen, onCl
                           disabled={isAlreadyInstalled}
                           className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors shrink-0 flex items-center gap-1.5 ${
                             isAlreadyInstalled
-                              ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 cursor-default'
+                              ? 'bg-[#262626] border border-[#383838] text-[#b4b4b4] cursor-default'
                               : 'bg-[#1e1e1e] hover:bg-white hover:text-black border border-[#383838] text-[#ececec]'
                           }`}
                         >

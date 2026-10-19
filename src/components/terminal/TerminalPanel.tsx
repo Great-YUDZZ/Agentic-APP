@@ -73,7 +73,7 @@ export const TerminalPanel: React.FC = () => {
       {!isMaximized && (
         <div
           onMouseDown={handleMouseDown}
-          className="h-1.5 w-full bg-transparent hover:bg-emerald-500/50 cursor-row-resize absolute top-0 left-0 right-0 z-40 transition-colors"
+          className="h-1.5 w-full bg-transparent hover:bg-[#4f4f4f] cursor-row-resize absolute top-0 left-0 right-0 z-40 transition-colors"
           title="Tarik untuk mengubah ukuran terminal"
         />
       )}
@@ -94,7 +94,7 @@ export const TerminalPanel: React.FC = () => {
                     : 'text-[#8e8e8e] hover:text-[#ececec] hover:bg-[#242424]'
                 }`}
               >
-                <TerminalIcon className="w-3.5 h-3.5 text-emerald-400" />
+                <TerminalIcon className="w-3.5 h-3.5 text-[#ececec]" />
                 <span className="text-[11px]">{tab.title}</span>
                 {terminalTabs.length > 1 && (
                   <button

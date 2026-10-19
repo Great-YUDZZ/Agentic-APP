@@ -26,11 +26,11 @@ const ToastCard: React.FC<ToastCardProps> = ({ toast, onDismiss }) => {
   const getIcon = (type: string) => {
     switch (type) {
       case 'success':
-        return <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />;
+        return <CheckCircle2 className="w-4 h-4 text-[#ececec] shrink-0" />;
       case 'error':
         return <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />;
       default:
-        return <Info className="w-4 h-4 text-blue-400 shrink-0" />;
+        return <Info className="w-4 h-4 text-[#b4b4b4] shrink-0" />;
     }
   };
 

@@ -1448,7 +1448,7 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
 
         squadRecs = [
           { name: 'Frontend Engineer', role: 'Frontend Engineer', task_description: 'Membangun antarmuka interaktif dan integrasi visual', skills: ['file_system', 'code_evaluator'], avatar_color: '#3b82f6' },
-          { name: 'Backend Architect', role: 'Backend Architect', task_description: 'Merancang API, struktur data, dan arsitektur inti', skills: ['terminal_runner', 'file_system'], avatar_color: '#10b981' },
+          { name: 'Backend Architect', role: 'Backend Architect', task_description: 'Merancang API, struktur data, dan arsitektur inti', skills: ['terminal_runner', 'file_system'], avatar_color: '#737373' },
           { name: 'QA Auditor', role: 'QA Engineer', task_description: 'Memverifikasi fungsionalitas, keamanan kode, dan pengujian', skills: ['code_evaluator'], avatar_color: '#f59e0b' },
         ];
       }
@@ -1458,7 +1458,7 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
         agent_id: 'lead-orchestrator',
         agent_name: 'Lead Orchestrator',
         agent_role: 'Built-in System Architect',
-        avatar_color: '#10b981',
+        avatar_color: '#383838',
         content: replyContent,
         step_type: 'proposal',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -1499,7 +1499,7 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
       ? s.buildDiscussion.recommendedSquad
       : [
           { name: 'Frontend Engineer', role: 'Frontend Engineer', task_description: 'Membangun antarmuka interaktif dan integrasi visual', skills: ['file_system', 'code_evaluator'], avatar_color: '#3b82f6' },
-          { name: 'Backend Architect', role: 'Backend Architect', task_description: 'Merancang API, struktur data, dan arsitektur inti', skills: ['terminal_runner', 'file_system'], avatar_color: '#10b981' },
+          { name: 'Backend Architect', role: 'Backend Architect', task_description: 'Merancang API, struktur data, dan arsitektur inti', skills: ['terminal_runner', 'file_system'], avatar_color: '#737373' },
           { name: 'QA Auditor', role: 'QA Engineer', task_description: 'Memverifikasi fungsionalitas, keamanan kode, dan pengujian', skills: ['code_evaluator'], avatar_color: '#f59e0b' },
         ];
 
@@ -1571,7 +1571,7 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
       agent_id: 'lead-orchestrator',
       agent_name: 'Lead Orchestrator',
       agent_role: 'Built-in System Architect',
-      avatar_color: '#10b981',
+      avatar_color: '#383838',
       content: `Rencana proyek telah disetujui oleh Operator. Sebanyak ${tasks.length} tugas telah dialokasikan ke backlog Kanban tim. Tim dipersilakan memulai koordinasi eksekusi.`,
       step_type: 'summary',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),

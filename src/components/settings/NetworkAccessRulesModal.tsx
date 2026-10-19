@@ -154,7 +154,7 @@ export const NetworkAccessRulesModal: React.FC<NetworkAccessRulesModalProps> = (
                     : 'text-[#b4b4b4] hover:text-[#ececec]'
                 }`}
               >
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <ShieldCheck className="w-3.5 h-3.5 text-[#ececec]" />
                 <span>Whitelist ({whitelist.length})</span>
               </button>
               <button
@@ -166,7 +166,7 @@ export const NetworkAccessRulesModal: React.FC<NetworkAccessRulesModalProps> = (
                     : 'text-[#b4b4b4] hover:text-[#ececec]'
                 }`}
               >
-                <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
+                <ShieldAlert className="w-3.5 h-3.5 text-[#b4b4b4]" />
                 <span>Blacklist ({blacklist.length})</span>
               </button>
             </div>
@@ -217,8 +217,8 @@ export const NetworkAccessRulesModal: React.FC<NetworkAccessRulesModalProps> = (
                     <span
                       className={`px-2 py-0.5 text-[10px] uppercase font-mono font-medium rounded-md border shrink-0 ${
                         activeTab === 'whitelist'
-                          ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800/50'
-                          : 'bg-rose-950/40 text-rose-400 border-rose-800/50'
+                          ? 'bg-[#2f2f2f] text-[#ececec] border-[#404040]'
+                          : 'bg-[#242424] text-[#b4b4b4] border-[#383838]'
                       }`}
                     >
                       {activeTab}

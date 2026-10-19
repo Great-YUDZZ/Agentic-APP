@@ -13,7 +13,7 @@ export const AgentHierarchyTree: React.FC = () => {
   const getStatusDot = (status: SubAgentState['status']) => {
     switch (status) {
       case 'ExecutingTool':
-        return 'bg-emerald-400';
+        return 'bg-[#ececec]';
       case 'Thinking':
         return 'bg-blue-400';
       case 'WaitingClearance':

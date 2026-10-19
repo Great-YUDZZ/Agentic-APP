@@ -87,13 +87,13 @@ const PlanWorkspaceInner: React.FC = () => {
       {/* Header Banner Info */}
       <div className="px-6 py-3.5 bg-[#171717] border-b border-[#303030] flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-[#212121] border border-[#303030] text-emerald-400">
+          <div className="p-2 rounded-xl bg-[#212121] border border-[#303030] text-[#ececec]">
             <Layers className="w-4 h-4" />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-sm font-semibold text-[#ececec]">Lead Orchestrator</h1>
-              <span className="px-2 py-0.5 text-[10px] font-mono font-medium rounded-md bg-[#212121] text-emerald-400 border border-emerald-900/60">
+              <span className="px-2 py-0.5 text-[10px] font-mono font-medium rounded-md bg-[#212121] text-[#b4b4b4] border border-[#383838]">
                 Built-in System Architect
               </span>
             </div>
@@ -228,7 +228,7 @@ const PlanWorkspaceInner: React.FC = () => {
           {planningMessages.length === 0 ? (
             /* Empty State */
             <div className="py-12 sm:py-16 text-center space-y-6">
-              <div className="w-12 h-12 rounded-2xl bg-[#1e1e1e] border border-[#303030] flex items-center justify-center mx-auto text-emerald-400">
+              <div className="w-12 h-12 rounded-2xl bg-[#1e1e1e] border border-[#303030] flex items-center justify-center mx-auto text-[#ececec]">
                 <Bot className="w-6 h-6" />
               </div>
 
@@ -299,7 +299,7 @@ const PlanWorkspaceInner: React.FC = () => {
               {isOrchestratorThinking && (
                 <div className="flex flex-col items-start space-y-2">
                   <div className="flex items-center gap-2 px-1">
-                    <span className="text-xs font-semibold text-emerald-400">
+                    <span className="text-xs font-semibold text-[#ececec]">
                       Lead Orchestrator
                     </span>
                     <span className="text-[10px] text-[#707070] font-mono">
@@ -322,7 +322,7 @@ const PlanWorkspaceInner: React.FC = () => {
             <div className="p-4 sm:p-5 rounded-2xl bg-[#1e1e1e] border border-[#303030] space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-[#262626] border border-[#383838] text-emerald-400">
+                  <div className="p-2 rounded-xl bg-[#262626] border border-[#383838] text-[#ececec]">
                     <ListTodo className="w-4 h-4" />
                   </div>
                   <div>
@@ -335,7 +335,7 @@ const PlanWorkspaceInner: React.FC = () => {
                   </div>
                 </div>
 
-                <span className="text-[11px] font-mono text-emerald-400 bg-emerald-950/40 border border-emerald-900/60 px-2.5 py-1 rounded-md">
+                <span className="text-[11px] font-mono text-[#ececec] bg-[#282828] border border-[#383838] px-2.5 py-1 rounded-md">
                   Status: Siap Disetujui
                 </span>
               </div>
@@ -375,7 +375,7 @@ const PlanWorkspaceInner: React.FC = () => {
                   onClick={approveAndDispatchPlan}
                   className="w-full py-2.5 px-4 rounded-xl bg-[#2f2f2f] hover:bg-[#383838] border border-[#444] text-xs font-semibold text-[#ececec] flex items-center justify-center gap-2 transition-colors"
                 >
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <CheckCircle2 className="w-4 h-4 text-[#ececec]" />
                   <span>Setujui & Bagikan Tugas ke Tim</span>
                 </button>
               </div>

@@ -150,12 +150,12 @@ export const CodeReviewModal: React.FC = () => {
                       {item.filename.split('/').pop()}
                     </span>
                     {item.status === 'accepted' && (
-                      <span className="text-[9px] px-1 rounded bg-emerald-500/20 text-emerald-400">
+                      <span className="text-[9px] px-1 rounded bg-[#2f2f2f] text-[#ececec] border border-[#383838]">
                         applied
                       </span>
                     )}
                     {item.status === 'rejected' && (
-                      <span className="text-[9px] px-1 rounded bg-rose-500/20 text-rose-400">
+                      <span className="text-[9px] px-1 rounded bg-[#242424] text-[#b4b4b4] border border-[#383838]">
                         rejected
                       </span>
                     )}
@@ -173,7 +173,7 @@ export const CodeReviewModal: React.FC = () => {
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#212121] hover:bg-[#282828] border border-[#303030] text-xs text-[#b4b4b4] hover:text-white transition-colors"
                 >
                   {copiedId === currentItem.id ? (
-                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <Check className="w-3.5 h-3.5 text-[#ececec]" />
                   ) : (
                     <Copy className="w-3.5 h-3.5" />
                   )}
@@ -237,7 +237,7 @@ export const CodeReviewModal: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <span className="text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 text-[10px]">
+                    <span className="text-[#ececec] bg-[#2f2f2f] px-2 py-0.5 rounded border border-[#383838] text-[10px]">
                       +{lineCount} baris
                     </span>
                     <span className="text-[10px] text-[#707070]">
@@ -264,10 +264,10 @@ export const CodeReviewModal: React.FC = () => {
                       {/* Right: Staged Changes by Agent */}
                       <div className="p-4 bg-[#171717]">
                         <div className="sticky top-0 pb-1.5 mb-2 border-b border-[#303030] text-[#707070] text-[10px] uppercase font-semibold flex items-center justify-between bg-[#171717] z-10">
-                          <span className="text-emerald-400">
+                          <span className="text-[#ececec]">
                             Staged Changes ({currentItem.language})
                           </span>
-                          <span className="text-emerald-400/70 font-mono">
+                          <span className="text-[#b4b4b4] font-mono">
                             +{lineCount} lines
                           </span>
                         </div>
@@ -275,15 +275,15 @@ export const CodeReviewModal: React.FC = () => {
                           {lines.map((line, i) => (
                             <div
                               key={i}
-                              className="flex gap-3 hover:bg-emerald-500/10 px-1.5 py-0.5 rounded transition-colors group"
+                              className="flex gap-3 hover:bg-[#262626] px-1.5 py-0.5 rounded transition-colors group"
                             >
                               <span className="text-[#707070] select-none w-7 text-right shrink-0 font-mono">
                                 {i + 1}
                               </span>
-                              <span className="text-emerald-400 select-none font-bold shrink-0">
+                              <span className="text-[#ececec] select-none font-bold shrink-0">
                                 +
                               </span>
-                              <span className="text-emerald-200/90 whitespace-pre font-mono">
+                              <span className="text-[#ececec] whitespace-pre font-mono">
                                 {line}
                               </span>
                             </div>
@@ -295,24 +295,24 @@ export const CodeReviewModal: React.FC = () => {
                     /* Unified View */
                     <div className="p-4 bg-[#171717] min-h-full">
                       <div className="sticky top-0 pb-1.5 mb-3 border-b border-[#303030] text-[#707070] text-[10px] uppercase font-semibold flex items-center justify-between bg-[#171717] z-10">
-                        <span className="text-emerald-400">
+                        <span className="text-[#ececec]">
                           Unified Changes ({currentItem.filename})
                         </span>
-                        <span className="text-emerald-400 font-mono">+{lineCount} lines</span>
+                        <span className="text-[#b4b4b4] font-mono">+{lineCount} lines</span>
                       </div>
                       <div className="space-y-0.5">
                         {lines.map((line, i) => (
                           <div
                             key={i}
-                            className="flex gap-3 hover:bg-emerald-500/10 px-1.5 py-0.5 rounded transition-colors bg-emerald-950/10"
+                            className="flex gap-3 hover:bg-[#262626] px-1.5 py-0.5 rounded transition-colors bg-[#212121]"
                           >
                             <span className="text-[#707070] select-none w-7 text-right shrink-0 font-mono">
                               {i + 1}
                             </span>
-                            <span className="text-emerald-400 select-none font-bold shrink-0">
+                            <span className="text-[#ececec] select-none font-bold shrink-0">
                               +
                             </span>
-                            <span className="text-emerald-200/95 whitespace-pre font-mono">
+                            <span className="text-[#ececec] whitespace-pre font-mono">
                               {line}
                             </span>
                           </div>

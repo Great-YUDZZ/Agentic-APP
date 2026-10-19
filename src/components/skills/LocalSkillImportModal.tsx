@@ -99,7 +99,7 @@ export const LocalSkillImportModal: React.FC = () => {
           <div className="px-5 py-4 border-b border-[#262626] flex items-center justify-between bg-[#171717]">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-[#212121] border border-[#303030] text-[#ececec]">
-                <FolderUp className="w-4 h-4 text-emerald-400" />
+                <FolderUp className="w-4 h-4 text-[#ececec]" />
               </div>
               <div>
                 <h2 className="text-sm font-semibold text-[#ececec]">
@@ -157,7 +157,7 @@ export const LocalSkillImportModal: React.FC = () => {
                       : 'text-[#707070] hover:text-[#ececec]'
                   }`}
                 >
-                  <HardDrive className="w-3 h-3 text-emerald-400" />
+                  <HardDrive className="w-3 h-3 text-[#ececec]" />
                   <span>Global (~/.agentic/)</span>
                 </button>
               </div>
@@ -210,7 +210,7 @@ export const LocalSkillImportModal: React.FC = () => {
                           onClick={() => handleToggleSelect(idx)}
                           className={`mt-1 w-4 h-4 rounded flex items-center justify-center border transition-colors shrink-0 ${
                             skill.selected
-                              ? 'bg-emerald-500 border-emerald-500 text-black'
+                              ? 'bg-[#ececec] border-[#ececec] text-[#171717]'
                               : 'border-[#404040] hover:border-[#606060]'
                           }`}
                         >

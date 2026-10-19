@@ -434,9 +434,9 @@ Sebagai agent spesialis, berikan:
   };
 
   const getToolIcon = (name: string) => {
-    if (name.includes('file')) return <FileCode className="w-3.5 h-3.5 text-[#3b82f6]" />;
-    if (name.includes('search')) return <Search className="w-3.5 h-3.5 text-[#f59e0b]" />;
-    return <Terminal className="w-3.5 h-3.5 text-[#10b981]" />;
+    if (name.includes('file')) return <FileCode className="w-3.5 h-3.5 text-[#b4b4b4]" />;
+    if (name.includes('search')) return <Search className="w-3.5 h-3.5 text-[#b4b4b4]" />;
+    return <Terminal className="w-3.5 h-3.5 text-[#ececec]" />;
   };
 
   return (
@@ -736,7 +736,7 @@ Sebagai agent spesialis, berikan:
 
                     <div className="flex items-center gap-3 text-[11px] text-[#707070] font-mono">
                       <span>{step.duration}</span>
-                      <span className="flex items-center gap-1 text-emerald-400">
+                      <span className="flex items-center gap-1 text-[#ececec]">
                         <Check className="w-3.5 h-3.5" />
                         <span>Done</span>
                       </span>
