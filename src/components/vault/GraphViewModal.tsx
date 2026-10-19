@@ -167,7 +167,7 @@ export const GraphViewModal: React.FC<{
     // Helper for Obsidian-style node color groups
     const getNodeColor = (d: D3Node) => {
       // Hub notes with multiple connections (Map of Content)
-      if (d.backlink_count >= 4) return '#60a5fa'; // Blue (Hub / MoC)
+      if (d.backlink_count >= 4) return '#ffffff'; // White (Hub / MoC)
       if (d.tags.some((t) => ['architecture', 'rust', 'tokio', 'core'].includes(t.toLowerCase()))) {
         return '#a78bfa'; // Purple (Architecture & Engine)
       }
@@ -181,7 +181,7 @@ export const GraphViewModal: React.FC<{
         return '#f87171'; // Rose (Multi-Agent & Orchestrator)
       }
       if (d.tags.some((t) => ['vault', 'knowledge-graph', 'd3', 'physics'].includes(t.toLowerCase()))) {
-        return '#38bdf8'; // Sky (Knowledge Graph / Vault)
+        return '#d4d4d8'; // Neutral Slate (Knowledge Graph / Vault)
       }
       if (d.tags.length > 0) return '#c084fc'; // Violet (General Tagged Note)
       return '#9ca3af'; // Neutral Slate (Standard Note)
@@ -504,7 +504,7 @@ export const GraphViewModal: React.FC<{
           <div className="absolute bottom-4 left-4 z-20 p-2 px-3 rounded-xl bg-[#212121]/90 backdrop-blur-sm border border-[#383838] flex items-center gap-3 text-[11px] text-[#b4b4b4] pointer-events-none select-none flex-wrap max-w-[85vw] shadow-lg">
             <span className="font-semibold text-[#ececec]">Grup:</span>
             <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#60a5fa]" />
+              <span className="w-2.5 h-2.5 rounded-full bg-[#ffffff]" />
               <span>Hub (MoC)</span>
             </div>
             <div className="flex items-center gap-1.5">
@@ -524,7 +524,7 @@ export const GraphViewModal: React.FC<{
               <span>Multi-Agent</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#38bdf8]" />
+              <span className="w-2.5 h-2.5 rounded-full bg-[#d4d4d8]" />
               <span>Vault</span>
             </div>
             <div className="flex items-center gap-1.5">

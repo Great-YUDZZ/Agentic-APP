@@ -37,7 +37,7 @@ export const BUILTIN_LEAD_ORCHESTRATOR = {
   id: 'builtin-lead-orchestrator',
   name: 'Lead Orchestrator',
   role: 'Chief System Architect & Planning Director',
-  avatar_color: '#3b82f6',
+  avatar_color: '#737373',
   skills: [
     'Multi-Agent Orchestration',
     'System Architecture & Task Decomposition',
@@ -270,7 +270,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   darkPreset: 'default',
   bgColor: '#212121',
   fgColor: '#ececec',
-  accentColor: '#3b82f6',
+  accentColor: '#ececec',
   verboseAgentChat: true,
   conversationWidth: 'default',
   trashRetentionDays: 30,
@@ -284,6 +284,10 @@ const loadSavedSettings = (): AppSettings => {
       delete parsed.keepInMenuBar;
       delete parsed.networkAccessRules;
       delete parsed.browserActuationRules;
+
+      if (parsed.accentColor === '#3b82f6') {
+        parsed.accentColor = '#ececec';
+      }
 
       if (parsed.planReviewPolicy === 'auto' || parsed.planReviewPolicy !== 'never_ask') {
         parsed.planReviewPolicy = 'always_ask';
@@ -312,7 +316,13 @@ const loadSavedSettings = (): AppSettings => {
   return DEFAULT_SETTINGS;
 };
 
-
+export const DEFAULT_POPULAR_MODELS: ModelOption[] = [
+  { id: 'gemini-2.5-flash', name: 'gemini-2.5-flash', provider: 'custom', endpoint_id: 'custom', endpoint_name: 'Google Gemini' },
+  { id: 'gemini-2.5-pro', name: 'gemini-2.5-pro', provider: 'custom', endpoint_id: 'custom', endpoint_name: 'Google Gemini' },
+  { id: 'claude-3-7-sonnet', name: 'claude-3-7-sonnet', provider: 'custom', endpoint_id: 'custom', endpoint_name: 'Anthropic Claude' },
+  { id: 'gpt-4o', name: 'gpt-4o', provider: 'custom', endpoint_id: 'custom', endpoint_name: 'OpenAI' },
+  { id: 'deepseek-chat', name: 'deepseek-chat', provider: 'custom', endpoint_id: 'custom', endpoint_name: 'DeepSeek' },
+];
 
 export const useStore = create<AppStore>((set, get) => ({
   // Studio View Navigation (Build Mode)
@@ -393,9 +403,9 @@ export const useStore = create<AppStore>((set, get) => ({
   },
 
   // Custom Endpoint - model dideteksi berdasarkan ketersediaan API key
-  selectedModel: '',
+  selectedModel: 'gemini-2.5-flash',
   selectedProvider: 'custom',
-  availableModels: [],
+  availableModels: DEFAULT_POPULAR_MODELS,
   isDetectingModels: false,
   setModel: (selectedModel) => set({ selectedModel }),
   setProvider: (selectedProvider) => set({ selectedProvider }),
@@ -441,8 +451,12 @@ export const useStore = create<AppStore>((set, get) => ({
     }
 
     if (activeCustoms.length === 0) {
-      set({ availableModels: [], selectedModel: '', isDetectingModels: false });
-      return 0;
+      set({
+        availableModels: DEFAULT_POPULAR_MODELS,
+        selectedModel: get().selectedModel || DEFAULT_POPULAR_MODELS[0].id,
+        isDetectingModels: false,
+      });
+      return DEFAULT_POPULAR_MODELS.length;
     }
 
     set({ isDetectingModels: true });
@@ -492,8 +506,12 @@ export const useStore = create<AppStore>((set, get) => ({
       return allModels.length;
     }
 
-    set({ availableModels: [], selectedModel: '', isDetectingModels: false });
-    return 0;
+    set({
+      availableModels: DEFAULT_POPULAR_MODELS,
+      selectedModel: get().selectedModel || DEFAULT_POPULAR_MODELS[0].id,
+      isDetectingModels: false,
+    });
+    return DEFAULT_POPULAR_MODELS.length;
   },
 
   isSettingsOpen: false,
@@ -745,7 +763,7 @@ export const useStore = create<AppStore>((set, get) => ({
               agent_id: isOp ? 'operator' : 'agent-build',
               agent_name: isOp ? 'Operator (You)' : agentName,
               agent_role: isOp ? 'Human Director' : agentRole,
-              avatar_color: isOp ? '#ececec' : '#3b82f6',
+              avatar_color: isOp ? '#ececec' : '#737373',
               content: content,
               step_type: isOp ? 'operator_directive' : 'implementation',
               timestamp: m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
@@ -877,7 +895,7 @@ export const useStore = create<AppStore>((set, get) => ({
         role: 'Research & Architecture Analyst',
         task_description: 'Menganalisis arsitektur sistem, membedah dokumen teknis, dan merumuskan spesifikasi desain engineering.',
         skills: ['Code Analysis', 'System Architecture', 'Security Sandbox Review'],
-        avatar_color: '#3b82f6',
+        avatar_color: '#737373',
         created_at: new Date().toISOString(),
       },
     ];
@@ -1237,7 +1255,7 @@ ATURAN KOMUNIKASI & TUGAS ANDA SEKARANG:
       agent_id: 'operator',
       agent_name: 'Operator (You)',
       agent_role: 'Human Director',
-      avatar_color: '#3b82f6',
+      avatar_color: '#ececec',
       content: content.trim(),
       step_type: 'operator_directive',
       timestamp: new Date().toLocaleTimeString(),
@@ -1308,7 +1326,7 @@ ATURAN KOMUNIKASI & TUGAS ANDA SEKARANG:
       agent_id: 'operator',
       agent_name: 'Operator',
       agent_role: 'Human Director',
-      avatar_color: '#3b82f6',
+      avatar_color: '#ececec',
       content: content.trim(),
       step_type: 'operator_directive',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -1365,7 +1383,7 @@ Penting: Di akhir balasan, sertakan blok kode JSON valid seperti format berikut 
     { "title": "Nama Tugas", "role_needed": "Peran Agen", "priority": "high" }
   ],
   "squad": [
-    { "name": "Nama Agen", "role": "Peran Agen", "task_description": "Deskripsi tugas peran", "skills": ["file_system", "code_evaluator"], "avatar_color": "#3b82f6" }
+    { "name": "Nama Agen", "role": "Peran Agen", "task_description": "Deskripsi tugas peran", "skills": ["file_system", "code_evaluator"], "avatar_color": "#737373" }
   ]
 }
 \`\`\``;
@@ -1413,7 +1431,7 @@ Penting: Di akhir balasan, sertakan blok kode JSON valid seperti format berikut 
                   role: String(sq.role || 'Specialist'),
                   task_description: String(sq.task_description || 'Melaksanakan tugas terkait'),
                   skills: Array.isArray(sq.skills) ? sq.skills : ['file_system', 'code_evaluator'],
-                  avatar_color: sq.avatar_color || '#3b82f6',
+                  avatar_color: sq.avatar_color || '#737373',
                 }));
               }
             } catch (_) {}
@@ -1447,7 +1465,7 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
         ];
 
         squadRecs = [
-          { name: 'Frontend Engineer', role: 'Frontend Engineer', task_description: 'Membangun antarmuka interaktif dan integrasi visual', skills: ['file_system', 'code_evaluator'], avatar_color: '#3b82f6' },
+          { name: 'Frontend Engineer', role: 'Frontend Engineer', task_description: 'Membangun antarmuka interaktif dan integrasi visual', skills: ['file_system', 'code_evaluator'], avatar_color: '#737373' },
           { name: 'Backend Architect', role: 'Backend Architect', task_description: 'Merancang API, struktur data, dan arsitektur inti', skills: ['terminal_runner', 'file_system'], avatar_color: '#737373' },
           { name: 'QA Auditor', role: 'QA Engineer', task_description: 'Memverifikasi fungsionalitas, keamanan kode, dan pengujian', skills: ['code_evaluator'], avatar_color: '#f59e0b' },
         ];
@@ -1498,7 +1516,7 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
     const recommendations = s.buildDiscussion.recommendedSquad && s.buildDiscussion.recommendedSquad.length > 0
       ? s.buildDiscussion.recommendedSquad
       : [
-          { name: 'Frontend Engineer', role: 'Frontend Engineer', task_description: 'Membangun antarmuka interaktif dan integrasi visual', skills: ['file_system', 'code_evaluator'], avatar_color: '#3b82f6' },
+          { name: 'Frontend Engineer', role: 'Frontend Engineer', task_description: 'Membangun antarmuka interaktif dan integrasi visual', skills: ['file_system', 'code_evaluator'], avatar_color: '#737373' },
           { name: 'Backend Architect', role: 'Backend Architect', task_description: 'Merancang API, struktur data, dan arsitektur inti', skills: ['terminal_runner', 'file_system'], avatar_color: '#737373' },
           { name: 'QA Auditor', role: 'QA Engineer', task_description: 'Memverifikasi fungsionalitas, keamanan kode, dan pengujian', skills: ['code_evaluator'], avatar_color: '#f59e0b' },
         ];

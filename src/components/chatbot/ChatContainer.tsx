@@ -11,6 +11,7 @@ import {
   Sparkles,
   AlertTriangle,
   X,
+  Cpu,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { ChatMessage } from '../../types';
@@ -48,7 +49,6 @@ export const ChatContainer: React.FC = () => {
     addToast,
     addLog,
     setSkillsModalOpen,
-    setSettingsOpen,
     isContextCompressed,
     contextUsagePercent,
     setContextCompressed,
@@ -540,12 +540,12 @@ export const ChatContainer: React.FC = () => {
 
         {pendingPlanApproval && (
           <div
-            className={`p-4 rounded-2xl bg-[#1e222d] border border-blue-500/40 text-xs text-[#ececec] space-y-3 ${convWidthClass} mx-auto w-full`}
+            className={`p-4 rounded-2xl bg-[#1e1e1e] border border-[#383838] text-xs text-[#ececec] space-y-3 ${convWidthClass} mx-auto w-full`}
           >
             <div className="flex items-start gap-3">
-              <Sparkles className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+              <Sparkles className="w-4 h-4 text-[#ececec] shrink-0 mt-0.5" />
               <div className="space-y-1">
-                <span className="font-semibold text-blue-200 uppercase tracking-wide text-[11px] block">
+                <span className="font-semibold text-[#ececec] uppercase tracking-wide text-[11px] block">
                   Plan Review Required (HITL)
                 </span>
                 <span className="font-medium text-[#ececec] block">
@@ -556,7 +556,7 @@ export const ChatContainer: React.FC = () => {
                 </p>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#2a3040]">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#303030]">
               <button
                 type="button"
                 onClick={() => resolvePlanApproval(false)}
@@ -571,7 +571,7 @@ export const ChatContainer: React.FC = () => {
                   resolvePlanApproval(true);
                   handleSendMessage(`Lanjutkan eksekusi rencana arsitektur: "${title}".`);
                 }}
-                className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors"
+                className="px-3.5 py-1.5 rounded-xl bg-[#ececec] hover:bg-white text-black text-xs font-semibold transition-colors"
               >
                 Setujui dan Eksekusi
               </button>
@@ -589,7 +589,7 @@ export const ChatContainer: React.FC = () => {
           {queuedMessagesBuffer.length > 0 && (
             <div className="flex items-center justify-between px-3.5 py-1.5 rounded-xl bg-[#282828] border border-[#383838] text-xs text-[#b4b4b4]">
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-[#ececec] animate-pulse" />
                 <span className="font-medium text-[#ececec]">
                   Antrean Pesan ({queuedMessagesBuffer.length}):
                 </span>
@@ -657,34 +657,26 @@ export const ChatContainer: React.FC = () => {
                 <div className="relative">
                   <button
                     type="button"
-                    onClick={() => {
-                      if (availableModels.length === 0) {
-                        setSettingsOpen(true);
-                      } else {
-                        setIsModelMenuOpen(!isModelMenuOpen);
-                      }
-                    }}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-mono transition-all group ${
-                      availableModels.length === 0
-                        ? 'bg-[#212121] border-[#383838] text-[#707070] hover:text-[#b4b4b4] hover:border-[#4f4f4f]'
-                        : 'bg-[#212121] hover:bg-[#262626] border-[#383838] text-[#ececec]'
-                    }`}
-                    title={availableModels.length === 0 ? 'Klik untuk mengatur API Key di Pengaturan' : 'Pilih Model AI'}
+                    onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-mono transition-all group bg-[#212121] hover:bg-[#262626] border-[#383838] text-[#ececec]"
+                    title="Pilih Model AI"
                   >
-                    <Sparkles className={`w-3.5 h-3.5 ${availableModels.length === 0 ? 'text-[#707070]' : 'text-[#ececec]'}`} />
+                    <Cpu className="w-3.5 h-3.5 text-[#ececec]" />
                     <span className="max-w-[160px] truncate font-medium">
-                      {selectedModel || (availableModels.length === 0 ? 'Atur API Key' : 'Pilih Model')}
+                      {selectedModel || 'Pilih Model'}
                     </span>
-                    {availableModels.length > 0 && (
-                      <ChevronDown className="w-3 h-3 text-[#b4b4b4] group-hover:text-[#ececec] transition-transform" />
-                    )}
+                    <ChevronDown
+                      className={`w-3 h-3 text-[#b4b4b4] group-hover:text-[#ececec] transition-transform ${
+                        isModelMenuOpen ? 'rotate-180' : ''
+                      }`}
+                    />
                   </button>
 
                   {/* Model Selector Popover */}
-                  {isModelMenuOpen && availableModels.length > 0 && (
+                  {isModelMenuOpen && (
                     <div className="absolute bottom-full left-0 mb-2 w-80 max-h-96 rounded-2xl bg-[#262626] border border-[#383838] p-2.5 z-50 flex flex-col space-y-2 shadow-2xl">
                       <div className="flex items-center justify-between px-1 pb-1 border-b border-[#303030] text-xs">
-                        <span className="font-semibold text-[#ececec]">Model Tersedia</span>
+                        <span className="font-semibold text-[#ececec]">Pilih Model AI</span>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] text-[#b4b4b4] font-mono">
                             {filteredModels.length} model
@@ -703,16 +695,30 @@ export const ChatContainer: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Search inside models */}
+                      {/* Search inside models / enter custom model name */}
                       <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-[#212121] border border-[#303030]">
                         <Search className="w-3.5 h-3.5 text-[#b4b4b4]" />
                         <input
                           type="text"
                           value={modelSearchQuery}
                           onChange={(e) => setModelSearchQuery(e.target.value)}
-                          placeholder="Cari model..."
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && modelSearchQuery.trim()) {
+                              handleSelectModel(modelSearchQuery.trim());
+                            }
+                          }}
+                          placeholder="Cari atau ketik model..."
                           className="flex-1 bg-transparent border-none text-xs text-[#ececec] placeholder-[#707070] focus:outline-none"
                         />
+                        {modelSearchQuery.trim() && (
+                          <button
+                            type="button"
+                            onClick={() => handleSelectModel(modelSearchQuery.trim())}
+                            className="px-2 py-0.5 rounded text-[10px] bg-[#383838] hover:bg-[#484848] text-[#ececec] transition-colors"
+                          >
+                            Pilih
+                          </button>
+                        )}
                       </div>
 
                       {/* Category filter pills */}
@@ -742,10 +748,17 @@ export const ChatContainer: React.FC = () => {
                       {/* Scrollable Model List grouped by Endpoint with Accordion */}
                       <div className="flex-1 overflow-y-auto max-h-64 space-y-2 pr-1">
                         {filteredModels.length === 0 ? (
-                          <div className="p-4 text-center text-xs text-[#b4b4b4]">
-                            {availableModels.length === 0
-                              ? 'Belum ada model terdeteksi dari endpoint API.'
-                              : 'Tidak ada model yang cocok dengan filter atau pencarian.'}
+                          <div className="p-4 text-center text-xs text-[#b4b4b4] space-y-2">
+                            <p>Tidak ada model yang cocok dengan pencarian.</p>
+                            {modelSearchQuery.trim() && (
+                              <button
+                                type="button"
+                                onClick={() => handleSelectModel(modelSearchQuery.trim())}
+                                className="px-3 py-1 rounded-lg bg-[#383838] hover:bg-[#484848] text-[#ececec] text-xs font-mono"
+                              >
+                                Gunakan &quot;{modelSearchQuery.trim()}&quot;
+                              </button>
+                            )}
                           </div>
                         ) : (
                           // Kelompokkan model berdasarkan endpoint_name

@@ -75,7 +75,7 @@ const PlanWorkspaceInner: React.FC = () => {
       case 'high':
         return 'text-amber-400 bg-amber-950/40 border-amber-800/40';
       case 'medium':
-        return 'text-blue-400 bg-blue-950/40 border-blue-800/40';
+        return 'text-[#ececec] bg-[#282828] border-[#383838]';
       case 'low':
       default:
         return 'text-[#b4b4b4] bg-[#262626] border-[#383838]';

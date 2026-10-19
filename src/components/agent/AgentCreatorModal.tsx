@@ -56,12 +56,12 @@ const BUILTIN_SKILLS = [
 ];
 
 const AVATAR_COLORS = [
-  '#3b82f6', // Blue
+  '#525252', // Slate Dark
   '#737373', // Slate Neutral
   '#f59e0b', // Amber
   '#8b5cf6', // Violet
   '#ec4899', // Pink
-  '#06b6d4', // Cyan
+  '#a3a3a3', // Neutral Gray
   '#f97316', // Orange
 ];
 
@@ -81,7 +81,7 @@ export const AgentCreatorModal: React.FC<AgentCreatorModalProps> = ({
   );
   const [agentModel, setAgentModel] = useState<string>(editingAgent?.model || '');
   const [customSkillInput, setCustomSkillInput] = useState('');
-  const [avatarColor, setAvatarColor] = useState(editingAgent?.avatar_color || '#3b82f6');
+  const [avatarColor, setAvatarColor] = useState(editingAgent?.avatar_color || '#525252');
 
   // Reset when opening/editing changes
   React.useEffect(() => {
@@ -100,7 +100,7 @@ export const AgentCreatorModal: React.FC<AgentCreatorModalProps> = ({
       setSystemInstructions('');
       setSelectedSkills(['file_system', 'code_evaluator']);
       setAgentModel('');
-      setAvatarColor('#3b82f6');
+      setAvatarColor('#525252');
     }
   }, [editingAgent, isOpen]);
 

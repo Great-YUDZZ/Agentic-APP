@@ -332,7 +332,7 @@ export const SettingsModal: React.FC = () => {
               <div className="space-y-1 mt-1">
                 <div className="px-3 py-2 rounded-xl bg-[#212121] border border-[#303030] text-xs">
                   <div className="flex items-center gap-2 text-white font-medium">
-                    <Folder className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                    <Folder className="w-3.5 h-3.5 text-[#ececec] shrink-0" />
                     <span className="truncate">{workspaceProjectRoot.split('/').pop() || 'Agentic'}</span>
                   </div>
                   <p className="text-[10px] font-mono text-[#707070] truncate mt-0.5">
@@ -600,12 +600,12 @@ export const SettingsModal: React.FC = () => {
                         type="button"
                         onClick={() => updateSettings({ preventSleep: !settings.preventSleep })}
                         className={`w-11 h-6 rounded-full transition-colors relative p-0.5 ${
-                          settings.preventSleep ? 'bg-blue-600' : 'bg-[#383838]'
+                          settings.preventSleep ? 'bg-[#ececec]' : 'bg-[#383838]'
                         }`}
                       >
                         <div
-                          className={`w-5 h-5 rounded-full bg-white transition-transform ${
-                            settings.preventSleep ? 'translate-x-5' : 'translate-x-0'
+                          className={`w-5 h-5 rounded-full transition-transform ${
+                            settings.preventSleep ? 'translate-x-5 bg-[#171717]' : 'translate-x-0 bg-[#b4b4b4]'
                           }`}
                         />
                       </button>
@@ -622,12 +622,12 @@ export const SettingsModal: React.FC = () => {
                         type="button"
                         onClick={() => updateSettings({ notifyWhenUnfocused: !settings.notifyWhenUnfocused })}
                         className={`w-11 h-6 rounded-full transition-colors relative p-0.5 ${
-                          settings.notifyWhenUnfocused ? 'bg-blue-600' : 'bg-[#383838]'
+                          settings.notifyWhenUnfocused ? 'bg-[#ececec]' : 'bg-[#383838]'
                         }`}
                       >
                         <div
-                          className={`w-5 h-5 rounded-full bg-white transition-transform ${
-                            settings.notifyWhenUnfocused ? 'translate-x-5' : 'translate-x-0'
+                          className={`w-5 h-5 rounded-full transition-transform ${
+                            settings.notifyWhenUnfocused ? 'translate-x-5 bg-[#171717]' : 'translate-x-0 bg-[#b4b4b4]'
                           }`}
                         />
                       </button>
@@ -802,8 +802,8 @@ export const SettingsModal: React.FC = () => {
                           <span className="text-[#b4b4b4]">FG: #ECECEC</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 rounded bg-[#3b82f6] border border-[#444]" />
-                          <span className="text-[#b4b4b4]">Accent: #3B82F6</span>
+                          <div className="w-4 h-4 rounded bg-[#4f4f4f] border border-[#555]" />
+                          <span className="text-[#b4b4b4]">Accent: #4F4F4F</span>
                         </div>
                       </div>
 
@@ -821,7 +821,7 @@ export const SettingsModal: React.FC = () => {
                       >
                         <span className="text-[#707070]">// Greet a user by name</span>
                         <br />
-                        <span className="text-blue-400">const</span>{' '}
+                        <span className="text-[#ececec] font-semibold">const</span>{' '}
                         <span className="text-[#ececec]">greet</span> = (
                         <span className="text-amber-300">name</span>: <span className="text-cyan-300">string</span>
                         ) =&gt; &#123;
@@ -854,12 +854,12 @@ export const SettingsModal: React.FC = () => {
                           updateSettings({ verboseAgentChat: !settings.verboseAgentChat })
                         }
                         className={`w-11 h-6 rounded-full transition-colors relative p-0.5 ${
-                          settings.verboseAgentChat ? 'bg-blue-600' : 'bg-[#383838]'
+                          settings.verboseAgentChat ? 'bg-[#ececec]' : 'bg-[#383838]'
                         }`}
                       >
                         <div
-                          className={`w-5 h-5 rounded-full bg-white transition-transform ${
-                            settings.verboseAgentChat ? 'translate-x-5' : 'translate-x-0'
+                          className={`w-5 h-5 rounded-full transition-transform ${
+                            settings.verboseAgentChat ? 'translate-x-5 bg-[#171717]' : 'translate-x-0 bg-[#b4b4b4]'
                           }`}
                         />
                       </button>
@@ -937,7 +937,7 @@ export const SettingsModal: React.FC = () => {
                           : 'text-[#b4b4b4] hover:text-white hover:bg-[#282828]'
                       }`}
                     >
-                      <Server className="w-3.5 h-3.5 text-blue-400" />
+                      <Server className="w-3.5 h-3.5 text-[#ececec]" />
                       <span>Custom Endpoints ({customEndpoints.length})</span>
                     </button>
                     <button
@@ -970,7 +970,7 @@ export const SettingsModal: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleAddNewCustomEndpoint}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#ececec] hover:bg-white text-black text-xs font-semibold transition-colors"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>Tambah Endpoint</span>
@@ -1006,7 +1006,7 @@ export const SettingsModal: React.FC = () => {
                                     setNameInputs({ ...nameInputs, [k.provider]: e.target.value })
                                   }
                                   placeholder="Nama Label Endpoint..."
-                                  className="bg-[#1e1e1e] border border-[#383838] rounded-lg px-2.5 py-1 text-xs text-[#ececec] font-medium focus:outline-none focus:border-blue-500 w-60"
+                                  className="bg-[#1e1e1e] border border-[#383838] rounded-lg px-2.5 py-1 text-xs text-[#ececec] font-medium focus:outline-none focus:border-[#4f4f4f] w-60"
                                 />
                                 <span className="text-[10px] font-mono text-[#707070]">
                                   ID: {k.provider}
@@ -1053,7 +1053,7 @@ export const SettingsModal: React.FC = () => {
                                       })
                                     }
                                     placeholder="http://localhost:20128/v1"
-                                    className="flex-1 bg-[#1e1e1e] border border-[#383838] rounded-xl px-3 py-1.5 text-xs text-[#ececec] font-mono focus:outline-none focus:border-blue-500"
+                                    className="flex-1 bg-[#1e1e1e] border border-[#383838] rounded-xl px-3 py-1.5 text-xs text-[#ececec] font-mono focus:outline-none focus:border-[#4f4f4f]"
                                   />
                                 </div>
                               </div>
@@ -1072,7 +1072,7 @@ export const SettingsModal: React.FC = () => {
                                         })
                                       }
                                       placeholder="sk-..."
-                                      className="w-full bg-[#1e1e1e] border border-[#383838] rounded-xl px-3 py-1.5 text-xs text-[#ececec] font-mono focus:outline-none focus:border-blue-500 pr-8"
+                                      className="w-full bg-[#1e1e1e] border border-[#383838] rounded-xl px-3 py-1.5 text-xs text-[#ececec] font-mono focus:outline-none focus:border-[#4f4f4f] pr-8"
                                     />
                                     <button
                                       type="button"
@@ -1172,7 +1172,7 @@ export const SettingsModal: React.FC = () => {
                                 href={provider.docsUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="text-[11px] text-blue-400 hover:underline flex items-center gap-1"
+                                className="text-[11px] text-[#ececec] hover:underline flex items-center gap-1"
                               >
                                 <span>Get Key</span>
                                 <ExternalLink className="w-3 h-3" />
@@ -1189,7 +1189,7 @@ export const SettingsModal: React.FC = () => {
                                   setKeyInputs({ ...keyInputs, [provider.id]: e.target.value })
                                 }
                                 placeholder={provider.placeholder}
-                                className="w-full bg-[#1e1e1e] border border-[#383838] rounded-xl px-3 py-1.5 text-xs text-[#ececec] font-mono focus:outline-none focus:border-blue-500 pr-8"
+                                className="w-full bg-[#1e1e1e] border border-[#383838] rounded-xl px-3 py-1.5 text-xs text-[#ececec] font-mono focus:outline-none focus:border-[#4f4f4f] pr-8"
                               />
                               <button
                                 type="button"

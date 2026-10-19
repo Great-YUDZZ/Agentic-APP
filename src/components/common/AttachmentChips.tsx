@@ -17,7 +17,7 @@ function formatFileSize(bytes: number): string {
 
 function getFileIcon(file: AttachedFile) {
   if (file.isImage) {
-    return <ImageIcon className="w-3.5 h-3.5 text-blue-400 shrink-0" />;
+    return <ImageIcon className="w-3.5 h-3.5 text-[#ececec] shrink-0" />;
   }
   const ext = file.name.split('.').pop()?.toLowerCase();
   const codeExts = ['ts', 'tsx', 'js', 'jsx', 'py', 'rs', 'json', 'html', 'css', 'scss', 'sql', 'sh', 'yaml', 'yml', 'toml'];

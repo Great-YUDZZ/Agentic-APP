@@ -55,7 +55,6 @@ export const MultiAgentDiscussion: React.FC = () => {
     setSkillsModalOpen,
     setCodeReviewModalOpen,
     setTerminalOpen,
-    setSettingsOpen,
     updateCustomAgent,
     isStrictApprovalMode,
     toggleStrictApprovalMode,
@@ -285,15 +284,15 @@ export const MultiAgentDiscussion: React.FC = () => {
   const getStepIcon = (type?: string) => {
     switch (type) {
       case 'proposal':
-        return <Lightbulb className="w-3.5 h-3.5 text-blue-400" />;
+        return <Lightbulb className="w-3.5 h-3.5 text-[#ececec]" />;
       case 'implementation':
         return <Code className="w-3.5 h-3.5 text-[#ececec]" />;
       case 'critique':
         return <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />;
       case 'operator_directive':
-        return <UserCheck className="w-3.5 h-3.5 text-cyan-400" />;
+        return <UserCheck className="w-3.5 h-3.5 text-[#ececec]" />;
       default:
-        return <Sparkles className="w-3.5 h-3.5 text-purple-400" />;
+        return <Sparkles className="w-3.5 h-3.5 text-[#ececec]" />;
     }
   };
 
@@ -422,7 +421,7 @@ export const MultiAgentDiscussion: React.FC = () => {
             <div className="max-w-[75%] p-3.5 rounded-2xl rounded-tl-sm bg-[#262626] border border-[#383838] flex items-center gap-3 text-xs text-[#b4b4b4]">
               <div
                 className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-xs animate-pulse"
-                style={{ backgroundColor: nextAgent?.avatar_color || '#3b82f6' }}
+                style={{ backgroundColor: nextAgent?.avatar_color || '#737373' }}
               >
                 <Bot className="w-3.5 h-3.5" />
               </div>
@@ -446,7 +445,7 @@ export const MultiAgentDiscussion: React.FC = () => {
           {queuedMessagesBuffer.length > 0 && (
             <div className="flex items-center justify-between px-3.5 py-1.5 rounded-xl bg-[#282828] border border-[#383838] text-xs text-[#b4b4b4]">
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-[#ececec] animate-pulse" />
                 <span className="font-medium text-[#ececec]">
                   Antrean Pesan Operator ({queuedMessagesBuffer.length}):
                 </span>
@@ -482,7 +481,7 @@ export const MultiAgentDiscussion: React.FC = () => {
                     onClick={() => autoSpawnRecommendedSquad()}
                     className="px-3 py-1.5 rounded-xl bg-[#212121] hover:bg-[#303030] text-[#ececec] border border-[#383838] font-medium transition-colors text-xs flex items-center gap-1.5"
                   >
-                    <Users className="w-3.5 h-3.5 text-blue-400" />
+                    <Users className="w-3.5 h-3.5 text-[#ececec]" />
                     <span>Buat Tim Otomatis</span>
                   </button>
                 )}
@@ -847,29 +846,23 @@ export const MultiAgentDiscussion: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      if (availableModels.length === 0) {
-                        setSettingsOpen(true);
-                      } else {
-                        setIsModelMenuOpen(!isModelMenuOpen);
-                      }
+                      setIsModelMenuOpen(!isModelMenuOpen);
                     }}
-                    className={`h-8 flex items-center gap-1.5 px-3 rounded-full border text-xs font-mono transition-all group ${
-                      availableModels.length === 0
-                        ? 'bg-[#212121] border-[#383838] text-[#707070] hover:text-[#b4b4b4] hover:border-[#4f4f4f]'
-                        : 'bg-[#212121] hover:bg-[#262626] border-[#383838] text-[#ececec]'
-                    }`}
-                    title={availableModels.length === 0 ? 'Klik untuk mengatur API Key di Pengaturan' : 'Pilih Model AI'}
+                    className="h-8 flex items-center gap-1.5 px-3 rounded-full border text-xs font-mono transition-all group bg-[#212121] hover:bg-[#262626] border-[#383838] text-[#ececec]"
+                    title="Pilih Model AI"
                   >
                     <span className="max-w-[150px] truncate font-medium">
-                      {selectedModel || (availableModels.length === 0 ? 'Atur API Key' : 'Pilih Model')}
+                      {selectedModel || 'Pilih Model'}
                     </span>
-                    {availableModels.length > 0 && (
-                      <ChevronDown className="w-3 h-3 text-[#b4b4b4] group-hover:text-[#ececec] transition-transform" />
-                    )}
+                    <ChevronDown
+                      className={`w-3 h-3 text-[#b4b4b4] group-hover:text-[#ececec] transition-transform ${
+                        isModelMenuOpen ? 'rotate-180' : ''
+                      }`}
+                    />
                   </button>
 
                   {/* Model Selector Popover */}
-                  {isModelMenuOpen && availableModels.length > 0 && (
+                  {isModelMenuOpen && (
                     <div className="absolute bottom-full right-0 mb-2 w-80 max-h-96 rounded-2xl bg-[#262626] border border-[#383838] p-2.5 z-50 flex flex-col space-y-2 shadow-2xl">
                       <div className="flex items-center justify-between px-1 pb-1 border-b border-[#303030] text-xs">
                         <span className="font-semibold text-[#ececec]">Model Tersedia</span>

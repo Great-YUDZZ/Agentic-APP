@@ -15,7 +15,7 @@ export const AgentHierarchyTree: React.FC = () => {
       case 'ExecutingTool':
         return 'bg-[#ececec]';
       case 'Thinking':
-        return 'bg-blue-400';
+        return 'bg-[#ececec] animate-pulse';
       case 'WaitingClearance':
         return 'bg-amber-400';
       case 'Completed':

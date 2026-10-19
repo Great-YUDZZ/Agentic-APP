@@ -52,7 +52,7 @@ export const StreamTerminal: React.FC = () => {
       case 'FAIL':
         return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
       default:
-        return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+        return 'bg-[#282828] text-[#b4b4b4] border-[#383838]';
     }
   };
 

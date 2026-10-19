@@ -63,7 +63,6 @@ export const AgentWorkspace: React.FC = () => {
     setTerminalOpen,
     isStrictApprovalMode,
     toggleStrictApprovalMode,
-    setSettingsOpen,
     addToast,
     addLog,
     settings,
@@ -542,7 +541,7 @@ Sebagai agent spesialis, berikan:
                 title={settings.verboseAgentChat ? 'Sembunyikan langkah pemikiran rinci' : 'Tampilkan langkah pemikiran rinci'}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs border transition-colors ${
                   settings.verboseAgentChat
-                    ? 'bg-blue-600/15 border-blue-500/40 text-blue-400'
+                    ? 'bg-[#2f2f2f] border-[#404040] text-[#ececec]'
                     : 'text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#383838] border-[#383838]'
                 }`}
               >
@@ -610,7 +609,7 @@ Sebagai agent spesialis, berikan:
                     <div className="flex items-center gap-2">
                       <div
                         className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0"
-                        style={{ backgroundColor: activeAgent?.avatar_color || '#3b82f6' }}
+                        style={{ backgroundColor: activeAgent?.avatar_color || '#737373' }}
                       >
                         <Bot className="w-3.5 h-3.5" />
                       </div>
@@ -801,24 +800,24 @@ Sebagai agent spesialis, berikan:
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="rounded-2xl border-2 border-blue-500/50 bg-[#141a24] p-5 space-y-4 shadow-xl"
+            className="rounded-2xl border border-[#383838] bg-[#1e1e1e] p-5 space-y-4 shadow-xl"
           >
             <div className="flex items-start gap-3">
-              <Sparkles className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+              <Sparkles className="w-5 h-5 text-[#ececec] shrink-0 mt-0.5" />
               <div>
-                <h4 className="text-xs font-semibold text-blue-200 uppercase tracking-wide">
+                <h4 className="text-xs font-semibold text-[#ececec] uppercase tracking-wide">
                   Operator Plan Clearance Diperlukan (HITL Safety Gate)
                 </h4>
                 <p className="text-xs text-[#ececec] font-medium mt-1">
                   {pendingPlanApproval.title}
                 </p>
-                <div className="mt-2 p-2.5 rounded-lg bg-black/40 border border-blue-500/30 text-[11px] font-mono text-[#b4b4b4] max-h-36 overflow-y-auto whitespace-pre-wrap">
+                <div className="mt-2 p-2.5 rounded-lg bg-black/40 border border-[#303030] text-[11px] font-mono text-[#b4b4b4] max-h-36 overflow-y-auto whitespace-pre-wrap">
                   {pendingPlanApproval.planContent}
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-blue-500/20">
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#303030]">
               <button
                 onClick={() => resolvePlanApproval(false)}
                 className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl border border-red-500/40 text-red-400 hover:bg-red-500/10 text-xs font-medium transition-colors"
@@ -832,7 +831,7 @@ Sebagai agent spesialis, berikan:
                   resolvePlanApproval(true);
                   handleRunTask(`Lanjutkan eksekusi rencana: "${title}".`);
                 }}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-colors"
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-[#ececec] hover:bg-white text-black text-xs font-semibold transition-colors"
               >
                 <Check className="w-3.5 h-3.5" />
                 <span>Beri Izin Rencana</span>
@@ -850,7 +849,7 @@ Sebagai agent spesialis, berikan:
           {queuedMessagesBuffer.length > 0 && (
             <div className="flex items-center justify-between px-3.5 py-1.5 rounded-xl bg-[#282828] border border-[#383838] text-xs text-[#b4b4b4]">
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-[#ececec] animate-pulse" />
                 <span className="font-medium text-[#ececec]">
                   Antrean Tugas ({queuedMessagesBuffer.length}):
                 </span>
@@ -919,7 +918,7 @@ Sebagai agent spesialis, berikan:
                     title="Tambah lampiran file dari direktori"
                     className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors shrink-0 ${
                       attachedFiles.length > 0
-                        ? 'bg-blue-600/20 border-blue-500/40 text-blue-400 hover:bg-blue-600/30'
+                        ? 'bg-[#383838] border-[#4f4f4f] text-[#ececec] hover:bg-[#404040]'
                         : 'bg-[#212121] hover:bg-[#262626] border-[#383838] text-[#ececec]'
                     }`}
                   >
@@ -961,30 +960,22 @@ Sebagai agent spesialis, berikan:
                   <div className="relative">
                     <button
                       type="button"
-                      onClick={() => {
-                        if (availableModels.length === 0) {
-                          setSettingsOpen(true);
-                        } else {
-                          setIsModelMenuOpen(!isModelMenuOpen);
-                        }
-                      }}
-                      className={`h-8 flex items-center gap-1.5 px-3 rounded-full border text-xs font-mono transition-all group ${
-                        availableModels.length === 0
-                          ? 'bg-[#212121] border-[#383838] text-[#707070] hover:text-[#b4b4b4] hover:border-[#4f4f4f]'
-                          : 'bg-[#212121] hover:bg-[#262626] border-[#383838] text-[#ececec]'
-                      }`}
-                      title={availableModels.length === 0 ? 'Klik untuk mengatur API Key di Pengaturan' : 'Pilih Model AI'}
+                      onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
+                      className="h-8 flex items-center gap-1.5 px-3 rounded-full border text-xs font-mono transition-all group bg-[#212121] hover:bg-[#262626] border-[#383838] text-[#ececec]"
+                      title="Pilih Model AI"
                     >
                       <span className="max-w-[150px] truncate font-medium">
-                        {activeAgent?.model || selectedModel || (availableModels.length === 0 ? 'Atur API Key' : 'Pilih Model')}
+                        {activeAgent?.model || selectedModel || 'Pilih Model'}
                       </span>
-                      {availableModels.length > 0 && (
-                        <ChevronDown className="w-3 h-3 text-[#b4b4b4] group-hover:text-[#ececec] transition-transform" />
-                      )}
+                      <ChevronDown
+                        className={`w-3 h-3 text-[#b4b4b4] group-hover:text-[#ececec] transition-transform ${
+                          isModelMenuOpen ? 'rotate-180' : ''
+                        }`}
+                      />
                     </button>
 
                     {/* Model Selector Popover */}
-                    {isModelMenuOpen && availableModels.length > 0 && (
+                    {isModelMenuOpen && (
                       <div className="absolute bottom-full right-0 mb-2 w-80 max-h-96 rounded-2xl bg-[#262626] border border-[#383838] p-2.5 z-50 flex flex-col space-y-2 shadow-2xl">
                         <div className="flex items-center justify-between px-1 pb-1 border-b border-[#303030] text-xs">
                           <span className="font-semibold text-[#ececec]">Model Tersedia</span>
