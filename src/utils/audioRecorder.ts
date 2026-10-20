@@ -121,14 +121,22 @@ export class RawAudioRecorder {
       this.sampleRate = this.audioContext.sampleRate || 44100;
     }
 
-    this.mediaStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        channelCount: 1,
-        echoCancellation: true,
-        noiseSuppression: true,
-      },
-      video: false,
-    });
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('API perekaman audio tidak didukung di lingkungan ini.');
+    }
+
+    try {
+      this.mediaStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+        },
+        video: false,
+      });
+    } catch {
+      this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    }
 
     this.source = this.audioContext.createMediaStreamSource(this.mediaStream);
     this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);

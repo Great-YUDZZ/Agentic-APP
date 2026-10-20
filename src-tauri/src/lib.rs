@@ -56,6 +56,27 @@ pub fn run() {
                 v_state.vault_root.clone(),
                 30,
             );
+
+            #[cfg(target_os = "linux")]
+            {
+                use tauri::Manager;
+                use webkit2gtk::{PermissionRequestExt, SettingsExt, WebViewExt};
+
+                for (_label, window) in app.webview_windows() {
+                    let _ = window.with_webview(|webview| {
+                        let wv = webview.inner();
+                        if let Some(settings) = wv.settings() {
+                            settings.set_enable_media_stream(true);
+                            settings.set_enable_webrtc(true);
+                        }
+                        wv.connect_permission_request(|_wv, req| {
+                            req.allow();
+                            true
+                        });
+                    });
+                }
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
