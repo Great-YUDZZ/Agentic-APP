@@ -77,6 +77,9 @@ pub fn run() {
                 }
             }
 
+            // Download model speech-to-text akurasi tinggi di background saat pertama kali buka
+            voice::downloader::start_model_download(Some(app.handle().clone()));
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -131,6 +134,7 @@ pub fn run() {
             ipc::search_notes_hybrid,
             ipc::transcribe_offline_audio,
             ipc::get_offline_speech_status,
+            ipc::trigger_voice_model_download,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

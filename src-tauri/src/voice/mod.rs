@@ -1,12 +1,21 @@
+pub mod downloader;
+
 use std::path::PathBuf;
 use std::sync::Mutex;
 use anyhow::{anyhow, Context};
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
-/// Static cache for WhisperContext to avoid reloading 75MB model on every transcription
+/// Static cache for WhisperContext to avoid reloading model on every transcription
 static CACHED_CONTEXT: Mutex<Option<(PathBuf, WhisperContext)>> = Mutex::new(None);
 
-/// Look up model path from well-known local locations
+/// Invalidate cached WhisperContext (called after new model download)
+pub fn invalidate_cached_context() {
+    if let Ok(mut guard) = CACHED_CONTEXT.lock() {
+        *guard = None;
+    }
+}
+
+/// Look up model path from well-known local locations, prioritizing high-accuracy small-q5_1
 pub fn find_model_path() -> Option<PathBuf> {
     if let Ok(env_path) = std::env::var("WHISPER_MODEL_PATH") {
         let p = PathBuf::from(env_path);
@@ -15,7 +24,24 @@ pub fn find_model_path() -> Option<PathBuf> {
         }
     }
 
+    // 1. Check system data directory (where downloader places it)
+    if let Some(data_dir) = dirs::data_dir() {
+        let small_path = data_dir.join("agentic_native_hub/models/ggml-small-q5_1.bin");
+        if small_path.exists() {
+            return Some(small_path);
+        }
+        let tiny_path = data_dir.join("agentic_native_hub/models/ggml-tiny.bin");
+        if tiny_path.exists() {
+            return Some(tiny_path);
+        }
+    }
+
+    // 2. Check local project candidates (small-q5_1 first, then tiny fallback)
     let candidates = [
+        PathBuf::from("models/ggml-small-q5_1.bin"),
+        PathBuf::from("../models/ggml-small-q5_1.bin"),
+        PathBuf::from("/home/yudz/Agentic/models/ggml-small-q5_1.bin"),
+        PathBuf::from("/media/yudz/FLASHDISK/Agentic/models/ggml-small-q5_1.bin"),
         PathBuf::from("models/ggml-tiny.bin"),
         PathBuf::from("../models/ggml-tiny.bin"),
         PathBuf::from("/home/yudz/Agentic/models/ggml-tiny.bin"),
@@ -28,33 +54,42 @@ pub fn find_model_path() -> Option<PathBuf> {
         }
     }
 
-    if let Some(data_dir) = dirs::data_dir() {
-        let p = data_dir.join("agentic_native_hub/models/ggml-tiny.bin");
-        if p.exists() {
-            return Some(p);
-        }
-    }
-
     None
 }
 
-/// Returns offline speech status
+/// Returns offline speech status including download progress
 pub fn get_offline_speech_status() -> serde_json::Value {
+    let dl_progress = downloader::get_download_progress();
+
     if let Some(path) = find_model_path() {
         let metadata = std::fs::metadata(&path).ok();
         let size_bytes = metadata.map(|m| m.len()).unwrap_or(0);
+        let model_name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("ggml-small-q5_1.bin")
+            .to_string();
+
         serde_json::json!({
             "available": true,
             "path": path.to_string_lossy(),
             "size_bytes": size_bytes,
-            "model_name": "ggml-tiny.bin"
+            "model_name": model_name,
+            "is_small_model": model_name.contains("small"),
+            "download_status": dl_progress.status,
+            "download_percent": dl_progress.percent,
+            "download_error": dl_progress.error,
         })
     } else {
         serde_json::json!({
             "available": false,
             "path": null,
             "size_bytes": 0,
-            "model_name": "ggml-tiny.bin"
+            "model_name": "ggml-small-q5_1.bin",
+            "is_small_model": false,
+            "download_status": dl_progress.status,
+            "download_percent": dl_progress.percent,
+            "download_error": dl_progress.error,
         })
     }
 }

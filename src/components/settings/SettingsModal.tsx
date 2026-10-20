@@ -31,7 +31,7 @@ import { NetworkAccessRulesModal } from './NetworkAccessRulesModal';
 import { BrowserActuationRulesModal } from './BrowserActuationRulesModal';
 import { ShortcutsModal } from './ShortcutsModal';
 import { CreateSkillModal } from './CreateSkillModal';
-import { getOfflineSpeechStatus, OfflineSpeechStatus } from '../../utils/audioRecorder';
+import { getOfflineSpeechStatus, triggerVoiceModelDownload, OfflineSpeechStatus } from '../../utils/audioRecorder';
 
 interface StandardProviderConfig {
   id: string;
@@ -169,6 +169,35 @@ export const SettingsModal: React.FC = () => {
   useEffect(() => {
     if (isSettingsOpen) {
       getOfflineSpeechStatus().then(setVoiceStatus).catch(() => {});
+
+      let unlisten: (() => void) | undefined;
+      import('@tauri-apps/api/event')
+        .then(({ listen }) => {
+          listen<any>('voice-model-download-progress', (event) => {
+            setVoiceStatus((prev) => ({
+              available: event.payload.status === 'completed' || !!prev?.available,
+              path: prev?.path || null,
+              size_bytes: event.payload.downloaded_bytes || prev?.size_bytes || 0,
+              model_name:
+                event.payload.status === 'completed'
+                  ? 'ggml-small-q5_1.bin'
+                  : prev?.model_name || 'ggml-small-q5_1.bin',
+              is_small_model: event.payload.status === 'completed' || !!prev?.is_small_model,
+              download_status: event.payload.status,
+              download_percent: event.payload.percent,
+              download_error: event.payload.error,
+            }));
+          })
+            .then((u) => {
+              unlisten = u;
+            })
+            .catch(() => {});
+        })
+        .catch(() => {});
+
+      return () => {
+        if (unlisten) unlisten();
+      };
     }
   }, [isSettingsOpen]);
 
@@ -656,35 +685,76 @@ export const SettingsModal: React.FC = () => {
                       </button>
                     </div>
 
-                    <div className="p-4 flex items-center justify-between">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-[#ececec]">Voice Input (Offline Whisper)</span>
-                          {voiceStatus?.available ? (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                              Aktif ({(voiceStatus.size_bytes / (1024 * 1024)).toFixed(0)} MB)
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                              Model Belum Terdeteksi
-                            </span>
-                          )}
+                    <div className="p-4 flex flex-col gap-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-[#ececec]">Voice Input (Offline Whisper)</span>
+                            {voiceStatus?.available ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                {voiceStatus.is_small_model ? 'Akurasi Tinggi (Small Q5)' : 'Model Ringan (Tiny)'} ({(voiceStatus.size_bytes / (1024 * 1024)).toFixed(0)} MB)
+                              </span>
+                            ) : voiceStatus?.download_status === 'downloading' ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20 animate-pulse">
+                                Mengunduh ({voiceStatus.download_percent?.toFixed(0) || 0}%)
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                Menunggu Unduhan
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-[#707070] mt-0.5">
+                            Speech-to-text offline berkecepatan tinggi dengan model terkuantisasi ggml-small-q5_1.bin (~181 MB).
+                          </div>
                         </div>
-                        <div className="text-xs text-[#707070] mt-0.5">
-                          Transkripsi audio lokal offline menggunakan model bawaan ggml-tiny.bin tanpa akses internet.
+                        <div className="w-48">
+                          <CustomSelect
+                            value={settings.voiceInputLanguage || 'id'}
+                            onChange={(val) => updateSettings({ voiceInputLanguage: val as any })}
+                            options={[
+                              { value: 'id', label: 'Bahasa Indonesia (id)' },
+                              { value: 'en', label: 'English (en)' },
+                              { value: 'auto', label: 'Deteksi Otomatis' },
+                            ]}
+                          />
                         </div>
                       </div>
-                      <div className="w-48">
-                        <CustomSelect
-                          value={settings.voiceInputLanguage || 'id'}
-                          onChange={(val) => updateSettings({ voiceInputLanguage: val as any })}
-                          options={[
-                            { value: 'id', label: 'Bahasa Indonesia (id)' },
-                            { value: 'en', label: 'English (en)' },
-                            { value: 'auto', label: 'Deteksi Otomatis' },
-                          ]}
-                        />
-                      </div>
+
+                      {/* Download Progress Bar if downloading */}
+                      {voiceStatus?.download_status === 'downloading' && (
+                        <div className="mt-1 space-y-1.5 p-3 rounded-xl bg-[#212121] border border-[#383838]">
+                          <div className="flex items-center justify-between text-xs text-[#b4b4b4]">
+                            <span>Mengunduh model presisi tinggi ggml-small-q5_1.bin...</span>
+                            <span className="font-mono">{voiceStatus.download_percent?.toFixed(1) || 0}%</span>
+                          </div>
+                          <div className="w-full h-1.5 rounded-full bg-[#303030] overflow-hidden">
+                            <div
+                              className="h-full bg-emerald-500 transition-all duration-300"
+                              style={{ width: `${Math.max(2, voiceStatus.download_percent || 0)}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Manual trigger button if model not downloaded or failed */}
+                      {(!voiceStatus?.available || voiceStatus?.download_status === 'failed') &&
+                        voiceStatus?.download_status !== 'downloading' && (
+                          <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#212121] border border-[#383838]">
+                            <span className="text-xs text-[#b4b4b4]">
+                              {voiceStatus?.download_status === 'failed'
+                                ? `Gagal: ${voiceStatus.download_error || 'Koneksi terputus'}`
+                                : 'Model akurasi tinggi (181 MB) belum selesai diunduh.'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => triggerVoiceModelDownload()}
+                              className="px-3 py-1 rounded-lg text-xs font-medium bg-[#383838] hover:bg-[#484848] text-[#ececec] transition-colors"
+                            >
+                              Unduh Sekarang
+                            </button>
+                          </div>
+                        )}
                     </div>
                   </div>
                 </div>

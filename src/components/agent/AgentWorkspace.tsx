@@ -109,6 +109,7 @@ export const AgentWorkspace: React.FC = () => {
     isRecording: isVoiceRecording,
     isTranscribing: isVoiceTranscribing,
     duration: voiceDuration,
+    downloadProgress: voiceDownloadProgress,
     startRecording: startVoiceRecording,
     stopRecording: stopVoiceRecording,
     cancelRecording: cancelVoiceRecording,
@@ -1283,6 +1284,8 @@ PANDUAN EKSEKUSI TOOL & KEBIJAKAN SISTEM:
                         ? 'Sedang mentranskripsi suara...'
                         : isVoiceRecording
                         ? 'Klik untuk selesai dan transkripsi'
+                        : voiceDownloadProgress?.status === 'downloading'
+                        ? `Sedang mengunduh model speech-to-text (${voiceDownloadProgress.percent.toFixed(0)}%)...`
                         : 'Bicara (Offline Voice Input)'
                     }
                     className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shrink-0 ${

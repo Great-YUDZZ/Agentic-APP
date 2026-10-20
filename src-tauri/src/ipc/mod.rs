@@ -1544,6 +1544,12 @@ pub async fn get_offline_speech_status() -> Result<serde_json::Value, String> {
     Ok(crate::voice::get_offline_speech_status())
 }
 
+#[tauri::command]
+pub async fn trigger_voice_model_download(app: tauri::AppHandle) -> Result<(), String> {
+    crate::voice::downloader::start_model_download(Some(app));
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

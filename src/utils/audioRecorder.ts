@@ -8,6 +8,18 @@ export interface OfflineSpeechStatus {
   path: string | null;
   size_bytes: number;
   model_name: string;
+  is_small_model?: boolean;
+  download_status?: 'idle' | 'downloading' | 'completed' | 'failed';
+  download_percent?: number;
+  download_error?: string | null;
+}
+
+export interface VoiceDownloadProgressEvent {
+  status: 'idle' | 'downloading' | 'completed' | 'failed';
+  downloaded_bytes: number;
+  total_bytes: number;
+  percent: number;
+  error?: string | null;
 }
 
 /**
@@ -67,8 +79,23 @@ export async function getOfflineSpeechStatus(): Promise<OfflineSpeechStatus> {
       available: false,
       path: null,
       size_bytes: 0,
-      model_name: 'ggml-tiny.bin',
+      model_name: 'ggml-small-q5_1.bin',
+      is_small_model: false,
+      download_status: 'idle',
+      download_percent: 0,
     };
+  }
+}
+
+/**
+ * Trigger background download of high-accuracy model
+ */
+export async function triggerVoiceModelDownload(): Promise<void> {
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('trigger_voice_model_download');
+  } catch (err) {
+    console.warn('Failed to trigger model download:', err);
   }
 }
 
@@ -224,11 +251,26 @@ export function useVoiceRecorder() {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [duration, setDuration] = useState(0);
+  const [downloadProgress, setDownloadProgress] = useState<VoiceDownloadProgressEvent | null>(null);
   const recorderRef = useRef<RawAudioRecorder | null>(null);
   const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    import('@tauri-apps/api/event')
+      .then(({ listen }) => {
+        listen<VoiceDownloadProgressEvent>('voice-model-download-progress', (event) => {
+          setDownloadProgress(event.payload);
+        })
+          .then((u) => {
+            unlisten = u;
+          })
+          .catch(() => {});
+      })
+      .catch(() => {});
+
     return () => {
+      if (unlisten) unlisten();
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
@@ -296,6 +338,7 @@ export function useVoiceRecorder() {
     isRecording,
     isTranscribing,
     duration,
+    downloadProgress,
     startRecording,
     stopRecording,
     cancelRecording,
