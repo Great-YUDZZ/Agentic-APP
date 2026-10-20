@@ -29,9 +29,11 @@ import {
   VaultAuditEntry,
   GraphSnapshot,
   ScoredSearchResult,
+  ExecutionStep,
 } from '../types';
 import { parseRobustJson, getChatEndpoint, getModelsEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../utils/api';
 import { extractCodeReviewItems } from '../utils/codeExtractor';
+import { AGENT_AVAILABLE_TOOLS, isPathExternal } from '../utils/tools';
 
 export const BUILTIN_LEAD_ORCHESTRATOR = {
   id: 'builtin-lead-orchestrator',
@@ -192,6 +194,8 @@ interface AppStore {
   clearLogs: () => void;
   setEmergencyStopped: (stopped: boolean) => void;
   setPendingToolClearance: (req: ToolCallRequest | null) => void;
+  pendingClearanceResolver: ((approved: boolean) => void) | null;
+  setPendingClearanceResolver: (resolver: ((approved: boolean) => void) | null) => void;
   resolveToolClearance: (approved: boolean) => void;
   acceptDiff: (filename: string) => void;
   rejectDiff: (filename: string) => void;
@@ -1071,27 +1075,13 @@ export const useStore = create<AppStore>((set, get) => ({
       return;
     }
 
-    // Query konteks file eksisting di workspace jika berjalan di Tauri
-    let existingWorkspaceFiles = '';
-    if ((window as any).__TAURI_INTERNALS__) {
-      try {
-        const { invoke } = await import('@tauri-apps/api/core');
-        const listRes: any = await invoke('execute_sandbox_tool', {
-          toolName: 'list_dir',
-          parameters: { path: '.' },
-        });
-        if (listRes?.success && listRes?.output) {
-          existingWorkspaceFiles = listRes.output;
-        }
-      } catch (e) {
-        // Lanjutkan jika list_dir belum tersedia
-      }
-    }
+    // Riwayat diskusi tim sebelumnya
+    const recentMessages = session.messages
+      .slice(-8)
+      .map((m) => `${m.agent_name} (${m.agent_role}): ${m.content}`)
+      .join('\n\n');
 
-    // Format riwayat diskusi
-    const recentMessages = session.messages.slice(-6).map((m) => `${m.agent_name} (${m.agent_role}): ${m.content}`).join('\n\n');
-
-    const prompt = `Anda adalah ${currentAgent.name}, dengan peran: ${currentAgent.role}.
+    const systemPrompt = `Anda adalah ${currentAgent.name}, dengan peran: ${currentAgent.role}.
 Tugas utama Anda: ${currentAgent.task_description}
 Keahlian/Skills yang Anda miliki: ${currentAgent.skills.join(', ')}
 ${currentAgent.system_instructions ? `Instruksi khusus: ${currentAgent.system_instructions}` : ''}
@@ -1101,101 +1091,307 @@ Target Proyek Bersama:
 
 Direktori Workspace Proyek Aktif:
 "${state.workspaceProjectRoot}"
-${existingWorkspaceFiles ? `Daftar File di Workspace Saat Ini:\n${existingWorkspaceFiles}\n` : ''}
 
-Riwayat Diskusi Tim Sebelumnya:
-${recentMessages || '(Belum ada pesan sebelumnya, Anda adalah pembicara pertama)'}
+ATURAN KOMUNIKASI & EKSEKUSI TOOL:
+1. WAJIB menggunakan Bahasa Indonesia yang ramah, profesional, dan terstruktur.
+2. Anda memiliki akses ke tool nyata sistem (read_file, write_file, list_dir, execute_command, web_fetch).
+3. Jika tugas Anda membutuhkan pembacaan file, pembuatan file, pemeriksaan folder, atau pengetesan perintah, panggillah tools yang sesuai secara bertahap.
+4. Jangan ragu memanggil tools berulang kali jika diperlukan untuk menyelesaikan giliran tugas Anda secara tuntas.
+5. Setelah semua tool selesai dijalankan, berikan rangkuman hasil kerja dan penjelasan yang jelas kepada tim.`;
 
-ATURAN KOMUNIKASI & TUGAS ANDA SEKARANG:
-1. WAJIB menggunakan Bahasa Indonesia yang ramah, jelas, sopan, dan mudah dipahami oleh pengguna awam.
-2. Tanggapi langsung instruksi terbaru dari Operator atau kawan tim Anda secara to-the-point.
-3. Kontribusi sesuai peran:
-   - Jika Anda arsitek: Jelaskan rancangan alur langkah demi langkah secara terstruktur.
-   - Jika Anda engineer/koder: Buat kode program yang lengkap dan siap pakai di dalam blok kode Markdown dengan mencantumkan nama file di header blok kode (contoh: \`\`\`python kalkulator.py atau \`\`\`python filename="kalkulator.py"), sertakan penjelasan singkat fungsinya. Runtime kami akan secara otomatis menulis file tersebut langsung ke direktori workspace proyek!
-   - Jika Anda reviewer/QA: Tinjau kelengkapan kode/solusi kawan tim dan berikan masukan atau konfirmasi kesiapan.
-4. Jangan memberikan pesan error teknis server, dan jangan gunakan singkatan yang membingungkan.`;
+    const messagesHistory: Array<{
+      role: 'system' | 'user' | 'assistant' | 'tool';
+      content?: string;
+      tool_calls?: any[];
+      tool_call_id?: string;
+    }> = [
+      { role: 'system', content: systemPrompt },
+      {
+        role: 'user',
+        content: `Riwayat Diskusi Tim Sebelumnya:\n${recentMessages || '(Belum ada pesan sebelumnya, Anda adalah pembicara pertama)'}\n\nSekarang giliran Anda (${currentAgent.name}) untuk berkontribusi dan mengambil tindakan.`,
+      },
+    ];
+
+    const targetChatUrl = getChatEndpoint(baseUrl);
+    let iteration = 0;
+    const maxIterations = 5;
+    const accumulatedSteps: ExecutionStep[] = [];
+    let finalContent = '';
+
+    state.addLog({
+      id: `log-start-${Date.now()}`,
+      agent_name: currentAgent.name,
+      level: 'INFO',
+      message: `Memulai giliran kerja ke-${session.current_turn_index + 1} (${currentAgent.role})`,
+      timestamp: new Date().toLocaleTimeString(),
+    });
 
     try {
-      const targetChatUrl = getChatEndpoint(baseUrl);
-      const res = await fetch(targetChatUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.7,
-        }),
-      });
+      while (iteration < maxIterations) {
+        if (get().emergencyStopped) {
+          state.addToast('warning', 'Eksekusi dihentikan oleh operator (Emergency Stop).');
+          break;
+        }
+        iteration++;
 
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(formatApiErrorMessage(res.status, errText, model));
+        const res = await fetch(targetChatUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages: messagesHistory,
+            tools: AGENT_AVAILABLE_TOOLS,
+            temperature: 0.5,
+          }),
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(formatApiErrorMessage(res.status, errText, model));
+        }
+
+        const rawText = await res.text();
+        const data = parseRobustJson<any>(rawText);
+        const choice = data.choices?.[0]?.message;
+        if (!choice) break;
+
+        const toolCalls = choice.tool_calls;
+        const msgContent = choice.content || '';
+
+        if (!toolCalls || toolCalls.length === 0) {
+          finalContent = msgContent || `${currentAgent.name} telah menyelesaikan gilirannya.`;
+          break;
+        }
+
+        messagesHistory.push({
+          role: 'assistant',
+          content: msgContent,
+          tool_calls: toolCalls,
+        });
+
+        for (const call of toolCalls) {
+          if (get().emergencyStopped) break;
+
+          const toolName = call.function?.name || 'unknown_tool';
+          let toolParams: Record<string, any> = {};
+          try {
+            toolParams =
+              typeof call.function?.arguments === 'string'
+                ? JSON.parse(call.function.arguments)
+                : call.function?.arguments || {};
+          } catch {
+            toolParams = {};
+          }
+
+          const targetPath = String(toolParams.path || toolParams.working_dir || '');
+          const isExternal = isPathExternal(targetPath, state.workspaceProjectRoot);
+          const externalPolicy = state.settings.externalDirectoryAccess || 'always_ask';
+
+          let shouldAskClearance = false;
+          let clearanceReason = '';
+
+          // 1. Pengecekan akses direktori eksternal
+          if (isExternal) {
+            if (externalPolicy === 'workspace_only') {
+              const rejectMsg = `Keamanan: Akses ke '${targetPath}' ditolak karena jalur berada di luar workspace dan pengaturan diset ke 'Hanya Workspace Ini'.`;
+              messagesHistory.push({
+                role: 'tool',
+                tool_call_id: call.id,
+                content: rejectMsg,
+              });
+              accumulatedSteps.push({
+                id: `step-${Date.now()}-${accumulatedSteps.length}`,
+                name: toolName,
+                tool: toolName,
+                params: toolParams,
+                status: 'failed',
+                duration: '0ms',
+                output: rejectMsg,
+                timestamp: new Date().toLocaleTimeString(),
+              });
+              state.addLog({
+                id: `log-tool-${Date.now()}`,
+                agent_name: currentAgent.name,
+                level: 'FAIL',
+                message: `Akses direktori luar ditolak: ${targetPath}`,
+                timestamp: new Date().toLocaleTimeString(),
+              });
+              continue;
+            } else if (externalPolicy === 'always_ask') {
+              shouldAskClearance = true;
+              clearanceReason = `Agen ingin mengakses direktori eksternal: ${targetPath}`;
+            }
+          }
+
+          // 2. Strict approval mode atau tool berisiko (execute_command)
+          if (state.isStrictApprovalMode || toolName === 'execute_command') {
+            shouldAskClearance = true;
+            if (!clearanceReason) {
+              clearanceReason =
+                toolName === 'execute_command'
+                  ? `Eksekusi perintah terminal: ${toolParams.command || ''}`
+                  : `Menjalankan aksi tool: ${toolName}`;
+            }
+          }
+
+          let isApproved = true;
+          if (shouldAskClearance) {
+            isApproved = await new Promise<boolean>((resolve) => {
+              set({
+                pendingClearanceResolver: resolve,
+                pendingToolClearance: {
+                  id: `clr-${Date.now()}`,
+                  tool_name: toolName,
+                  parameters: {
+                    ...toolParams,
+                    _deskripsi: clearanceReason,
+                    _is_external: isExternal,
+                  },
+                  requires_clearance: true,
+                  risk_level: toolName === 'execute_command' || isExternal ? 'High' : 'Medium',
+                },
+              });
+            });
+          }
+
+          if (!isApproved) {
+            const deniedMsg = `Ditolak oleh Operator: Izin eksekusi untuk tool '${toolName}' tidak diberikan.`;
+            messagesHistory.push({
+              role: 'tool',
+              tool_call_id: call.id,
+              content: deniedMsg,
+            });
+            accumulatedSteps.push({
+              id: `step-${Date.now()}-${accumulatedSteps.length}`,
+              name: toolName,
+              tool: toolName,
+              params: toolParams,
+              status: 'failed',
+              duration: '0ms',
+              output: deniedMsg,
+              timestamp: new Date().toLocaleTimeString(),
+            });
+            state.addLog({
+              id: `log-denied-${Date.now()}`,
+              agent_name: currentAgent.name,
+              level: 'WARN',
+              message: `Operator menolak eksekusi tool ${toolName}`,
+              timestamp: new Date().toLocaleTimeString(),
+            });
+            continue;
+          }
+
+          // Eksekusi tool via Tauri IPC
+          const startTime = Date.now();
+          let stepOutput = '';
+          let stepSuccess = false;
+
+          if ((window as any).__TAURI_INTERNALS__) {
+            try {
+              const { invoke } = await import('@tauri-apps/api/core');
+              const invokeParams = { ...toolParams };
+              if (isExternal && (externalPolicy === 'always_allow' || isApproved)) {
+                invokeParams.allow_external = true;
+              }
+
+              const toolRes: any = await invoke('execute_sandbox_tool', {
+                toolName,
+                parameters: invokeParams,
+              });
+
+              stepSuccess = Boolean(toolRes?.success);
+              stepOutput = toolRes?.output || (stepSuccess ? 'Aksi selesai tanpa output.' : 'Eksekusi gagal.');
+
+              if (toolName === 'write_file' && stepSuccess && toolParams.path) {
+                set((s) => ({
+                  codeReviewItems: [
+                    ...s.codeReviewItems.filter((i) => i.filename !== toolParams.path),
+                    {
+                      id: `item-${Date.now()}`,
+                      filename: toolParams.path,
+                      language: toolParams.path.split('.').pop() || 'text',
+                      content: toolParams.content || '',
+                      description: `Dibuat oleh ${currentAgent.name}`,
+                      status: 'accepted',
+                      agentName: currentAgent.name,
+                      agentRole: currentAgent.role,
+                      avatarColor: currentAgent.avatar_color,
+                      timestamp: new Date().toLocaleTimeString(),
+                    },
+                  ],
+                }));
+              }
+            } catch (invErr: any) {
+              stepSuccess = false;
+              stepOutput = invErr?.message || String(invErr);
+            }
+          } else {
+            // Fallback Web Preview simulasi
+            await new Promise((r) => setTimeout(r, 600));
+            stepSuccess = true;
+            stepOutput = `[Web Preview] Tool ${toolName} berhasil disimulasikan.`;
+          }
+
+          const elapsedMs = Date.now() - startTime;
+          accumulatedSteps.push({
+            id: `step-${Date.now()}-${accumulatedSteps.length}`,
+            name: toolName,
+            tool: toolName,
+            params: toolParams,
+            status: stepSuccess ? 'success' : 'failed',
+            duration: `${elapsedMs}ms`,
+            output: stepOutput,
+            timestamp: new Date().toLocaleTimeString(),
+          });
+
+          messagesHistory.push({
+            role: 'tool',
+            tool_call_id: call.id,
+            content: stepOutput,
+          });
+
+          state.addLog({
+            id: `log-exec-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            agent_name: currentAgent.name,
+            level: stepSuccess ? 'EXEC' : 'FAIL',
+            message: `${toolName}: ${stepOutput.slice(0, 100)}${stepOutput.length > 100 ? '...' : ''} (${elapsedMs}ms)`,
+            timestamp: new Date().toLocaleTimeString(),
+          });
+        }
       }
 
-      const rawText = await res.text();
-      const json = parseRobustJson<any>(rawText);
-      const reply = json.choices?.[0]?.message?.content || `${currentAgent.name} menganalisis tujuan proyek.`;
+      if (!finalContent && accumulatedSteps.length > 0) {
+        finalContent = `${currentAgent.name} telah mengeksekusi ${accumulatedSteps.length} langkah aksi untuk target proyek.`;
+      }
 
-      let finalContent = reply;
+      // Fallback deteksi blok kode markdown jika model menyertakan kode di teks
       const tempMsg: DiscussionMessage = {
         id: `turn-${Date.now()}`,
         agent_id: currentAgent.id,
         agent_name: currentAgent.name,
         agent_role: currentAgent.role,
         avatar_color: currentAgent.avatar_color,
-        content: reply,
+        content: finalContent,
         step_type: currentTurn === 0 ? 'proposal' : currentTurn === 1 ? 'implementation' : 'critique',
         timestamp: new Date().toLocaleTimeString(),
+        tool_steps: accumulatedSteps.length > 0 ? accumulatedSteps : undefined,
       };
 
-      // Autonomous File Writing ke Workspace
       const extractedItems = extractCodeReviewItems([tempMsg]);
-      const writtenFiles: string[] = [];
-
-      if (extractedItems.length > 0 && (window as any).__TAURI_INTERNALS__) {
-        try {
-          const { invoke } = await import('@tauri-apps/api/core');
-          for (const item of extractedItems) {
-            const writeRes: any = await invoke('execute_sandbox_tool', {
-              toolName: 'write_file',
-              parameters: {
-                path: item.filename,
-                content: item.content,
-              },
-            });
-            if (writeRes?.success) {
-              writtenFiles.push(item.filename);
-              set((s) => ({
-                codeReviewItems: [
-                  ...s.codeReviewItems.filter((i) => i.filename !== item.filename),
-                  { ...item, status: 'accepted' },
-                ],
-              }));
-              state.addLog({
-                id: `log-file-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-                agent_name: currentAgent.name,
-                level: 'EXEC',
-                message: `Menulis file "${item.filename}" ke workspace (${item.content.length} bytes)`,
-                timestamp: new Date().toLocaleTimeString(),
-              });
-            }
-          }
-        } catch (writeErr) {
-          console.warn('Gagal autonomous write file:', writeErr);
-        }
-      }
-
-      if (writtenFiles.length > 0) {
-        finalContent += `\n\n> File berhasil ditulis ke direktori workspace: ${writtenFiles.map((f) => `\`${f}\``).join(', ')}`;
-        state.addToast('success', `${currentAgent.name} berhasil menulis ${writtenFiles.length} file ke workspace`);
+      if (extractedItems.length > 0) {
+        set((s) => ({
+          codeReviewItems: [
+            ...s.codeReviewItems.filter((i) => !extractedItems.some((e) => e.filename === i.filename)),
+            ...extractedItems,
+          ],
+        }));
       }
 
       const newMsg: DiscussionMessage = {
         ...tempMsg,
-        content: finalContent,
       };
 
       set((s) => ({
@@ -1221,9 +1417,10 @@ ATURAN KOMUNIKASI & TUGAS ANDA SEKARANG:
         id: `log-turn-${Date.now()}`,
         agent_name: currentAgent.name,
         level: 'INFO',
-        message: `Menyampaikan respons giliran ke-${session.current_turn_index + 1}`,
+        message: `Menyelesaikan respons giliran ke-${session.current_turn_index + 1} (${accumulatedSteps.length} tools dieksekusi)`,
         timestamp: new Date().toLocaleTimeString(),
       });
+
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
       state.addToast('error', `Gagal mendapatkan respons dari ${currentAgent.name}: ${errMsg}`);
@@ -1620,6 +1817,7 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
   logs: [],
   emergencyStopped: false,
   pendingToolClearance: null,
+  pendingClearanceResolver: null,
   diffFiles: [],
   setSubagents: (subagents) => set({ subagents }),
   setKanbanTasks: (kanbanTasks) => set({ kanbanTasks }),
@@ -1632,18 +1830,22 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
   clearLogs: () => set({ logs: [] }),
   setEmergencyStopped: (emergencyStopped) => set({ emergencyStopped }),
   setPendingToolClearance: (pendingToolClearance) => set({ pendingToolClearance }),
-  resolveToolClearance: (approved) =>
-    set((s) => {
-      if (s.pendingToolClearance) {
-        s.addToast(
-          approved ? 'success' : 'warning',
-          approved
-            ? `Clearance granted for ${s.pendingToolClearance.tool_name}`
-            : `Tool execution denied by operator`
-        );
-      }
-      return { pendingToolClearance: null };
-    }),
+  setPendingClearanceResolver: (pendingClearanceResolver) => set({ pendingClearanceResolver }),
+  resolveToolClearance: (approved) => {
+    const s = get();
+    if (s.pendingClearanceResolver) {
+      s.pendingClearanceResolver(approved);
+    }
+    if (s.pendingToolClearance) {
+      s.addToast(
+        approved ? 'success' : 'warning',
+        approved
+          ? `Izin diberikan untuk ${s.pendingToolClearance.tool_name}`
+          : `Eksekusi tool ditolak oleh operator`
+      );
+    }
+    set({ pendingToolClearance: null, pendingClearanceResolver: null });
+  },
   acceptDiff: (filename) =>
     set((s) => ({
       diffFiles: s.diffFiles.map((d) => (d.filename === filename ? { ...d, status: 'accepted' } : d)),

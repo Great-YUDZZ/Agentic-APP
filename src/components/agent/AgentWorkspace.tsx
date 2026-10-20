@@ -33,16 +33,7 @@ import { parseRobustJson, getChatEndpoint, formatApiErrorMessage, resolveEndpoin
 import { getDailyGreeting } from '../../utils/dailyGreetings';
 import { getConversationWidthClass } from '../../utils/layout';
 import { AGENT_AVAILABLE_TOOLS, isPathExternal } from '../../utils/tools';
-
-interface ExecutionStep {
-  id: string;
-  tool: string;
-  params: Record<string, any>;
-  status: 'success' | 'failed' | 'pending';
-  duration: string;
-  output?: string;
-  timestamp: string;
-}
+import { ExecutionStep } from '../../types';
 
 export const AgentWorkspace: React.FC = () => {
   const {
@@ -885,10 +876,10 @@ PANDUAN EKSEKUSI TOOL & KEBIJAKAN SISTEM:
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="p-1 rounded-lg bg-[#2f2f2f] shrink-0">{getToolIcon(step.tool)}</div>
-                        <span className="font-mono text-[#ececec] font-medium shrink-0">{step.tool}</span>
+                        <div className="p-1 rounded-lg bg-[#2f2f2f] shrink-0">{getToolIcon(step.tool || step.name || '')}</div>
+                        <span className="font-mono text-[#ececec] font-medium shrink-0">{step.tool || step.name}</span>
                         <span className="text-[#707070] font-mono text-[11px] truncate max-w-sm">
-                          {JSON.stringify(step.params)}
+                          {JSON.stringify(step.params || {})}
                         </span>
                       </div>
 

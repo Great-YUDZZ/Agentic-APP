@@ -102,6 +102,17 @@ export interface CustomAgent {
   created_at: string;
 }
 
+export interface ExecutionStep {
+  id?: string;
+  name?: string;
+  tool?: string;
+  status: 'running' | 'pending' | 'success' | 'failed';
+  duration?: string;
+  output?: string;
+  params?: Record<string, any>;
+  timestamp?: string;
+}
+
 export interface DiscussionMessage {
   id: string;
   agent_id: string;
@@ -111,6 +122,7 @@ export interface DiscussionMessage {
   content: string;
   step_type?: 'proposal' | 'critique' | 'implementation' | 'verification' | 'summary' | 'operator_directive';
   timestamp: string;
+  tool_steps?: ExecutionStep[];
 }
 
 export interface DraftPlanTask {

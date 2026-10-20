@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users,
   Play,
@@ -26,16 +26,101 @@ import {
   Check,
   RotateCw,
   Search,
+  ShieldAlert,
+  X,
+  Wrench,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { CustomSelect } from '../common/CustomSelect';
-import { AttachedFile } from '../../types';
+import { AttachedFile, ExecutionStep } from '../../types';
 import { AttachmentChips } from '../common/AttachmentChips';
 import { processSelectedFiles, formatAttachedPrompt } from '../../utils/fileUpload';
 import { extractCodeReviewItems } from '../../utils/codeExtractor';
 import { getDailyGreeting } from '../../utils/dailyGreetings';
 import { getConversationWidthClass } from '../../utils/layout';
 import { FormattedMessage } from '../common/FormattedMessage';
+
+const AgentToolStepsAccordion: React.FC<{ steps: ExecutionStep[] }> = ({ steps }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const successCount = steps.filter((s) => s.status === 'success').length;
+  const failedCount = steps.filter((s) => s.status === 'failed').length;
+
+  return (
+    <div className="mt-2.5 rounded-xl border border-[#383838] bg-[#1f1f1f] overflow-hidden text-xs">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between px-3 py-2 bg-[#262626] hover:bg-[#2c2c2c] transition-colors text-left"
+      >
+        <div className="flex items-center gap-2">
+          <Wrench className="w-3.5 h-3.5 text-[#b4b4b4]" />
+          <span className="font-medium text-[#ececec]">
+            {steps.length} Tool Actions Executed
+          </span>
+          <div className="flex items-center gap-1.5 ml-1">
+            {successCount > 0 && (
+              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-[#2f2f2f] text-[#ececec] border border-[#383838]">
+                {successCount} sukses
+              </span>
+            )}
+            {failedCount > 0 && (
+              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-[#3d2424] text-[#f87171] border border-[#5c2e2e]">
+                {failedCount} gagal
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 text-[#707070]">
+          <span className="text-[10px] font-mono">
+            {steps.reduce((acc, s) => {
+              const ms = parseInt(s.duration?.replace('ms', '') || '0', 10);
+              return acc + (isNaN(ms) ? 0 : ms);
+            }, 0)}ms
+          </span>
+          {isOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+        </div>
+      </button>
+
+      {isOpen && (
+        <div className="p-3 space-y-2 border-t border-[#303030] bg-[#1a1a1a]">
+          {steps.map((st, idx) => (
+            <div key={st.id || idx} className="rounded-lg bg-[#242424] border border-[#333333] p-2.5 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {st.status === 'success' ? (
+                    <Check className="w-3.5 h-3.5 text-[#ececec]" />
+                  ) : st.status === 'failed' ? (
+                    <span className="w-3.5 h-3.5 rounded-full bg-red-950 border border-red-800 text-red-400 flex items-center justify-center text-[9px] font-bold">✕</span>
+                  ) : (
+                    <RotateCw className="w-3.5 h-3.5 text-[#b4b4b4] animate-spin" />
+                  )}
+                  <span className="font-mono font-medium text-[#ececec]">{st.name || st.tool}</span>
+                </div>
+                <div className="flex items-center gap-2 text-[10px] font-mono text-[#707070]">
+                  <span>{st.duration || '0ms'}</span>
+                  <span>{st.timestamp}</span>
+                </div>
+              </div>
+
+              {st.params && Object.keys(st.params).length > 0 && (
+                <div className="text-[11px] font-mono text-[#a0a0a0] bg-[#1c1c1c] p-1.5 rounded border border-[#2b2b2b] overflow-x-auto">
+                  <span className="text-[#707070]">params: </span>
+                  {JSON.stringify(st.params)}
+                </div>
+              )}
+
+              {st.output && (
+                <div className="text-[11px] font-mono text-[#ececec] bg-[#181818] p-2 rounded border border-[#2e2e2e] max-h-32 overflow-y-auto whitespace-pre-wrap">
+                  {st.output}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const MultiAgentDiscussion: React.FC = () => {
   const {
@@ -70,6 +155,8 @@ export const MultiAgentDiscussion: React.FC = () => {
     approveAndDispatchPlan,
     autoSpawnRecommendedSquad,
     isOrchestratorThinking,
+    pendingToolClearance,
+    resolveToolClearance,
   } = useStore();
 
   const convWidthClass = getConversationWidthClass(settings?.conversationWidth);
@@ -394,6 +481,11 @@ export const MultiAgentDiscussion: React.FC = () => {
                   <div className="text-xs text-[#ececec] leading-relaxed">
                     <FormattedMessage content={msg.content} verbose={settings?.verboseAgentChat ?? true} />
                   </div>
+
+                  {/* Tool Execution Steps Accordion */}
+                  {msg.tool_steps && msg.tool_steps.length > 0 && (
+                    <AgentToolStepsAccordion steps={msg.tool_steps} />
+                  )}
                 </motion.div>
               </div>
             );
@@ -441,6 +533,62 @@ export const MultiAgentDiscussion: React.FC = () => {
       {/* 4. Interactive Chat & Directive Dock (Bottom) */}
       <div className="p-4 bg-transparent shrink-0">
         <div className={`${convWidthClass} mx-auto w-full space-y-2`}>
+          {/* HITL Clearance Card */}
+          <AnimatePresence>
+            {pendingToolClearance && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="rounded-2xl border-2 border-amber-500/50 bg-[#1e1a12] p-4 space-y-3 shadow-xl"
+              >
+                <div className="flex items-start gap-3">
+                  <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="text-xs font-semibold text-amber-200 uppercase tracking-wide">
+                        Operator Clearance Diperlukan (HITL Safety Gate)
+                      </h4>
+                      {Boolean(pendingToolClearance.parameters?._is_external) && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                          Akses Direktori Eksternal
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-xs text-amber-100/90 leading-relaxed">
+                      {pendingToolClearance.parameters?._deskripsi
+                        ? String(pendingToolClearance.parameters._deskripsi)
+                        : `Agen mengajukan eksekusi tool berisiko: ${pendingToolClearance.tool_name}`}
+                    </p>
+
+                    <div className="p-2 rounded-lg bg-black/40 border border-amber-500/30 text-[11px] font-mono text-amber-200/90 overflow-x-auto">
+                      Parameter: {JSON.stringify(pendingToolClearance.parameters)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-amber-500/20">
+                  <button
+                    type="button"
+                    onClick={() => resolveToolClearance(false)}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 text-xs font-medium transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>Tolak Aksi</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => resolveToolClearance(true)}
+                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-semibold transition-colors"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Beri Izin (Approve)</span>
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
           {/* Queued Messages Indicator */}
           {queuedMessagesBuffer.length > 0 && (
             <div className="flex items-center justify-between px-3.5 py-1.5 rounded-xl bg-[#282828] border border-[#383838] text-xs text-[#b4b4b4]">
