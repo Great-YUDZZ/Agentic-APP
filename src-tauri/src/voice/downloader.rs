@@ -60,11 +60,42 @@ pub fn get_target_model_path() -> PathBuf {
     }
 }
 
+pub fn cleanup_legacy_tiny_model() {
+    let target = get_target_model_path();
+    // Safety guard: only delete tiny model if small model exists and is complete (>= 180MB)
+    if !target.exists() {
+        return;
+    }
+    if let Ok(meta) = std::fs::metadata(&target) {
+        if meta.len() < 180_000_000 {
+            return;
+        }
+    } else {
+        return;
+    }
+
+    let mut candidates = Vec::new();
+    if let Some(data_dir) = dirs::data_dir() {
+        candidates.push(data_dir.join("agentic_native_hub/models/ggml-tiny.bin"));
+    }
+    candidates.push(PathBuf::from("models/ggml-tiny.bin"));
+    candidates.push(PathBuf::from("../models/ggml-tiny.bin"));
+    candidates.push(PathBuf::from("/home/yudz/Agentic/models/ggml-tiny.bin"));
+    candidates.push(PathBuf::from("/media/yudz/FLASHDISK/Agentic/models/ggml-tiny.bin"));
+
+    for path in candidates {
+        if path.exists() {
+            let _ = std::fs::remove_file(&path);
+        }
+    }
+}
+
 pub fn start_model_download(app_handle: Option<tauri::AppHandle>) {
     let target_path = get_target_model_path();
     if target_path.exists() {
         if let Ok(meta) = std::fs::metadata(&target_path) {
             if meta.len() >= 180_000_000 {
+                cleanup_legacy_tiny_model();
                 update_download_progress(
                     VoiceDownloadProgress {
                         status: "completed".to_string(),
@@ -134,6 +165,7 @@ pub fn start_model_download(app_handle: Option<tauri::AppHandle>) {
                     IS_DOWNLOADING.store(false, Ordering::SeqCst);
                     if exit_status.success() {
                         let _ = std::fs::rename(&part_file, &target);
+                        cleanup_legacy_tiny_model();
                         let final_len = std::fs::metadata(&target)
                             .map(|m| m.len())
                             .unwrap_or(EXPECTED_MODEL_SIZE);
@@ -232,5 +264,11 @@ mod tests {
         let json = serde_json::to_string(&prog).expect("serialize should succeed");
         assert!(json.contains("downloading"));
         assert!(json.contains("26.3"));
+    }
+
+    #[test]
+    fn test_cleanup_legacy_tiny_model_idempotent() {
+        // Calling cleanup multiple times should be safe and idempotent
+        cleanup_legacy_tiny_model();
     }
 }

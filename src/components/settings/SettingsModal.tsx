@@ -690,22 +690,24 @@ export const SettingsModal: React.FC = () => {
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-[#ececec]">Voice Input (Offline Whisper)</span>
-                            {voiceStatus?.available ? (
+                            {voiceStatus?.available && (
                               <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                {voiceStatus.is_small_model ? 'Akurasi Tinggi (Small Q5)' : 'Model Ringan (Tiny)'} ({(voiceStatus.size_bytes / (1024 * 1024)).toFixed(0)} MB)
+                                {voiceStatus.is_small_model ? 'Akurasi Tinggi (Small Q5)' : 'Model Bawaan (Tiny)'} ({(voiceStatus.size_bytes / (1024 * 1024)).toFixed(0)} MB)
                               </span>
-                            ) : voiceStatus?.download_status === 'downloading' ? (
+                            )}
+                            {voiceStatus?.download_status === 'downloading' && (
                               <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20 animate-pulse">
-                                Mengunduh ({voiceStatus.download_percent?.toFixed(0) || 0}%)
+                                Mengunduh Small Q5 ({voiceStatus.download_percent?.toFixed(0) || 0}%)
                               </span>
-                            ) : (
+                            )}
+                            {!voiceStatus?.available && voiceStatus?.download_status !== 'downloading' && (
                               <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
                                 Menunggu Unduhan
                               </span>
                             )}
                           </div>
                           <div className="text-xs text-[#707070] mt-0.5">
-                            Speech-to-text offline berkecepatan tinggi dengan model terkuantisasi ggml-small-q5_1.bin (~181 MB).
+                            Speech-to-text offline dengan model terkuantisasi ggml-small-q5_1.bin (~181 MB). Model bawaan 75 MB otomatis dibersihkan saat unduhan selesai.
                           </div>
                         </div>
                         <div className="w-48">
@@ -737,14 +739,14 @@ export const SettingsModal: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Manual trigger button if model not downloaded or failed */}
-                      {(!voiceStatus?.available || voiceStatus?.download_status === 'failed') &&
+                      {/* Manual trigger button if small model not yet downloaded or failed */}
+                      {(!voiceStatus?.is_small_model || voiceStatus?.download_status === 'failed') &&
                         voiceStatus?.download_status !== 'downloading' && (
                           <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#212121] border border-[#383838]">
                             <span className="text-xs text-[#b4b4b4]">
                               {voiceStatus?.download_status === 'failed'
                                 ? `Gagal: ${voiceStatus.download_error || 'Koneksi terputus'}`
-                                : 'Model akurasi tinggi (181 MB) belum selesai diunduh.'}
+                                : 'Model akurasi tinggi (181 MB) belum selesai diunduh. Model bawaan 75 MB aktif.'}
                             </span>
                             <button
                               type="button"

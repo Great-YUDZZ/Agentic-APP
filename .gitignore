@@ -57,6 +57,6 @@ test_results_summary.json
 arsitektur_agentic.md
 ringkasan_arsitektur_agentic.md
 
-# Voice models
-models/*.bin
+# Voice models (large downloaded models & temporary parts)
 models/*.part
+models/ggml-small*.bin
