@@ -131,15 +131,22 @@ pub fn start_model_download(app_handle: Option<tauri::AppHandle>) {
         }
         let part_file = target.with_extension("bin.part");
 
-        let mut child = match std::process::Command::new("curl")
-            .arg("-L")
+        let mut cmd = std::process::Command::new("curl");
+        cmd.arg("-L")
             .arg("-f")
             .arg("-C")
             .arg("-")
             .arg("-o")
             .arg(&part_file)
-            .arg(WHISPER_SMALL_Q5_URL)
-            .spawn()
+            .arg(WHISPER_SMALL_Q5_URL);
+
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
+
+        let mut child = match cmd.spawn()
         {
             Ok(c) => c,
             Err(e) => {
