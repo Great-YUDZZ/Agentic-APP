@@ -31,6 +31,7 @@ import { NetworkAccessRulesModal } from './NetworkAccessRulesModal';
 import { BrowserActuationRulesModal } from './BrowserActuationRulesModal';
 import { ShortcutsModal } from './ShortcutsModal';
 import { CreateSkillModal } from './CreateSkillModal';
+import { getOfflineSpeechStatus, OfflineSpeechStatus } from '../../utils/audioRecorder';
 
 interface StandardProviderConfig {
   id: string;
@@ -162,6 +163,14 @@ export const SettingsModal: React.FC = () => {
     setBaseUrlInputs(uMap);
     setNameInputs(nMap);
   }, [apiKeys]);
+
+  const [voiceStatus, setVoiceStatus] = useState<OfflineSpeechStatus | null>(null);
+
+  useEffect(() => {
+    if (isSettingsOpen) {
+      getOfflineSpeechStatus().then(setVoiceStatus).catch(() => {});
+    }
+  }, [isSettingsOpen]);
 
   if (!isSettingsOpen) return null;
 
@@ -645,6 +654,37 @@ export const SettingsModal: React.FC = () => {
                           }`}
                         />
                       </button>
+                    </div>
+
+                    <div className="p-4 flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-[#ececec]">Voice Input (Offline Whisper)</span>
+                          {voiceStatus?.available ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              Aktif ({(voiceStatus.size_bytes / (1024 * 1024)).toFixed(0)} MB)
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                              Model Belum Terdeteksi
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-[#707070] mt-0.5">
+                          Transkripsi audio lokal offline menggunakan model bawaan ggml-tiny.bin tanpa akses internet.
+                        </div>
+                      </div>
+                      <div className="w-48">
+                        <CustomSelect
+                          value={settings.voiceInputLanguage || 'id'}
+                          onChange={(val) => updateSettings({ voiceInputLanguage: val as any })}
+                          options={[
+                            { value: 'id', label: 'Bahasa Indonesia (id)' },
+                            { value: 'en', label: 'English (en)' },
+                            { value: 'auto', label: 'Deteksi Otomatis' },
+                          ]}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

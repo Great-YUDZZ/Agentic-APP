@@ -1526,6 +1526,24 @@ pub fn search_notes_hybrid(
     ))
 }
 
+#[tauri::command]
+pub async fn transcribe_offline_audio(
+    audio_bytes: Vec<u8>,
+    language: Option<String>,
+) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        crate::voice::transcribe_audio_bytes(&audio_bytes, language.as_deref())
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("Task execution failed: {}", e))?
+}
+
+#[tauri::command]
+pub async fn get_offline_speech_status() -> Result<serde_json::Value, String> {
+    Ok(crate::voice::get_offline_speech_status())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1588,6 +1606,21 @@ mod tests {
             assert!(res.is_ok());
             let theme = res.unwrap();
             assert!(theme == "dark" || theme == "light");
+        });
+    }
+
+    #[test]
+    fn test_offline_speech_status_ipc() {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        rt.block_on(async {
+            let res = get_offline_speech_status().await;
+            assert!(res.is_ok());
+            let val = res.unwrap();
+            assert!(val.get("model_name").is_some());
         });
     }
 }

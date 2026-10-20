@@ -270,6 +270,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   },
   preventSleep: true,
   notifyWhenUnfocused: true,
+  voiceInputLanguage: 'id',
   theme: 'dark',
   contrast: 'default',
   darkPreset: 'default',
@@ -315,6 +316,9 @@ const loadSavedSettings = (): AppSettings => {
       }
       if (typeof parsed.notifyWhenUnfocused !== 'boolean') {
         parsed.notifyWhenUnfocused = true;
+      }
+      if (!['id', 'en', 'auto'].includes(parsed.voiceInputLanguage)) {
+        parsed.voiceInputLanguage = 'id';
       }
       return { ...DEFAULT_SETTINGS, ...parsed };
     }

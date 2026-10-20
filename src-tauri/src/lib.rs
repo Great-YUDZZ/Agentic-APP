@@ -3,6 +3,7 @@ pub mod engine;
 pub mod ipc;
 pub mod providers;
 pub mod vault;
+pub mod voice;
 
 use db::Database;
 use engine::orchestrator::AgentOrchestrator;
@@ -107,6 +108,8 @@ pub fn run() {
             ipc::purge_trash_note,
             ipc::get_vault_audit_log,
             ipc::search_notes_hybrid,
+            ipc::transcribe_offline_audio,
+            ipc::get_offline_speech_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

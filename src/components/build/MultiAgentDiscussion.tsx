@@ -23,6 +23,8 @@ import {
   Terminal,
   ArrowUp,
   Mic,
+  Square,
+  Loader2,
   Check,
   RotateCw,
   Search,
@@ -30,6 +32,7 @@ import {
   X,
   Wrench,
 } from 'lucide-react';
+import { useVoiceRecorder } from '../../utils/audioRecorder';
 import { useStore } from '../../store/useStore';
 import { CustomSelect } from '../common/CustomSelect';
 import { AttachedFile, ExecutionStep } from '../../types';
@@ -163,6 +166,35 @@ export const MultiAgentDiscussion: React.FC = () => {
 
   const [chatInput, setChatInput] = useState('');
   const [targetMention, setTargetMention] = useState<string>('all');
+
+  const {
+    isRecording: isVoiceRecording,
+    isTranscribing: isVoiceTranscribing,
+    duration: voiceDuration,
+    startRecording: startVoiceRecording,
+    stopRecording: stopVoiceRecording,
+    cancelRecording: cancelVoiceRecording,
+  } = useVoiceRecorder();
+
+  const handleToggleVoice = async () => {
+    if (isVoiceRecording) {
+      try {
+        const transcribedText = await stopVoiceRecording(settings?.voiceInputLanguage || 'id');
+        if (transcribedText) {
+          setChatInput((prev) => (prev.trim() ? `${prev.trim()} ${transcribedText}` : transcribedText));
+          addToast('success', `Suara berhasil ditranskripsi (${transcribedText.slice(0, 35)}...)`, 3000);
+        }
+      } catch (err: any) {
+        addToast('error', `Gagal mentranskripsi suara: ${err?.message || err}`, 5000);
+      }
+    } else {
+      try {
+        await startVoiceRecording();
+      } catch (err: any) {
+        addToast('error', `Gagal mengakses mikrofon: ${err?.message || err}`, 5000);
+      }
+    }
+  };
   const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>(() => {
     const validIds = buildDiscussion.selected_agent_ids.filter((id) =>
       customAgents.some((a) => a.id === id)
@@ -1083,13 +1115,54 @@ export const MultiAgentDiscussion: React.FC = () => {
                   )}
                 </div>
 
-                {/* Mic Icon (Harmonized h-8 w-8) */}
+                {/* Voice Recording Active Timer Pill */}
+                {isVoiceRecording && (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-500/10 border border-red-500/20 text-red-400 rounded-full text-xs font-mono animate-pulse mr-1">
+                    <span className="w-2 h-2 rounded-full bg-red-500" />
+                    <span>
+                      {Math.floor(voiceDuration / 60)
+                        .toString()
+                        .padStart(2, '0')}
+                      :{(voiceDuration % 60).toString().padStart(2, '0')}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={cancelVoiceRecording}
+                      title="Batalkan rekaman"
+                      className="ml-0.5 text-red-400 hover:text-white"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Mic Button (Harmonized h-8 w-8) */}
                 <button
                   type="button"
-                  title="Voice input (segera hadir)"
-                  className="w-8 h-8 rounded-full hover:bg-[#383838] text-[#b4b4b4] hover:text-[#ececec] flex items-center justify-center transition-colors shrink-0"
+                  onClick={handleToggleVoice}
+                  disabled={isVoiceTranscribing}
+                  title={
+                    isVoiceTranscribing
+                      ? 'Sedang mentranskripsi suara...'
+                      : isVoiceRecording
+                      ? 'Klik untuk selesai dan transkripsi'
+                      : 'Bicara (Offline Voice Input)'
+                  }
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shrink-0 ${
+                    isVoiceRecording
+                      ? 'bg-red-500 text-white hover:bg-red-600 animate-pulse'
+                      : isVoiceTranscribing
+                      ? 'bg-[#383838] text-[#b4b4b4] cursor-wait'
+                      : 'hover:bg-[#383838] text-[#b4b4b4] hover:text-[#ececec]'
+                  }`}
                 >
-                  <Mic className="w-4 h-4" />
+                  {isVoiceTranscribing ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-[#ececec]" />
+                  ) : isVoiceRecording ? (
+                    <Square className="w-3.5 h-3.5 fill-current" />
+                  ) : (
+                    <Mic className="w-4 h-4" />
+                  )}
                 </button>
 
                 {/* Iconic Send Button (Harmonized h-8 w-8) */}

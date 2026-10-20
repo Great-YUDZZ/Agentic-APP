@@ -230,6 +230,9 @@ export interface AppSettings {
   networkRules: { whitelist: string[]; blacklist: string[] };
   actuationRules: { whitelist: string[]; blacklist: string[] };
 
+  // Voice Input (Offline Whisper)
+  voiceInputLanguage?: 'id' | 'en' | 'auto';
+
   // Application
   preventSleep: boolean;
   notifyWhenUnfocused: boolean;
