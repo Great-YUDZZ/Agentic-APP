@@ -32,13 +32,15 @@ import { processSelectedFiles, formatAttachedPrompt } from '../../utils/fileUplo
 import { parseRobustJson, getChatEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../../utils/api';
 import { getDailyGreeting } from '../../utils/dailyGreetings';
 import { getConversationWidthClass } from '../../utils/layout';
+import { AGENT_AVAILABLE_TOOLS, isPathExternal } from '../../utils/tools';
 
 interface ExecutionStep {
   id: string;
   tool: string;
-  params: Record<string, string>;
+  params: Record<string, any>;
   status: 'success' | 'failed' | 'pending';
   duration: string;
+  output?: string;
   timestamp: string;
 }
 
@@ -167,19 +169,19 @@ export const AgentWorkspace: React.FC = () => {
     addToast('info', `Agent "${agentName}" telah dihapus.`);
   };
 
+  const pendingClearanceResolver = useRef<((approved: boolean) => void) | null>(null);
+
   const handleClearance = (approved: boolean) => {
+    if (pendingClearanceResolver.current) {
+      pendingClearanceResolver.current(approved);
+      pendingClearanceResolver.current = null;
+    }
+    setPendingToolClearance(null);
     resolveToolClearance(approved);
     if (approved) {
-      addToast('success', `Aksi tool disetujui oleh operator.`);
-      // Tandai step terakhir success
-      setExecutionSteps((prev) =>
-        prev.map((s, idx) => (idx === prev.length - 1 ? { ...s, status: 'success' } : s))
-      );
+      addToast('success', 'Aksi tool disetujui oleh operator.');
     } else {
-      addToast('info', `Aksi tool ditolak oleh operator.`);
-      setExecutionSteps((prev) =>
-        prev.map((s, idx) => (idx === prev.length - 1 ? { ...s, status: 'failed' } : s))
-      );
+      addToast('info', 'Aksi tool ditolak oleh operator.');
     }
   };
 
@@ -252,122 +254,278 @@ export const AgentWorkspace: React.FC = () => {
         return;
       }
 
-      const prompt = `Anda adalah ${activeAgent.name} (Peran: ${activeAgent.role}).
+      const systemPrompt = `Anda adalah ${activeAgent.name} (Peran: ${activeAgent.role}).
 TUGAS UTAMA ANDA: ${activeAgent.task_description}
-KEHLIAN & SKILLS: ${activeAgent.skills.join(', ')}
+KEAHLIAN & SKILLS: ${activeAgent.skills.join(', ')}
 ${activeAgent.system_instructions ? `INSTRUKSI KHUSUS: ${activeAgent.system_instructions}` : ''}
+ROOT WORKSPACE AKTIF: "${workspaceProjectRoot}"
 
-PENGGUNA MEMBERIKAN INSTRUKSI BERIKUT:
-"${fullTaskPrompt}"
+PANDUAN EKSEKUSI TOOL & KEBIJAKAN SISTEM:
+1. Anda memiliki akses ke tool nyata (function calls) berikut:
+   - 'read_file': Membaca berkas di workspace atau direktori lain. Parameter: { path: string }
+   - 'write_file': Menulis atau mengubah berkas. Parameter: { path: string, content: string }
+   - 'list_dir': Melihat daftar berkas/folder. Parameter: { path?: string }
+   - 'execute_command': Menjalankan perintah bash di workspace. Parameter: { command: string, working_dir?: string }
+   - 'web_fetch': Mengambil konten data dari URL web. Parameter: { url: string }
+2. Jika perlu membaca, memeriksa struktur proyek, atau menulis kode/berkas, PANGGILLAH tool yang sesuai secara langsung.
+3. Gunakan Bahasa Indonesia yang profesional, ramah, dan terstruktur. Setelah semua tool selesai dijalankan, rangkum hasil pekerjaan Anda dengan jelas kepada pengguna.`;
 
-Sebagai agent spesialis, berikan:
-1. Analisis langkah demi langkah yang Anda lakukan sesuai kapabilitas tools Anda.
-2. Hasil atau implementasi solusi yang konkret.
-3. Rekomendasi verifikasi selanjutnya.`;
+      const previousSessionMsgs = currentMessages.slice(-6).map((m) => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content || '',
+      }));
+
+      const messagesHistory: Array<{
+        role: 'system' | 'user' | 'assistant' | 'tool';
+        content?: string;
+        reasoning_content?: string;
+        tool_calls?: any[];
+        tool_call_id?: string;
+      }> = [
+        { role: 'system', content: systemPrompt },
+        ...previousSessionMsgs,
+        { role: 'user', content: fullTaskPrompt },
+      ];
 
       const targetChatUrl = getChatEndpoint(baseUrl);
-      const res = await fetch(targetChatUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: effectiveModel,
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.7,
-        }),
-      });
+      let iteration = 0;
+      const maxIterations = 5;
+      const accumulatedSteps: ExecutionStep[] = [];
+      let finalContent = '';
+      let finalReasoning = '';
 
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(formatApiErrorMessage(res.status, errText, effectiveModel));
+      while (iteration < maxIterations) {
+        if (useStore.getState().emergencyStopped) {
+          addToast('warning', 'Eksekusi dihentikan oleh operator (Emergency Stop).');
+          break;
+        }
+        iteration++;
+
+        const res = await fetch(targetChatUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: effectiveModel,
+            messages: messagesHistory,
+            tools: AGENT_AVAILABLE_TOOLS,
+            temperature: 0.5,
+          }),
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(formatApiErrorMessage(res.status, errText, effectiveModel));
+        }
+
+        const rawText = await res.text();
+        const data = parseRobustJson<any>(rawText);
+        const choice = data.choices?.[0]?.message;
+        if (!choice) break;
+
+        const toolCalls = choice.tool_calls;
+        const msgContent = choice.content || '';
+        const reasoning = choice.reasoning_content || '';
+        if (reasoning) {
+          finalReasoning = reasoning;
+          setActiveReasoning(reasoning);
+        }
+
+        if (!toolCalls || toolCalls.length === 0) {
+          finalContent = msgContent;
+          break;
+        }
+
+        messagesHistory.push({
+          role: 'assistant',
+          content: msgContent,
+          tool_calls: toolCalls,
+        });
+
+        for (const call of toolCalls) {
+          if (useStore.getState().emergencyStopped) break;
+
+          const toolName = call.function?.name || 'unknown_tool';
+          let toolParams: Record<string, any> = {};
+          try {
+            toolParams =
+              typeof call.function?.arguments === 'string'
+                ? JSON.parse(call.function.arguments)
+                : call.function?.arguments || {};
+          } catch {
+            toolParams = {};
+          }
+
+          const targetPath = String(toolParams.path || toolParams.working_dir || '');
+          const isExternal = isPathExternal(targetPath, workspaceProjectRoot);
+          const externalPolicy = settings.externalDirectoryAccess || 'always_ask';
+
+          let shouldAskClearance = false;
+          let clearanceReason = '';
+
+          // 1. Pengecekan akses direktori eksternal
+          if (isExternal) {
+            if (externalPolicy === 'workspace_only') {
+              const rejectMsg = `Keamanan: Akses ke '${targetPath}' ditolak karena jalur berada di luar workspace dan pengaturan diset ke 'Batasi ke Workspace'.`;
+              messagesHistory.push({
+                role: 'tool',
+                tool_call_id: call.id,
+                content: rejectMsg,
+              });
+              accumulatedSteps.push({
+                id: `step-${Date.now()}-${accumulatedSteps.length}`,
+                tool: toolName,
+                params: toolParams,
+                status: 'failed',
+                duration: '0ms',
+                output: rejectMsg,
+                timestamp: new Date().toLocaleTimeString(),
+              });
+              setExecutionSteps([...accumulatedSteps]);
+              continue;
+            } else if (externalPolicy === 'always_ask') {
+              shouldAskClearance = true;
+              clearanceReason = `AI meminta akses ke berkas/direktori di luar workspace: "${targetPath}"`;
+            }
+          }
+
+          // 2. Pengecekan tool mutatif jika Ask for Approval aktif
+          if (!shouldAskClearance && (toolName === 'write_file' || toolName === 'execute_command')) {
+            if (!isStrictApprovalMode) {
+              shouldAskClearance = true;
+              clearanceReason =
+                toolName === 'write_file'
+                  ? `Menulis berkas: "${targetPath}" (${(toolParams.content || '').length} karakter)`
+                  : `Menjalankan perintah: "${toolParams.command}"`;
+            }
+          }
+
+          let allowExecution = true;
+          if (shouldAskClearance) {
+            setPendingToolClearance({
+              id: `clearance-${Date.now()}`,
+              tool_name: `${activeAgent.name} :: ${toolName}`,
+              parameters: {
+                ...toolParams,
+                _deskripsi: clearanceReason,
+                _is_external: isExternal,
+                risk: isExternal ? 'High' : 'Medium',
+              },
+              requires_clearance: true,
+              risk_level: isExternal ? 'High' : 'Medium',
+            });
+
+            allowExecution = await new Promise<boolean>((resolve) => {
+              pendingClearanceResolver.current = resolve;
+            });
+            setPendingToolClearance(null);
+          }
+
+          if (!allowExecution) {
+            const userRejectedMsg = 'Aksi tool ditolak oleh operator (Human-in-the-Loop clearance).';
+            messagesHistory.push({
+              role: 'tool',
+              tool_call_id: call.id,
+              content: userRejectedMsg,
+            });
+            accumulatedSteps.push({
+              id: `step-${Date.now()}-${accumulatedSteps.length}`,
+              tool: toolName,
+              params: toolParams,
+              status: 'failed',
+              duration: '0ms',
+              output: userRejectedMsg,
+              timestamp: new Date().toLocaleTimeString(),
+            });
+            setExecutionSteps([...accumulatedSteps]);
+            continue;
+          }
+
+          // Eksekusi tool nyata via Rust backend
+          const startTime = Date.now();
+          let toolOutput = '';
+          let toolSuccess = false;
+
+          try {
+            if ((window as any).__TAURI_INTERNALS__) {
+              const { invoke } = await import('@tauri-apps/api/core');
+              const res: any = await invoke('execute_sandbox_tool', {
+                toolName,
+                parameters: {
+                  ...toolParams,
+                  allow_external: isExternal ? (externalPolicy === 'always_allow' || allowExecution) : false,
+                },
+              });
+              toolSuccess = res?.success ?? false;
+              toolOutput = res?.output ?? '';
+            } else {
+              toolSuccess = true;
+              toolOutput = `[Web Mode] Tool ${toolName} berhasil disimulasikan.`;
+            }
+          } catch (err: any) {
+            toolSuccess = false;
+            toolOutput = err?.message || String(err);
+          }
+
+          const elapsed = Date.now() - startTime;
+          accumulatedSteps.push({
+            id: `step-${Date.now()}-${accumulatedSteps.length}`,
+            tool: toolName,
+            params: toolParams,
+            status: toolSuccess ? 'success' : 'failed',
+            duration: `${elapsed}ms`,
+            output: toolOutput.slice(0, 300),
+            timestamp: new Date().toLocaleTimeString(),
+          });
+          setExecutionSteps([...accumulatedSteps]);
+
+          messagesHistory.push({
+            role: 'tool',
+            tool_call_id: call.id,
+            content: toolOutput,
+          });
+
+          addLog({
+            id: `tool-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            agent_name: activeAgent.name,
+            level: toolSuccess ? 'EXEC' : 'WARN',
+            message: `Tool ${toolName} (${elapsed}ms): ${toolOutput.slice(0, 80)}`,
+            timestamp: new Date().toLocaleTimeString(),
+          });
+        }
       }
 
-      const rawText = await res.text();
-      const data = parseRobustJson<any>(rawText);
-      const content = data.choices?.[0]?.message?.content || 'Tugas selesai dievaluasi.';
-      const reasoning = data.choices?.[0]?.message?.reasoning_content || 
-        `Agent memvalidasi tugas berdasarkan keahlian [${activeAgent.skills.join(', ')}] dan menyusun rencana tindakan.`;
+      if (!finalContent && accumulatedSteps.length > 0) {
+        finalContent = `Seluruh ${accumulatedSteps.length} langkah alat telah selesai dijalankan.`;
+      }
+      if (!finalReasoning) {
+        finalReasoning = `Agen memproses instruksi menggunakan tool [${activeAgent.skills.join(', ')}] dengan ${accumulatedSteps.length} langkah eksekusi.`;
+      }
 
-      setActiveReasoning(reasoning);
-      setAgentOutput(content);
+      setActiveReasoning(finalReasoning);
+      setAgentOutput(finalContent);
 
       const assistantMsg: ChatMessage = {
         id: `msg-${Date.now() + 1}`,
         session_id: targetSessionId,
         role: 'assistant',
-        content,
-        reasoning,
+        content: finalContent,
+        reasoning: finalReasoning,
         created_at: new Date().toISOString(),
       };
       addMessage(assistantMsg);
       saveChatMessageToDb(assistantMsg);
 
       const currentSession = sessions.find((s) => s.id === targetSessionId);
-      if (currentSession && (currentSession.title === 'Sesi Tugas Agent' || currentSession.title.startsWith('session-'))) {
+      if (
+        currentSession &&
+        (currentSession.title === 'Sesi Tugas Agent' || currentSession.title.startsWith('session-'))
+      ) {
         const newTitle = currentTask.trim().slice(0, 35);
         if (newTitle) {
           updateSessionTitle(targetSessionId, newTitle);
-        }
-      }
-
-      // Simulasi langkah tool yang relevan dengan skills agent
-      const generatedSteps: ExecutionStep[] = [];
-      if (activeAgent.skills.includes('file_system')) {
-        generatedSteps.push({
-          id: `step-fs-${Date.now()}`,
-          tool: 'read_workspace_file',
-          params: { scope: 'src-tauri/src/' },
-          status: 'success',
-          duration: '38ms',
-          timestamp: new Date().toLocaleTimeString(),
-        });
-      }
-      if (activeAgent.skills.includes('terminal_runner')) {
-        generatedSteps.push({
-          id: `step-term-${Date.now()}`,
-          tool: 'run_command',
-          params: { cmd: 'cargo check --workspace' },
-          status: 'success',
-          duration: '142ms',
-          timestamp: new Date().toLocaleTimeString(),
-        });
-      }
-      if (activeAgent.skills.includes('code_evaluator')) {
-        generatedSteps.push({
-          id: `step-eval-${Date.now()}`,
-          tool: 'ast_code_analyzer',
-          params: { rule: 'antislop-syntax' },
-          status: 'success',
-          duration: '29ms',
-          timestamp: new Date().toLocaleTimeString(),
-        });
-      }
-
-      setExecutionSteps(generatedSteps);
-
-      // Memicu HITL clearance jika ada aksi berisiko sedang/tinggi
-      if (activeAgent.skills.includes('terminal_runner') || activeAgent.skills.includes('file_system')) {
-        if (isStrictApprovalMode) {
-          // Strict Mode: AI mengeksekusi langsung tanpa bertanya
-          addToast('info', `[Strict Auto] Perintah terminal dijalankan langsung oleh ${activeAgent.name}.`);
-          addLog({
-            id: `strict-auto-${Date.now()}`,
-            agent_name: activeAgent.name,
-            level: 'EXEC',
-            message: `Strict Auto: Eksekusi tool/command tanpa prompt HITL.`,
-            timestamp: new Date().toLocaleTimeString(),
-          });
-        } else {
-          // HITL Mode: Minta persetujuan operator
-          setPendingToolClearance({
-            id: `req-${Date.now()}`,
-            tool_name: `${activeAgent.name} :: write_workspace_patch`,
-            parameters: { target: 'src/agent_output.patch', risk: 'Medium' },
-            requires_clearance: true,
-            risk_level: 'Medium',
-          });
         }
       }
 
@@ -723,23 +881,38 @@ Sebagai agent spesialis, berikan:
                 {executionSteps.map((step) => (
                   <div
                     key={step.id}
-                    className="flex items-center justify-between p-3 rounded-xl bg-[#212121] border border-[#303030] text-xs"
+                    className="p-3 rounded-xl bg-[#212121] border border-[#303030] text-xs space-y-1.5"
                   >
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-1 rounded-lg bg-[#2f2f2f]">{getToolIcon(step.tool)}</div>
-                      <span className="font-mono text-[#ececec] font-medium">{step.tool}</span>
-                      <span className="text-[#707070] font-mono text-[11px]">
-                        {JSON.stringify(step.params)}
-                      </span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="p-1 rounded-lg bg-[#2f2f2f] shrink-0">{getToolIcon(step.tool)}</div>
+                        <span className="font-mono text-[#ececec] font-medium shrink-0">{step.tool}</span>
+                        <span className="text-[#707070] font-mono text-[11px] truncate max-w-sm">
+                          {JSON.stringify(step.params)}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-3 text-[11px] font-mono shrink-0">
+                        <span className="text-[#707070]">{step.duration}</span>
+                        {step.status === 'success' ? (
+                          <span className="flex items-center gap-1 text-[#ececec]">
+                            <Check className="w-3.5 h-3.5 text-[#ececec]" />
+                            <span>Done</span>
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-rose-400">
+                            <X className="w-3.5 h-3.5" />
+                            <span>Failed</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-3 text-[11px] text-[#707070] font-mono">
-                      <span>{step.duration}</span>
-                      <span className="flex items-center gap-1 text-[#ececec]">
-                        <Check className="w-3.5 h-3.5" />
-                        <span>Done</span>
-                      </span>
-                    </div>
+                    {step.output && (
+                      <div className="text-[10px] text-[#b4b4b4] font-mono bg-[#171717] p-2 rounded-lg border border-[#2e2e2e] whitespace-pre-wrap max-h-32 overflow-y-auto leading-relaxed select-text">
+                        {step.output}
+                      </div>
+                    )}
                   </div>
                 ))}
               </motion.div>
@@ -759,17 +932,25 @@ Sebagai agent spesialis, berikan:
           >
             <div className="flex items-start gap-3">
               <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-              <div>
-                <h4 className="text-xs font-semibold text-amber-200 uppercase tracking-wide">
-                  Operator Clearance Diperlukan (HITL Safety Gate)
-                </h4>
-                <p className="text-xs text-amber-100/80 mt-1">
-                  Agent mengajukan eksekusi tool berisiko:{' '}
-                  <span className="font-mono font-bold text-amber-300">
-                    {pendingToolClearance.tool_name}
-                  </span>
+              <div className="flex-1 min-w-0 space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h4 className="text-xs font-semibold text-amber-200 uppercase tracking-wide">
+                    Operator Clearance Diperlukan (HITL Safety Gate)
+                  </h4>
+                  {Boolean(pendingToolClearance.parameters?._is_external) && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                      Akses Direktori Eksternal
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-xs text-amber-100/90 leading-relaxed">
+                  {pendingToolClearance.parameters?._deskripsi
+                    ? String(pendingToolClearance.parameters._deskripsi)
+                    : `Agent mengajukan eksekusi tool berisiko: ${pendingToolClearance.tool_name}`}
                 </p>
-                <div className="mt-2 p-2 rounded-lg bg-black/40 border border-amber-500/30 text-[11px] font-mono text-amber-200/90">
+
+                <div className="p-2 rounded-lg bg-black/40 border border-amber-500/30 text-[11px] font-mono text-amber-200/90 overflow-x-auto">
                   Parameter: {JSON.stringify(pendingToolClearance.parameters)}
                 </div>
               </div>

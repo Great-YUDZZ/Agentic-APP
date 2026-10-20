@@ -99,6 +99,12 @@ const BROWSER_JS_OPTIONS = [
   { value: 'always_proceed', label: 'Always Proceed', description: 'Izinkan semua eksekusi javascript di browser.' },
 ];
 
+const EXTERNAL_DIRECTORY_OPTIONS = [
+  { value: 'always_ask', label: 'Always Ask (Minta Izin)', description: 'Minta izin operator saat mengakses berkas di luar workspace.' },
+  { value: 'always_allow', label: 'Always Allow (Izinkan Selalu)', description: 'Izinkan AI mengakses direktori eksternal secara langsung.' },
+  { value: 'workspace_only', label: 'Workspace Only (Batasi)', description: 'Tolak seluruh akses ke direktori di luar workspace.' },
+];
+
 const DARK_PRESET_OPTIONS = [
   { value: 'default', label: 'Default Dark (ChatGPT #212121)', description: 'Kanvas standar ChatGPT #212121' },
   { value: 'charcoal', label: 'Charcoal (#171717)', description: 'Nuansa arang lebih gelap #171717' },
@@ -495,6 +501,25 @@ export const SettingsModal: React.FC = () => {
                       >
                         Configure Rules
                       </button>
+                    </div>
+
+                    {/* External Directory Access */}
+                    <div className="p-4 flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-medium text-[#ececec]">Akses Direktori Eksternal</div>
+                        <div className="text-xs text-[#707070] mt-0.5">
+                          Kontrol perizinan ketika AI ingin membaca atau menulis berkas di luar workspace.
+                        </div>
+                      </div>
+                      <CustomSelect
+                        value={settings.externalDirectoryAccess || 'always_ask'}
+                        options={EXTERNAL_DIRECTORY_OPTIONS}
+                        onChange={(val) =>
+                          updateSettings({
+                            externalDirectoryAccess: val as 'always_ask' | 'always_allow' | 'workspace_only',
+                          })
+                        }
+                      />
                     </div>
                   </div>
                 </div>

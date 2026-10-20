@@ -62,7 +62,7 @@ impl ToolRunner {
         }
     }
 
-    pub fn sanitize_path(&self, requested: &str) -> anyhow::Result<PathBuf> {
+    pub fn sanitize_path(&self, requested: &str, allow_external: bool) -> anyhow::Result<PathBuf> {
         let current_ws = self.workspace_root();
         let raw = Path::new(requested);
         let candidate = if raw.is_absolute() {
@@ -75,8 +75,8 @@ impl ToolRunner {
         let normalized = normalize_path(&candidate);
         let workspace = normalize_path(&current_ws);
 
-        // 2. Strict path confinement check
-        if !normalized.starts_with(&workspace) {
+        // 2. Strict path confinement check if allow_external is false
+        if !allow_external && !normalized.starts_with(&workspace) {
             return Err(anyhow::anyhow!(
                 "Security confinement violation: Path '{}' is outside workspace '{}'",
                 requested,
@@ -84,18 +84,39 @@ impl ToolRunner {
             ));
         }
 
+        // 2b. If allow_external is true, still prevent access to dangerous system virtual filesystems
+        if allow_external {
+            let str_norm = normalized.to_string_lossy();
+            if str_norm.starts_with("/dev") || str_norm.starts_with("/proc") || str_norm.starts_with("/sys") {
+                return Err(anyhow::anyhow!(
+                    "Security restriction: Access to system device or kernel virtual paths '{}' is blocked",
+                    str_norm
+                ));
+            }
+        }
+
         // 3. Symlink escape check for existing paths
         if normalized.exists() {
             let canonical = normalized.canonicalize()?;
-            let canonical_ws = current_ws
-                .canonicalize()
-                .unwrap_or_else(|_| workspace);
-            if !canonical.starts_with(&canonical_ws) {
-                return Err(anyhow::anyhow!(
-                    "Security confinement violation: Symlink target '{}' escapes workspace '{}'",
-                    canonical.display(),
-                    canonical_ws.display()
-                ));
+            if !allow_external {
+                let canonical_ws = current_ws
+                    .canonicalize()
+                    .unwrap_or_else(|_| workspace);
+                if !canonical.starts_with(&canonical_ws) {
+                    return Err(anyhow::anyhow!(
+                        "Security confinement violation: Symlink target '{}' escapes workspace '{}'",
+                        canonical.display(),
+                        canonical_ws.display()
+                    ));
+                }
+            } else {
+                let str_canonical = canonical.to_string_lossy();
+                if str_canonical.starts_with("/dev") || str_canonical.starts_with("/proc") || str_canonical.starts_with("/sys") {
+                    return Err(anyhow::anyhow!(
+                        "Security restriction: Symlink target '{}' points to restricted system paths",
+                        str_canonical
+                    ));
+                }
             }
             return Ok(canonical);
         }
@@ -106,11 +127,12 @@ impl ToolRunner {
     pub async fn execute_tool(&self, request: &ToolCallRequest) -> ToolCallResult {
         let start = std::time::Instant::now();
         let tool_name = request.tool_name.as_str();
+        let allow_external = request.parameters["allow_external"].as_bool().unwrap_or(false);
 
         let res = match tool_name {
             "read_file" => {
                 let path_str = request.parameters["path"].as_str().unwrap_or("");
-                match self.read_file(path_str).await {
+                match self.read_file(path_str, allow_external).await {
                     Ok(content) => Ok(content),
                     Err(e) => Err(format!("Error reading file: {}", e)),
                 }
@@ -118,21 +140,22 @@ impl ToolRunner {
             "write_file" => {
                 let path_str = request.parameters["path"].as_str().unwrap_or("");
                 let content = request.parameters["content"].as_str().unwrap_or("");
-                match self.write_file(path_str, content).await {
+                match self.write_file(path_str, content, allow_external).await {
                     Ok(msg) => Ok(msg),
                     Err(e) => Err(format!("Error writing file: {}", e)),
                 }
             }
             "list_dir" => {
                 let path_str = request.parameters["path"].as_str().unwrap_or(".");
-                match self.list_dir(path_str).await {
+                match self.list_dir(path_str, allow_external).await {
                     Ok(list) => Ok(list),
                     Err(e) => Err(format!("Error listing directory: {}", e)),
                 }
             }
             "execute_command" => {
                 let cmd_str = request.parameters["command"].as_str().unwrap_or("");
-                match self.execute_command(cmd_str).await {
+                let working_dir = request.parameters["working_dir"].as_str();
+                match self.execute_command(cmd_str, working_dir, allow_external).await {
                     Ok(out) => Ok(out),
                     Err(e) => Err(format!("Error executing command: {}", e)),
                 }
@@ -164,14 +187,14 @@ impl ToolRunner {
         }
     }
 
-    async fn read_file(&self, path_str: &str) -> anyhow::Result<String> {
-        let safe_path = self.sanitize_path(path_str)?;
+    async fn read_file(&self, path_str: &str, allow_external: bool) -> anyhow::Result<String> {
+        let safe_path = self.sanitize_path(path_str, allow_external)?;
         let content = tokio::fs::read_to_string(&safe_path).await?;
         Ok(content)
     }
 
-    async fn write_file(&self, path_str: &str, content: &str) -> anyhow::Result<String> {
-        let safe_path = self.sanitize_path(path_str)?;
+    async fn write_file(&self, path_str: &str, content: &str, allow_external: bool) -> anyhow::Result<String> {
+        let safe_path = self.sanitize_path(path_str, allow_external)?;
 
         if let Some(parent) = safe_path.parent() {
             tokio::fs::create_dir_all(parent).await?;
@@ -185,8 +208,8 @@ impl ToolRunner {
         ))
     }
 
-    async fn list_dir(&self, path_str: &str) -> anyhow::Result<String> {
-        let safe_path = self.sanitize_path(path_str)?;
+    async fn list_dir(&self, path_str: &str, allow_external: bool) -> anyhow::Result<String> {
+        let safe_path = self.sanitize_path(path_str, allow_external)?;
         let mut entries = tokio::fs::read_dir(&safe_path).await?;
         let mut results = Vec::new();
 
@@ -199,9 +222,13 @@ impl ToolRunner {
         Ok(results.join("\n"))
     }
 
-    async fn execute_command(&self, command: &str) -> anyhow::Result<String> {
+    async fn execute_command(&self, command: &str, working_dir: Option<&str>, allow_external: bool) -> anyhow::Result<String> {
         let mut cmd_str = command.trim().to_string();
-        let ws = self.workspace_root();
+        let ws = if let Some(dir) = working_dir {
+            self.sanitize_path(dir, allow_external)?
+        } else {
+            self.workspace_root()
+        };
 
         // Di Linux, perintah ping berjalan selamanya jika tanpa flag -c.
         // Otomatis tambahkan -c 4 jika user mengetik ping tanpa argumen hitungan.
@@ -267,20 +294,20 @@ mod tests {
         let runner = ToolRunner::new(workspace.clone());
 
         // Attempt traversal with ..
-        let res1 = runner.sanitize_path("../etc/passwd");
+        let res1 = runner.sanitize_path("../etc/passwd", false);
         assert!(res1.is_err(), "Must block ../etc/passwd");
         let err1 = res1.unwrap_err().to_string();
         assert!(err1.contains("Security confinement violation"));
 
         // Deep traversal
-        let res2 = runner.sanitize_path("../../../../../etc/shadow");
+        let res2 = runner.sanitize_path("../../../../../etc/shadow", false);
         assert!(res2.is_err(), "Must block deep parent traversal");
 
         // Absolute path outside workspace
-        let res3 = runner.sanitize_path("/etc/passwd");
+        let res3 = runner.sanitize_path("/etc/passwd", false);
         assert!(res3.is_err(), "Must block absolute path outside workspace");
 
-        let res4 = runner.sanitize_path("/var/log/syslog");
+        let res4 = runner.sanitize_path("/var/log/syslog", false);
         assert!(res4.is_err(), "Must block absolute path to /var/log");
     }
 
@@ -290,22 +317,40 @@ mod tests {
         let runner = ToolRunner::new(workspace.clone());
 
         // Relative path inside workspace
-        let res1 = runner.sanitize_path("src/main.rs").expect("Valid relative path");
+        let res1 = runner.sanitize_path("src/main.rs", false).expect("Valid relative path");
         assert_eq!(res1, workspace.join("src/main.rs"));
 
         // Relative with .
-        let res2 = runner.sanitize_path("./src/lib.rs").expect("Valid ./ path");
+        let res2 = runner.sanitize_path("./src/lib.rs", false).expect("Valid ./ path");
         assert_eq!(res2, workspace.join("src/lib.rs"));
 
         // Inner .. that remains inside workspace
-        let res3 = runner.sanitize_path("src/../Cargo.toml").expect("Valid inner ..");
+        let res3 = runner.sanitize_path("src/../Cargo.toml", false).expect("Valid inner ..");
         assert_eq!(res3, workspace.join("Cargo.toml"));
 
         // Absolute path inside workspace
         let res4 = runner
-            .sanitize_path("/media/yudz/FLASHDISK/Agentic/src/db/mod.rs")
+            .sanitize_path("/media/yudz/FLASHDISK/Agentic/src/db/mod.rs", false)
             .expect("Valid absolute path within workspace");
         assert_eq!(res4, workspace.join("src/db/mod.rs"));
+    }
+
+    #[test]
+    fn test_sanitize_path_allow_external() {
+        let workspace = PathBuf::from("/media/yudz/FLASHDISK/Agentic");
+        let runner = ToolRunner::new(workspace.clone());
+
+        // External temp directory is allowed when allow_external is true
+        let temp_file = std::env::temp_dir().join("agentic_external_test.txt");
+        let res1 = runner.sanitize_path(&temp_file.to_string_lossy(), true);
+        assert!(res1.is_ok(), "External path should be allowed with allow_external: true");
+
+        // Dangerous virtual system paths are still blocked even with allow_external
+        let res_proc = runner.sanitize_path("/proc/cpuinfo", true);
+        assert!(res_proc.is_err(), "Must block /proc even if allow_external is true");
+
+        let res_dev = runner.sanitize_path("/dev/null", true);
+        assert!(res_dev.is_err(), "Must block /dev even if allow_external is true");
     }
 
     #[test]

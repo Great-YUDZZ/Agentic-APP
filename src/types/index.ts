@@ -214,6 +214,7 @@ export interface AppSettings {
   permissionPreset: 'turbo' | 'standard' | 'strict';
   planReviewPolicy: 'always_ask' | 'never_ask';
   browserJsPolicy: 'disable' | 'always_ask' | 'always_proceed';
+  externalDirectoryAccess: 'always_ask' | 'always_allow' | 'workspace_only';
   networkRules: { whitelist: string[]; blacklist: string[] };
   actuationRules: { whitelist: string[]; blacklist: string[] };
 

@@ -255,6 +255,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   permissionPreset: 'standard',
   planReviewPolicy: 'always_ask',
   browserJsPolicy: 'always_ask',
+  externalDirectoryAccess: 'always_ask',
   networkRules: {
     whitelist: ['*.github.com', 'api.openai.com', 'generativelanguage.googleapis.com'],
     blacklist: ['*.doubleclick.net'],
@@ -298,6 +299,9 @@ const loadSavedSettings = (): AppSettings => {
         parsed.browserJsPolicy = 'always_proceed';
       } else if (parsed.browserJsPolicy === 'block') {
         parsed.browserJsPolicy = 'disable';
+      }
+      if (!['always_ask', 'always_allow', 'workspace_only'].includes(parsed.externalDirectoryAccess)) {
+        parsed.externalDirectoryAccess = 'always_ask';
       }
       if (!parsed.networkRules || Array.isArray(parsed.networkRules)) {
         parsed.networkRules = DEFAULT_SETTINGS.networkRules;
