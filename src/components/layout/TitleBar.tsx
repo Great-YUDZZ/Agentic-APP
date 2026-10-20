@@ -11,9 +11,12 @@ import {
   ChevronDown,
   Check,
   ShieldAlert,
+  Download,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { AppMode, StudioTab } from '../../types';
+import { exportConversationSession, exportProjectReport } from '../../utils/exporter';
+import { extractCodeReviewItems } from '../../utils/codeExtractor';
 
 const MODES: { id: AppMode; label: string; icon: React.ElementType }[] = [
   { id: 'chatbot', label: 'Chat', icon: MessageSquare },
@@ -44,9 +47,57 @@ export const TitleBar: React.FC = () => {
     isVaultPageOpen,
     setIsVaultPageOpen,
     setActiveVaultTab,
+    sessions,
+    activeSessionId,
+    messages,
+    selectedModel,
+    buildDiscussion,
+    customAgents,
+    kanbanTasks,
+    codeReviewItems,
   } = useStore();
 
   const [isStudioMenuOpen, setIsStudioMenuOpen] = useState(false);
+
+  const handleExportCurrent = () => {
+    if (isVaultPageOpen) return;
+
+    if (currentMode === 'build') {
+      const codeItems =
+        codeReviewItems.length > 0
+          ? codeReviewItems
+          : extractCodeReviewItems(buildDiscussion.messages);
+      exportProjectReport(buildDiscussion, customAgents, kanbanTasks, codeItems);
+      addToast('success', 'Laporan projek berhasil diekspor (.md).');
+      return;
+    }
+
+    // Mode Chatbot atau Agent
+    let targetSession = sessions.find((s) => s.id === activeSessionId);
+    const sessionMessages = activeSessionId
+      ? messages.filter((m) => m.session_id === activeSessionId)
+      : messages;
+
+    if (!targetSession && sessionMessages.length > 0) {
+      targetSession = {
+        id: 'current',
+        title: sessionMessages[0]?.content.slice(0, 30) || 'Percakapan AI',
+        model: selectedModel,
+        provider: 'Custom',
+        mode: currentMode,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+    }
+
+    if (!targetSession || sessionMessages.length === 0) {
+      addToast('info', 'Belum ada percakapan untuk diekspor.');
+      return;
+    }
+
+    exportConversationSession(targetSession, sessionMessages);
+    addToast('success', `Percakapan "${targetSession.title}" berhasil diekspor (.md).`);
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -138,6 +189,25 @@ export const TitleBar: React.FC = () => {
 
       {/* Right Controls: Studio Tab Dropdown (in Build Mode) or Terminal Toggle (in Agent Mode) */}
       <div className="flex items-center gap-2">
+        {/* Quick Export Button */}
+        {!isVaultPageOpen && (
+          <button
+            type="button"
+            onClick={handleExportCurrent}
+            title={
+              currentMode === 'build'
+                ? 'Ekspor Laporan Projek (.md)'
+                : 'Ekspor Percakapan (.md)'
+            }
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#212121] hover:bg-[#282828] border border-[#303030] hover:border-[#383838] text-[#b4b4b4] hover:text-[#ececec] text-xs font-medium transition-colors"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">
+              {currentMode === 'build' ? 'Ekspor Laporan' : 'Ekspor Chat'}
+            </span>
+          </button>
+        )}
+
         {!isVaultPageOpen && currentMode === 'build' ? (
           <div className="relative">
             <button

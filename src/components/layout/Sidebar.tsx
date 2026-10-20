@@ -10,8 +10,11 @@ import {
   Share2,
   History,
   ShieldAlert,
+  Download,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
+import { exportConversationSession } from '../../utils/exporter';
+import { ChatSession } from '../../types';
 
 export const Sidebar: React.FC = () => {
   const {
@@ -34,6 +37,7 @@ export const Sidebar: React.FC = () => {
     setIsVaultPageOpen,
     activeVaultTab,
     setActiveVaultTab,
+    messages,
   } = useStore();
 
   useEffect(() => {
@@ -106,6 +110,12 @@ export const Sidebar: React.FC = () => {
     e.stopPropagation();
     deleteSession(id);
     addToast('info', 'Sesi dihapus');
+  };
+
+  const handleExportSession = (e: React.MouseEvent, session: ChatSession) => {
+    e.stopPropagation();
+    exportConversationSession(session, messages);
+    addToast('success', `Sesi "${session.title || 'chat'}" berhasil diekspor.`);
   };
 
   if (!isSidebarOpen) {
@@ -359,13 +369,22 @@ export const Sidebar: React.FC = () => {
                       </div>
                     </div>
 
-                    <button
-                      onClick={(e) => handleDeleteSession(e, session.id)}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-[#707070] hover:text-[#ececec] hover:bg-[#2a2a2a] transition-all shrink-0"
-                      title="Hapus chat"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 shrink-0 transition-opacity">
+                      <button
+                        onClick={(e) => handleExportSession(e, session)}
+                        className="p-1 rounded-lg text-[#707070] hover:text-[#ececec] hover:bg-[#2a2a2a] transition-all"
+                        title="Ekspor percakapan (.md)"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={(e) => handleDeleteSession(e, session.id)}
+                        className="p-1 rounded-lg text-[#707070] hover:text-[#ececec] hover:bg-[#2a2a2a] transition-all"
+                        title="Hapus chat"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 );
               })
