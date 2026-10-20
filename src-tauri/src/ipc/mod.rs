@@ -448,6 +448,123 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
 }
 
 #[tauri::command]
+pub async fn save_exported_file_dialog(
+    default_filename: String,
+    content: String,
+) -> Result<Option<String>, String> {
+    tokio::task::spawn_blocking(move || {
+        let selected_path: Option<String> = {
+            #[cfg(target_os = "linux")]
+            {
+                let mut path = None;
+                // Coba zenity --file-selection --save
+                let zenity_res = std::process::Command::new("zenity")
+                    .args([
+                        "--file-selection",
+                        "--save",
+                        "--confirm-overwrite",
+                        &format!("--filename={}", default_filename),
+                        "--file-filter=Markdown (*.md) | *.md",
+                        "--file-filter=Semua Berkas | *",
+                        "--title=Simpan Berkas Ekspor",
+                    ])
+                    .output();
+
+                if let Ok(out) = zenity_res {
+                    if out.status.success() {
+                        let p = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                        if !p.is_empty() {
+                            path = Some(p);
+                        }
+                    }
+                }
+
+                // Fallback kdialog untuk KDE
+                if path.is_none() {
+                    let kdialog_res = std::process::Command::new("kdialog")
+                        .args([
+                            "--getsavefilename",
+                            &default_filename,
+                            "*.md | Markdown (*.md)",
+                            "--title",
+                            "Simpan Berkas Ekspor",
+                        ])
+                        .output();
+
+                    if let Ok(out) = kdialog_res {
+                        if out.status.success() {
+                            let p = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                            if !p.is_empty() {
+                                path = Some(p);
+                            }
+                        }
+                    }
+                }
+                path
+            }
+
+            #[cfg(target_os = "windows")]
+            {
+                use std::os::windows::process::CommandExt;
+                let script = format!(
+                    r#"
+Add-Type -AssemblyName System.Windows.Forms
+$dialog = New-Object System.Windows.Forms.SaveFileDialog
+$dialog.Title = "Simpan Berkas Ekspor"
+$dialog.Filter = "Markdown (*.md)|*.md|Semua Berkas (*.*)|*.*"
+$dialog.FileName = "{}"
+$dialog.OverwritePrompt = $true
+if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {{
+    Write-Output $dialog.SelectedPath
+}}
+"#,
+                    default_filename.replace('"', "`\"")
+                );
+
+                let mut cmd = std::process::Command::new("powershell");
+                cmd.args(["-NoProfile", "-Command", &script]);
+                cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+                let output = cmd.output();
+
+                if let Ok(out) = output {
+                    if out.status.success() {
+                        let p = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                        if !p.is_empty() {
+                            Some(p)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }
+
+            #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+            {
+                None
+            }
+        };
+
+        if let Some(target_file) = selected_path {
+            let mut final_path = std::path::PathBuf::from(&target_file);
+            if final_path.extension().is_none() {
+                final_path.set_extension("md");
+            }
+            std::fs::write(&final_path, content.as_bytes())
+                .map_err(|e| format!("Gagal menulis berkas ekspor: {}", e))?;
+            Ok(Some(final_path.to_string_lossy().to_string()))
+        } else {
+            Ok(None)
+        }
+    })
+    .await
+    .map_err(|e| format!("Gagal menjalankan dialog simpan berkas: {}", e))?
+}
+
+#[tauri::command]
 pub async fn run_terminal_command_stream(
     app: AppHandle,
     state: State<'_, AppState>,

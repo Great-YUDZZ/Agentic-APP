@@ -21,7 +21,7 @@ const formatDateTime = (dateStr?: string): string => {
 };
 
 /**
- * Unduh string konten sebagai berkas Markdown (.md) secara native di browser / Tauri
+ * Unduh string konten sebagai berkas Markdown (.md) secara native di browser / fallback
  */
 export const downloadMarkdownFile = (filename: string, content: string): void => {
   const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
@@ -36,12 +36,43 @@ export const downloadMarkdownFile = (filename: string, content: string): void =>
 };
 
 /**
- * Ekspor percakapan bersih untuk Mode Chatbot atau Mode Agent (Hemat token & ramah AI)
+ * Menyimpan berkas Markdown dengan Save File Dialog (pemilih folder & nama berkas).
+ * Jika pengguna membatalkan dialog, mengembalikan null.
+ * Jika di luar lingkungan desktop Tauri (misal web preview), otomatis fallback ke unduhan browser.
  */
-export const exportConversationSession = (
+export const saveMarkdownFileWithDialog = async (
+  filename: string,
+  content: string
+): Promise<string | null> => {
+  const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+  const cleanFilename = filename.endsWith('.md') ? filename : `${filename}.md`;
+
+  if (isTauri) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const savedPath = await invoke<string | null>('save_exported_file_dialog', {
+        defaultFilename: cleanFilename,
+        content,
+      });
+      return savedPath;
+    } catch (err) {
+      console.warn('Gagal memanggil native save dialog, fallback ke browser download:', err);
+    }
+  }
+
+  // Fallback untuk browser / web dev preview
+  downloadMarkdownFile(cleanFilename, content);
+  return cleanFilename;
+};
+
+/**
+ * Ekspor percakapan bersih untuk Mode Chatbot atau Mode Agent (Hemat token & ramah AI)
+ * Membuka native file dialog agar pengguna dapat memilih lokasi penyimpanan.
+ */
+export const exportConversationSession = async (
   session: ChatSession,
   messages: ChatMessage[]
-): void => {
+): Promise<string | null> => {
   const sessionMessages = messages.filter((m) => m.session_id === session.id);
   const dateStr = formatDateTime(session.created_at);
 
@@ -76,19 +107,19 @@ export const exportConversationSession = (
   const fileDate = new Date().toISOString().slice(0, 10);
   const filename = `${session.mode || 'chat'}-${cleanName}-${fileDate}.md`;
 
-  downloadMarkdownFile(filename, lines.join('\n'));
+  return await saveMarkdownFileWithDialog(filename, lines.join('\n'));
 };
 
 /**
  * Ekspor Ringkasan Eksekutif Laporan Projek (Mode Build Studio)
- * Dirancang padat konteks, tanpa repetisi chat mentah, sangat hemat token untuk AI
+ * Membuka native file dialog agar pengguna dapat memilih lokasi penyimpanan.
  */
-export const exportProjectReport = (
+export const exportProjectReport = async (
   discussion: BuildDiscussionSession,
   agents: CustomAgent[],
   tasks: KanbanTask[],
   codeItems: CodeReviewItem[]
-): void => {
+): Promise<string | null> => {
   const dateStr = formatDateTime();
   const fileDate = new Date().toISOString().slice(0, 10);
 
@@ -193,5 +224,5 @@ export const exportProjectReport = (
   const cleanGoal = sanitizeFileName(discussion.project_goal || 'projek');
   const filename = `laporan-projek-${cleanGoal}-${fileDate}.md`;
 
-  downloadMarkdownFile(filename, lines.join('\n'));
+  return await saveMarkdownFileWithDialog(filename, lines.join('\n'));
 };

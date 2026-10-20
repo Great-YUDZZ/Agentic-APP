@@ -59,7 +59,7 @@ export const TitleBar: React.FC = () => {
 
   const [isStudioMenuOpen, setIsStudioMenuOpen] = useState(false);
 
-  const handleExportCurrent = () => {
+  const handleExportCurrent = async () => {
     if (isVaultPageOpen) return;
 
     if (currentMode === 'build') {
@@ -67,8 +67,12 @@ export const TitleBar: React.FC = () => {
         codeReviewItems.length > 0
           ? codeReviewItems
           : extractCodeReviewItems(buildDiscussion.messages);
-      exportProjectReport(buildDiscussion, customAgents, kanbanTasks, codeItems);
-      addToast('success', 'Laporan projek berhasil diekspor (.md).');
+      const savedPath = await exportProjectReport(buildDiscussion, customAgents, kanbanTasks, codeItems);
+      if (savedPath) {
+        addToast('success', `Laporan projek berhasil disimpan di: ${savedPath}`);
+      } else {
+        addToast('info', 'Penyimpanan laporan dibatalkan.');
+      }
       return;
     }
 
@@ -95,8 +99,12 @@ export const TitleBar: React.FC = () => {
       return;
     }
 
-    exportConversationSession(targetSession, sessionMessages);
-    addToast('success', `Percakapan "${targetSession.title}" berhasil diekspor (.md).`);
+    const savedPath = await exportConversationSession(targetSession, sessionMessages);
+    if (savedPath) {
+      addToast('success', `Percakapan berhasil disimpan di: ${savedPath}`);
+    } else {
+      addToast('info', 'Penyimpanan percakapan dibatalkan.');
+    }
   };
 
   useEffect(() => {

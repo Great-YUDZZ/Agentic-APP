@@ -112,10 +112,14 @@ export const Sidebar: React.FC = () => {
     addToast('info', 'Sesi dihapus');
   };
 
-  const handleExportSession = (e: React.MouseEvent, session: ChatSession) => {
+  const handleExportSession = async (e: React.MouseEvent, session: ChatSession) => {
     e.stopPropagation();
-    exportConversationSession(session, messages);
-    addToast('success', `Sesi "${session.title || 'chat'}" berhasil diekspor.`);
+    const savedPath = await exportConversationSession(session, messages);
+    if (savedPath) {
+      addToast('success', `Sesi berhasil disimpan di: ${savedPath}`);
+    } else {
+      addToast('info', 'Penyimpanan berkas dibatalkan.');
+    }
   };
 
   if (!isSidebarOpen) {
