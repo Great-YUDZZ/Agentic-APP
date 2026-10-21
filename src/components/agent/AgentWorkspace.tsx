@@ -293,8 +293,11 @@ PANDUAN EKSEKUSI TOOL & KEBIJAKAN SISTEM:
    - 'execute_command': Menjalankan perintah bash di workspace. Parameter: { command: string, working_dir?: string }
    - 'web_fetch': Mengambil konten data dari URL web. Parameter: { url: string }
    - 'web_search': Mencari informasi aktual di internet dan membaca intisari halaman teratas. Parameter: { query: string, max_chars?: number }
-2. Jika perlu membaca, mencari informasi terbaru di web, memeriksa struktur proyek, atau menulis kode/berkas, PANGGILLAH tool yang sesuai secara langsung.
-3. Gunakan Bahasa Indonesia yang profesional, ramah, dan terstruktur. Setelah semua tool selesai dijalankan, rangkum hasil pekerjaan Anda dengan jelas kepada pengguna.`;
+${mcpTools.length > 0 ? `\n2. Anda juga memiliki akses langsung ke perkakas eksternal via Model Context Protocol (MCP):\n` + mcpTools.map((t) => `   - '${t.namespaced_name}': [Server ${t.server_name}] ${t.description || t.original_name}`).join('\n') : ''}
+
+3. PANDUAN PEMANGGILAN TOOL:
+   - PANGGIL tool secara langsung melalui mekanisme function calling (tool_calls). DILARANG hanya menuliskan kode atau aksi di dalam teks/blok markdown biasa tanpa memanggil tool nyata.
+   - Setelah eksekusi tool selesai dan hasilnya didapatkan, rangkum hasil pekerjaan Anda dengan jelas dan terstruktur kepada pengguna menggunakan Bahasa Indonesia yang profesional.`;
 
       const previousSessionMsgs = currentMessages.slice(-6).map((m) => ({
         role: m.role as 'user' | 'assistant',
