@@ -104,7 +104,8 @@ export async function triggerVoiceModelDownload(): Promise<void> {
  */
 export async function transcribeOfflineAudio(
   audioBytes: Uint8Array,
-  language?: 'id' | 'en' | 'auto'
+  language?: 'id' | 'en' | 'auto',
+  preferFast?: boolean
 ): Promise<string> {
   try {
     const { invoke } = await import('@tauri-apps/api/core');
@@ -112,6 +113,7 @@ export async function transcribeOfflineAudio(
     const result = await invoke<string>('transcribe_offline_audio', {
       audioBytes: Array.from(audioBytes),
       language: langParam,
+      preferFast: preferFast ?? false,
     });
     return result.trim();
   } catch (err: any) {
@@ -119,6 +121,16 @@ export async function transcribeOfflineAudio(
     console.error('Offline transcription error:', msg);
     throw new Error(msg);
   }
+}
+
+/**
+ * Check if Web Speech API is supported in the current environment
+ */
+export function isWebSpeechSupported(): boolean {
+  if (typeof window === 'undefined') return false;
+  const SpeechClass =
+    (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  return !!SpeechClass;
 }
 
 /**
@@ -175,6 +187,28 @@ export class RawAudioRecorder {
 
     this.source.connect(this.processor);
     this.processor.connect(this.audioContext.destination);
+  }
+
+  /**
+   * Get an encoded WAV snapshot of recorded audio so far without stopping the recorder
+   */
+  public getRecordedWavSoFar(): Uint8Array | null {
+    if (this.chunks.length === 0) return null;
+    let totalLength = 0;
+    for (const chunk of this.chunks) {
+      totalLength += chunk.length;
+    }
+    // Need at least 0.5s of audio to be meaningful
+    if (totalLength < this.sampleRate * 0.5) return null;
+
+    const flatSamples = new Float32Array(totalLength);
+    let offset = 0;
+    for (const chunk of this.chunks) {
+      flatSamples.set(chunk, offset);
+      offset += chunk.length;
+    }
+
+    return encodeWav(flatSamples, this.sampleRate);
   }
 
   public async stop(): Promise<Uint8Array> {
@@ -244,16 +278,28 @@ export class RawAudioRecorder {
   }
 }
 
+export interface StartRecordingOptions {
+  language?: 'id' | 'en' | 'auto';
+  onInterimText?: (text: string) => void;
+}
+
 /**
- * React hook for voice recording state, elapsed timer, and offline transcription
+ * React hook for voice recording state, streaming interim transcription, and final processing
  */
 export function useVoiceRecorder() {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [duration, setDuration] = useState(0);
+  const [interimText, setInterimText] = useState('');
   const [downloadProgress, setDownloadProgress] = useState<VoiceDownloadProgressEvent | null>(null);
+
   const recorderRef = useRef<RawAudioRecorder | null>(null);
   const timerRef = useRef<number | null>(null);
+  const chunkTickerRef = useRef<number | null>(null);
+  const isChunkProcessingRef = useRef(false);
+  const speechRecognitionRef = useRef<any>(null);
+  const webSpeechFinalTextRef = useRef('');
+  const interimCallbackRef = useRef<((text: string) => void) | null>(null);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -271,8 +317,12 @@ export function useVoiceRecorder() {
 
     return () => {
       if (unlisten) unlisten();
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (chunkTickerRef.current) clearInterval(chunkTickerRef.current);
+      if (speechRecognitionRef.current) {
+        try {
+          speechRecognitionRef.current.abort();
+        } catch {}
       }
       if (recorderRef.current) {
         recorderRef.current.cancel();
@@ -280,18 +330,119 @@ export function useVoiceRecorder() {
     };
   }, []);
 
-  const startRecording = useCallback(async () => {
-    if (isRecording || isTranscribing) return;
-    const recorder = new RawAudioRecorder();
-    await recorder.start();
-    recorderRef.current = recorder;
-    setIsRecording(true);
-    setDuration(0);
+  const startWhisperChunkTicker = (targetLang: 'id' | 'en' | 'auto') => {
+    if (chunkTickerRef.current) return;
 
-    timerRef.current = window.setInterval(() => {
-      setDuration((prev) => prev + 1);
-    }, 1000);
-  }, [isRecording, isTranscribing]);
+    // Process interim chunk every 1500ms using fast tiny model
+    chunkTickerRef.current = window.setInterval(async () => {
+      if (!recorderRef.current || isChunkProcessingRef.current) return;
+      const wavSnapshot = recorderRef.current.getRecordedWavSoFar();
+      if (!wavSnapshot) return;
+
+      isChunkProcessingRef.current = true;
+      try {
+        const partial = await transcribeOfflineAudio(wavSnapshot, targetLang, true);
+        if (partial && recorderRef.current) {
+          setInterimText(partial);
+          if (interimCallbackRef.current) {
+            interimCallbackRef.current(partial);
+          }
+        }
+      } catch {
+        // Silently skip interim chunk error to keep recording smooth
+      } finally {
+        isChunkProcessingRef.current = false;
+      }
+    }, 1500);
+  };
+
+  const startRecording = useCallback(
+    async (options?: StartRecordingOptions | ((text: string) => void)) => {
+      if (isRecording || isTranscribing) return;
+
+      const opts: StartRecordingOptions =
+        typeof options === 'function' ? { onInterimText: options } : options || {};
+      const targetLang = opts.language || 'id';
+
+      interimCallbackRef.current = opts.onInterimText || null;
+      setInterimText('');
+      webSpeechFinalTextRef.current = '';
+
+      // 1. Start raw audio recorder for guaranteed local recording
+      const recorder = new RawAudioRecorder();
+      await recorder.start();
+      recorderRef.current = recorder;
+      setIsRecording(true);
+      setDuration(0);
+
+      timerRef.current = window.setInterval(() => {
+        setDuration((prev) => prev + 1);
+      }, 1000);
+
+      // 2. Attempt Web Speech API for millisecond live interim stream
+      let webSpeechStarted = false;
+      if (isWebSpeechSupported()) {
+        try {
+          const SpeechClass =
+            (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+          const recognition = new SpeechClass();
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.lang = targetLang === 'en' ? 'en-US' : 'id-ID';
+
+          recognition.onresult = (event: any) => {
+            let interim = '';
+            let final = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+              const res = event.results[i];
+              if (res.isFinal) {
+                final += res[0].transcript;
+              } else {
+                interim += res[0].transcript;
+              }
+            }
+            if (final) {
+              webSpeechFinalTextRef.current = (
+                webSpeechFinalTextRef.current + ' ' + final
+              ).trim();
+            }
+            const activePreview = (
+              webSpeechFinalTextRef.current + ' ' + interim
+            ).trim();
+            if (activePreview) {
+              setInterimText(activePreview);
+              if (interimCallbackRef.current) {
+                interimCallbackRef.current(activePreview);
+              }
+            }
+          };
+
+          recognition.onerror = (e: any) => {
+            // Fallback to offline Whisper chunk streaming
+            console.warn('Web Speech API error, falling back to offline Whisper streaming:', e?.error);
+            try {
+              recognition.abort();
+            } catch {}
+            speechRecognitionRef.current = null;
+            startWhisperChunkTicker(targetLang);
+          };
+
+          recognition.start();
+          speechRecognitionRef.current = recognition;
+          webSpeechStarted = true;
+        } catch (e) {
+          console.warn('Could not start Web Speech API, using offline chunk streaming:', e);
+          speechRecognitionRef.current = null;
+        }
+      }
+
+      // If Web Speech API is not supported or failed to start, start Whisper chunk ticker immediately
+      if (!webSpeechStarted) {
+        startWhisperChunkTicker(targetLang);
+      }
+    },
+    [isRecording, isTranscribing]
+  );
 
   const stopRecording = useCallback(
     async (language?: 'id' | 'en' | 'auto'): Promise<string> => {
@@ -304,17 +455,42 @@ export function useVoiceRecorder() {
         timerRef.current = null;
       }
 
+      if (chunkTickerRef.current) {
+        clearInterval(chunkTickerRef.current);
+        chunkTickerRef.current = null;
+      }
+
+      // Stop Web Speech API if running
+      if (speechRecognitionRef.current) {
+        try {
+          speechRecognitionRef.current.stop();
+        } catch {}
+        speechRecognitionRef.current = null;
+      }
+
       setIsRecording(false);
       setIsTranscribing(true);
 
       try {
         const wavBytes = await recorderRef.current.stop();
         recorderRef.current = null;
-        const text = await transcribeOfflineAudio(wavBytes, language);
+
+        // If Web Speech captured good final text, prioritize it
+        const webSpeechResult = webSpeechFinalTextRef.current.trim();
+        if (webSpeechResult && webSpeechResult.split(/\s+/).length >= 2) {
+          setInterimText('');
+          return webSpeechResult;
+        }
+
+        // Run final high-accuracy transcription with Small model
+        const text = await transcribeOfflineAudio(wavBytes, language, false);
+        setInterimText('');
         return text;
       } finally {
         setIsTranscribing(false);
         setDuration(0);
+        isChunkProcessingRef.current = false;
+        interimCallbackRef.current = null;
       }
     },
     [isRecording]
@@ -325,6 +501,16 @@ export function useVoiceRecorder() {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+    if (chunkTickerRef.current) {
+      clearInterval(chunkTickerRef.current);
+      chunkTickerRef.current = null;
+    }
+    if (speechRecognitionRef.current) {
+      try {
+        speechRecognitionRef.current.abort();
+      } catch {}
+      speechRecognitionRef.current = null;
+    }
     if (recorderRef.current) {
       recorderRef.current.cancel();
       recorderRef.current = null;
@@ -332,12 +518,16 @@ export function useVoiceRecorder() {
     setIsRecording(false);
     setIsTranscribing(false);
     setDuration(0);
+    setInterimText('');
+    isChunkProcessingRef.current = false;
+    interimCallbackRef.current = null;
   }, []);
 
   return {
     isRecording,
     isTranscribing,
     duration,
+    interimText,
     downloadProgress,
     startRecording,
     stopRecording,

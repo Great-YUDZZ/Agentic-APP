@@ -177,12 +177,16 @@ export const MultiAgentDiscussion: React.FC = () => {
     cancelRecording: cancelVoiceRecording,
   } = useVoiceRecorder();
 
+  const preVoicePromptRef = useRef<string>('');
+
   const handleToggleVoice = async () => {
     if (isVoiceRecording) {
       try {
         const transcribedText = await stopVoiceRecording(settings?.voiceInputLanguage || 'id');
         if (transcribedText) {
-          setChatInput((prev) => (prev.trim() ? `${prev.trim()} ${transcribedText}` : transcribedText));
+          const base = preVoicePromptRef.current.trim();
+          const combined = base ? `${base} ${transcribedText}` : transcribedText;
+          setChatInput(combined);
           addToast('success', `Suara berhasil ditranskripsi (${transcribedText.slice(0, 35)}...)`, 3000);
         }
       } catch (err: any) {
@@ -190,11 +194,24 @@ export const MultiAgentDiscussion: React.FC = () => {
       }
     } else {
       try {
-        await startVoiceRecording();
+        preVoicePromptRef.current = chatInput;
+        await startVoiceRecording({
+          language: settings?.voiceInputLanguage || 'id',
+          onInterimText: (interim) => {
+            const base = preVoicePromptRef.current.trim();
+            const combined = base ? `${base} ${interim}` : interim;
+            setChatInput(combined);
+          },
+        });
       } catch (err: any) {
         addToast('error', `Gagal mengakses mikrofon: ${err?.message || err}`, 5000);
       }
     }
+  };
+
+  const handleCancelVoice = () => {
+    cancelVoiceRecording();
+    setChatInput(preVoicePromptRef.current);
   };
   const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>(() => {
     const validIds = buildDiscussion.selected_agent_ids.filter((id) =>
@@ -1128,7 +1145,7 @@ export const MultiAgentDiscussion: React.FC = () => {
                     </span>
                     <button
                       type="button"
-                      onClick={cancelVoiceRecording}
+                      onClick={handleCancelVoice}
                       title="Batalkan rekaman"
                       className="ml-0.5 text-red-400 hover:text-white"
                     >

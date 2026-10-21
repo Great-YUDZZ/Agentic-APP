@@ -101,12 +101,16 @@ export const ChatContainer: React.FC = () => {
     cancelRecording: cancelVoiceRecording,
   } = useVoiceRecorder();
 
+  const preVoicePromptRef = useRef<string>('');
+
   const handleToggleVoice = async () => {
     if (isVoiceRecording) {
       try {
         const transcribedText = await stopVoiceRecording(settings?.voiceInputLanguage || 'id');
         if (transcribedText) {
-          setInputPrompt((prev) => (prev.trim() ? `${prev.trim()} ${transcribedText}` : transcribedText));
+          const base = preVoicePromptRef.current.trim();
+          const combined = base ? `${base} ${transcribedText}` : transcribedText;
+          setInputPrompt(combined);
           addToast('success', `Suara berhasil ditranskripsi (${transcribedText.slice(0, 35)}...)`, 3000);
         }
       } catch (err: any) {
@@ -114,11 +118,24 @@ export const ChatContainer: React.FC = () => {
       }
     } else {
       try {
-        await startVoiceRecording();
+        preVoicePromptRef.current = inputPrompt;
+        await startVoiceRecording({
+          language: settings?.voiceInputLanguage || 'id',
+          onInterimText: (interim) => {
+            const base = preVoicePromptRef.current.trim();
+            const combined = base ? `${base} ${interim}` : interim;
+            setInputPrompt(combined);
+          },
+        });
       } catch (err: any) {
         addToast('error', `Gagal mengakses mikrofon: ${err?.message || err}`, 5000);
       }
     }
+  };
+
+  const handleCancelVoice = () => {
+    cancelVoiceRecording();
+    setInputPrompt(preVoicePromptRef.current);
   };
 
   const currentMessages = activeSessionId
@@ -959,7 +976,7 @@ export const ChatContainer: React.FC = () => {
                     </span>
                     <button
                       type="button"
-                      onClick={cancelVoiceRecording}
+                      onClick={handleCancelVoice}
                       title="Batalkan rekaman"
                       className="ml-0.5 text-red-400 hover:text-white"
                     >

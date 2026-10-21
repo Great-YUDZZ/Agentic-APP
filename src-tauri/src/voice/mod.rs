@@ -5,12 +5,17 @@ use std::sync::Mutex;
 use anyhow::{anyhow, Context};
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
-/// Static cache for WhisperContext to avoid reloading model on every transcription
-static CACHED_CONTEXT: Mutex<Option<(PathBuf, WhisperContext)>> = Mutex::new(None);
+struct ContextCache {
+    fast: Option<(PathBuf, WhisperContext)>,
+    precise: Option<(PathBuf, WhisperContext)>,
+}
 
-/// Invalidate cached WhisperContext (called after new model download)
+/// Static cache for WhisperContext to avoid reloading models on every transcription
+static CACHED_CONTEXTS: Mutex<Option<ContextCache>> = Mutex::new(None);
+
+/// Invalidate cached WhisperContexts (called after new model download)
 pub fn invalidate_cached_context() {
-    if let Ok(mut guard) = CACHED_CONTEXT.lock() {
+    if let Ok(mut guard) = CACHED_CONTEXTS.lock() {
         *guard = None;
     }
 }
@@ -49,8 +54,8 @@ fn validate_and_repair_model(path: &PathBuf) -> bool {
     true
 }
 
-/// Look up model path from well-known local locations, prioritizing high-accuracy small-q5_1
-pub fn find_model_path() -> Option<PathBuf> {
+/// Look up model path from well-known local locations, supporting preference for fast (tiny) or precise (small-q5_1)
+pub fn find_model_path_with_preference(prefer_fast: bool) -> Option<PathBuf> {
     if let Ok(env_path) = std::env::var("WHISPER_MODEL_PATH") {
         let p = PathBuf::from(env_path);
         if validate_and_repair_model(&p) {
@@ -58,7 +63,28 @@ pub fn find_model_path() -> Option<PathBuf> {
         }
     }
 
-    // 1. Check system data directory (where downloader places it)
+    if prefer_fast {
+        // Check system data directory for tiny model first
+        if let Some(data_dir) = dirs::data_dir() {
+            let tiny_path = data_dir.join("agentic_native_hub/models/ggml-tiny.bin");
+            if validate_and_repair_model(&tiny_path) {
+                return Some(tiny_path);
+            }
+        }
+        let tiny_candidates = [
+            PathBuf::from("models/ggml-tiny.bin"),
+            PathBuf::from("../models/ggml-tiny.bin"),
+            PathBuf::from("/home/yudz/Agentic/models/ggml-tiny.bin"),
+            PathBuf::from("/media/yudz/FLASHDISK/Agentic/models/ggml-tiny.bin"),
+        ];
+        for candidate in &tiny_candidates {
+            if validate_and_repair_model(candidate) {
+                return Some(candidate.clone());
+            }
+        }
+    }
+
+    // Prioritize high-accuracy small-q5_1, then tiny fallback
     if let Some(data_dir) = dirs::data_dir() {
         let small_path = data_dir.join("agentic_native_hub/models/ggml-small-q5_1.bin");
         if validate_and_repair_model(&small_path) {
@@ -70,7 +96,6 @@ pub fn find_model_path() -> Option<PathBuf> {
         }
     }
 
-    // 2. Check local project candidates (small-q5_1 first, then tiny fallback)
     let candidates = [
         PathBuf::from("models/ggml-small-q5_1.bin"),
         PathBuf::from("../models/ggml-small-q5_1.bin"),
@@ -89,6 +114,11 @@ pub fn find_model_path() -> Option<PathBuf> {
     }
 
     None
+}
+
+/// Look up model path from well-known local locations, prioritizing high-accuracy small-q5_1
+pub fn find_model_path() -> Option<PathBuf> {
+    find_model_path_with_preference(false)
 }
 
 /// Returns offline speech status including download progress
@@ -194,17 +224,31 @@ pub fn decode_wav_to_16khz_mono(wav_bytes: &[u8]) -> anyhow::Result<Vec<f32>> {
     }
 }
 
-/// Transcribe WAV audio bytes using offline Whisper model
-pub fn transcribe_audio_bytes(wav_bytes: &[u8], language: Option<&str>) -> anyhow::Result<String> {
-    let model_path = find_model_path().ok_or_else(|| {
-        anyhow!("Berkas model Whisper offline (ggml-tiny.bin) tidak ditemukan di direktori models/.")
+/// Transcribe WAV audio bytes using offline Whisper model with options
+pub fn transcribe_audio_bytes_with_options(
+    wav_bytes: &[u8],
+    language: Option<&str>,
+    prefer_fast: bool,
+) -> anyhow::Result<String> {
+    let model_path = find_model_path_with_preference(prefer_fast).ok_or_else(|| {
+        anyhow!("Berkas model Whisper offline tidak ditemukan di direktori models/.")
     })?;
 
     let pcm_data = decode_wav_to_16khz_mono(wav_bytes)?;
 
-    // Cache or get context
-    let mut cache = CACHED_CONTEXT.lock().unwrap();
-    let need_reload = match &*cache {
+    let mut cache_guard = CACHED_CONTEXTS.lock().unwrap();
+    let cache = cache_guard.get_or_insert_with(|| ContextCache {
+        fast: None,
+        precise: None,
+    });
+
+    let target_slot = if prefer_fast {
+        &mut cache.fast
+    } else {
+        &mut cache.precise
+    };
+
+    let need_reload = match target_slot {
         Some((path, _)) => path != &model_path,
         None => true,
     };
@@ -215,10 +259,10 @@ pub fn transcribe_audio_bytes(wav_bytes: &[u8], language: Option<&str>) -> anyho
             .ok_or_else(|| anyhow!("Jalur model tidak valid"))?;
         let ctx = WhisperContext::new_with_params(model_str, WhisperContextParameters::default())
             .map_err(|e| anyhow!("Gagal memuat WhisperContext: {:?}", e))?;
-        *cache = Some((model_path.clone(), ctx));
+        *target_slot = Some((model_path.clone(), ctx));
     }
 
-    let (_, ctx) = cache.as_mut().unwrap();
+    let (_, ctx) = target_slot.as_mut().unwrap();
     let mut state = ctx
         .create_state()
         .map_err(|e| anyhow!("Gagal membuat Whisper state: {:?}", e))?;
@@ -229,7 +273,7 @@ pub fn transcribe_audio_bytes(wav_bytes: &[u8], language: Option<&str>) -> anyho
     params.set_print_realtime(false);
     params.set_print_timestamps(false);
     params.set_translate(false);
-    params.set_single_segment(false);
+    params.set_single_segment(prefer_fast);
 
     let lang_code = language.and_then(|lang| {
         let clean = lang.trim().to_lowercase();
@@ -274,6 +318,11 @@ pub fn transcribe_audio_bytes(wav_bytes: &[u8], language: Option<&str>) -> anyho
     Ok(result)
 }
 
+/// Transcribe WAV audio bytes using offline Whisper model (defaults to precise model)
+pub fn transcribe_audio_bytes(wav_bytes: &[u8], language: Option<&str>) -> anyhow::Result<String> {
+    transcribe_audio_bytes_with_options(wav_bytes, language, false)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -281,7 +330,13 @@ mod tests {
     #[test]
     fn test_find_model_path_exists() {
         let model = find_model_path();
-        assert!(model.is_some(), "Model ggml-tiny.bin harus ditemukan di direktori models/");
+        assert!(model.is_some(), "Model harus ditemukan di direktori models/");
+    }
+
+    #[test]
+    fn test_find_model_path_fast_preference() {
+        let fast_model = find_model_path_with_preference(true);
+        assert!(fast_model.is_some(), "Fast model harus ditemukan jika tersedia");
     }
 
     #[test]

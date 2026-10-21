@@ -116,12 +116,16 @@ export const AgentWorkspace: React.FC = () => {
     cancelRecording: cancelVoiceRecording,
   } = useVoiceRecorder();
 
+  const preVoicePromptRef = useRef<string>('');
+
   const handleToggleVoice = async () => {
     if (isVoiceRecording) {
       try {
         const transcribedText = await stopVoiceRecording(settings?.voiceInputLanguage || 'id');
         if (transcribedText) {
-          setTaskInput((prev) => (prev.trim() ? `${prev.trim()} ${transcribedText}` : transcribedText));
+          const base = preVoicePromptRef.current.trim();
+          const combined = base ? `${base} ${transcribedText}` : transcribedText;
+          setTaskInput(combined);
           addToast('success', `Suara berhasil ditranskripsi (${transcribedText.slice(0, 35)}...)`, 3000);
         }
       } catch (err: any) {
@@ -129,11 +133,24 @@ export const AgentWorkspace: React.FC = () => {
       }
     } else {
       try {
-        await startVoiceRecording();
+        preVoicePromptRef.current = taskInput;
+        await startVoiceRecording({
+          language: settings?.voiceInputLanguage || 'id',
+          onInterimText: (interim) => {
+            const base = preVoicePromptRef.current.trim();
+            const combined = base ? `${base} ${interim}` : interim;
+            setTaskInput(combined);
+          },
+        });
       } catch (err: any) {
         addToast('error', `Gagal mengakses mikrofon: ${err?.message || err}`, 5000);
       }
     }
+  };
+
+  const handleCancelVoice = () => {
+    cancelVoiceRecording();
+    setTaskInput(preVoicePromptRef.current);
   };
 
   const currentMessages = activeSessionId
@@ -1275,7 +1292,7 @@ ${mcpTools.length > 0 ? `\n2. Anda juga memiliki akses langsung ke perkakas ekst
                       </span>
                       <button
                         type="button"
-                        onClick={cancelVoiceRecording}
+                        onClick={handleCancelVoice}
                         title="Batalkan rekaman"
                         className="ml-0.5 text-red-400 hover:text-white"
                       >

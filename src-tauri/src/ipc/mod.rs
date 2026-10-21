@@ -1656,10 +1656,15 @@ pub fn search_notes_hybrid(
 pub async fn transcribe_offline_audio(
     audio_bytes: Vec<u8>,
     language: Option<String>,
+    prefer_fast: Option<bool>,
 ) -> Result<String, String> {
     tokio::task::spawn_blocking(move || {
-        crate::voice::transcribe_audio_bytes(&audio_bytes, language.as_deref())
-            .map_err(|e| e.to_string())
+        crate::voice::transcribe_audio_bytes_with_options(
+            &audio_bytes,
+            language.as_deref(),
+            prefer_fast.unwrap_or(false),
+        )
+        .map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| format!("Task execution failed: {}", e))?
