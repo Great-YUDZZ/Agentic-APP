@@ -291,7 +291,8 @@ PANDUAN EKSEKUSI TOOL & KEBIJAKAN SISTEM:
    - 'list_dir': Melihat daftar berkas/folder. Parameter: { path?: string }
    - 'execute_command': Menjalankan perintah bash di workspace. Parameter: { command: string, working_dir?: string }
    - 'web_fetch': Mengambil konten data dari URL web. Parameter: { url: string }
-2. Jika perlu membaca, memeriksa struktur proyek, atau menulis kode/berkas, PANGGILLAH tool yang sesuai secara langsung.
+   - 'web_search': Mencari informasi aktual di internet dan membaca intisari halaman teratas. Parameter: { query: string, max_chars?: number }
+2. Jika perlu membaca, mencari informasi terbaru di web, memeriksa struktur proyek, atau menulis kode/berkas, PANGGILLAH tool yang sesuai secara langsung.
 3. Gunakan Bahasa Indonesia yang profesional, ramah, dan terstruktur. Setelah semua tool selesai dijalankan, rangkum hasil pekerjaan Anda dengan jelas kepada pengguna.`;
 
       const previousSessionMsgs = currentMessages.slice(-6).map((m) => ({

@@ -565,6 +565,14 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {{
 }
 
 #[tauri::command]
+pub async fn perform_web_search(
+    query: String,
+    max_chars: Option<usize>,
+) -> Result<String, String> {
+    crate::engine::web_search::execute_all_in_one_search(&query, max_chars).await
+}
+
+#[tauri::command]
 pub async fn run_terminal_command_stream(
     app: AppHandle,
     state: State<'_, AppState>,

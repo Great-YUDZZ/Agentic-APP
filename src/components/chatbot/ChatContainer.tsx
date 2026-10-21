@@ -327,13 +327,36 @@ export const ChatContainer: React.FC = () => {
     addMessage(initialAssistantMsg);
 
     try {
+      let finalPromptForContext = userMsg.content;
+
+      if (isWebSearchActive) {
+        addToast('info', 'Mencari informasi aktual di internet...');
+        const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+        if (isTauri) {
+          try {
+            const { invoke } = await import('@tauri-apps/api/core');
+            const searchResult = await invoke<string>('perform_web_search', {
+              query: rawText,
+              maxChars: 4000,
+            });
+            if (searchResult && !searchResult.startsWith('Tidak ditemukan')) {
+              finalPromptForContext = `${userMsg.content}\n\n[REFERENSI DARI WEB HASIL PENCARIAN TERAKTUAL]:\n${searchResult}\n\n(Gunakan referensi informasi di atas untuk menjawab dengan akurat, dan cantumkan tautan rujukan jika relevan.)`;
+              addToast('success', 'Informasi web berhasil disematkan ke obrolan.');
+            }
+          } catch (searchErr) {
+            console.warn('Gagal melakukan pencarian web:', searchErr);
+            addToast('warning', 'Pencarian web gagal atau batas waktu tercapai.');
+          }
+        }
+      }
+
       const {
         messages: prunedMessages,
         isCompressed,
         usagePercent,
       } = preparePrunedContextMessages(
         currentMessages,
-        userMsg.content,
+        finalPromptForContext,
         selectedModel,
         availableModels
       );

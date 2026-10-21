@@ -104,6 +104,27 @@ export const AGENT_AVAILABLE_TOOLS: ToolDefinition[] = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'web_search',
+      description: 'Mencari informasi aktual di internet dan otomatis membaca intisari teks dari halaman web teratas.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description: 'Kata kunci pencarian yang spesifik (misal: "tauri 2.0 tray icon release")',
+          },
+          max_chars: {
+            type: 'number',
+            description: 'Batas maksimal karakter konten teks halaman teratas yang dibaca (default: 4000)',
+          },
+        },
+        required: ['query'],
+      },
+    },
+  },
 ];
 
 export function isPathExternal(targetPath: string, workspaceRoot: string): boolean {

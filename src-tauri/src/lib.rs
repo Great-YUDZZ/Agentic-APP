@@ -136,6 +136,7 @@ pub fn run() {
             ipc::get_offline_speech_status,
             ipc::trigger_voice_model_download,
             ipc::save_exported_file_dialog,
+            ipc::perform_web_search,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

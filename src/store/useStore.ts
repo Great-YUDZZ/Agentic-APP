@@ -1098,8 +1098,8 @@ Direktori Workspace Proyek Aktif:
 
 ATURAN KOMUNIKASI & EKSEKUSI TOOL:
 1. WAJIB menggunakan Bahasa Indonesia yang ramah, profesional, dan terstruktur.
-2. Anda memiliki akses ke tool nyata sistem (read_file, write_file, list_dir, execute_command, web_fetch).
-3. Jika tugas Anda membutuhkan pembacaan file, pembuatan file, pemeriksaan folder, atau pengetesan perintah, panggillah tools yang sesuai secara bertahap.
+2. Anda memiliki akses ke tool nyata sistem (read_file, write_file, list_dir, execute_command, web_fetch, web_search).
+3. Jika tugas Anda membutuhkan pencarian internet terbaru, pembacaan file, pembuatan file, pemeriksaan folder, atau pengetesan perintah, panggillah tools yang sesuai secara bertahap.
 4. Jangan ragu memanggil tools berulang kali jika diperlukan untuk menyelesaikan giliran tugas Anda secara tuntas.
 5. Setelah semua tool selesai dijalankan, berikan rangkuman hasil kerja dan penjelasan yang jelas kepada tim.`;
 

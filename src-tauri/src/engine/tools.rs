@@ -167,6 +167,14 @@ impl ToolRunner {
                     Err(e) => Err(format!("Error fetching url: {}", e)),
                 }
             }
+            "web_search" => {
+                let query_str = request.parameters["query"].as_str().unwrap_or("");
+                let max_chars = request.parameters["max_chars"].as_u64().map(|n| n as usize);
+                match crate::engine::web_search::execute_all_in_one_search(query_str, max_chars).await {
+                    Ok(res) => Ok(res),
+                    Err(e) => Err(format!("Error performing web search: {}", e)),
+                }
+            }
             _ => Err(format!("Unknown tool: {}", tool_name)),
         };
 
