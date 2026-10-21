@@ -303,3 +303,31 @@ export interface ScoredSearchResult {
   tags: string[];
 }
 
+export interface McpServerConfig {
+  id: string;
+  name: string;
+  transport: 'stdio' | 'sse';
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  url?: string;
+  is_active: boolean;
+}
+
+export interface McpToolInfo {
+  server_id: string;
+  server_name: string;
+  original_name: string;
+  namespaced_name: string;
+  description: string;
+  input_schema: any;
+}
+
+export interface McpServerStatus {
+  id: string;
+  name: string;
+  is_connected: boolean;
+  tools_count: number;
+  error_message?: string;
+}
+

@@ -35,7 +35,7 @@ import { processSelectedFiles, formatAttachedPrompt } from '../../utils/fileUplo
 import { parseRobustJson, getChatEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../../utils/api';
 import { getDailyGreeting } from '../../utils/dailyGreetings';
 import { getConversationWidthClass } from '../../utils/layout';
-import { AGENT_AVAILABLE_TOOLS, isPathExternal } from '../../utils/tools';
+import { AGENT_AVAILABLE_TOOLS, isPathExternal, convertMcpToolToDefinition } from '../../utils/tools';
 import { ExecutionStep } from '../../types';
 
 export const AgentWorkspace: React.FC = () => {
@@ -63,6 +63,7 @@ export const AgentWorkspace: React.FC = () => {
     addLog,
     settings,
     updateSettings,
+    mcpTools,
     isStreaming,
     isWorking,
     setIsWorking,
@@ -326,6 +327,11 @@ PANDUAN EKSEKUSI TOOL & KEBIJAKAN SISTEM:
         }
         iteration++;
 
+        const combinedTools = [
+          ...AGENT_AVAILABLE_TOOLS,
+          ...mcpTools.map(convertMcpToolToDefinition),
+        ];
+
         const res = await fetch(targetChatUrl, {
           method: 'POST',
           headers: {
@@ -335,7 +341,7 @@ PANDUAN EKSEKUSI TOOL & KEBIJAKAN SISTEM:
           body: JSON.stringify({
             model: effectiveModel,
             messages: messagesHistory,
-            tools: AGENT_AVAILABLE_TOOLS,
+            tools: combinedTools,
             temperature: 0.5,
           }),
         });
@@ -416,15 +422,15 @@ PANDUAN EKSEKUSI TOOL & KEBIJAKAN SISTEM:
             }
           }
 
-          // 2. Pengecekan tool mutatif jika Ask for Approval aktif
-          if (!shouldAskClearance && (toolName === 'write_file' || toolName === 'execute_command')) {
-            if (!isStrictApprovalMode) {
-              shouldAskClearance = true;
-              clearanceReason =
-                toolName === 'write_file'
-                  ? `Menulis berkas: "${targetPath}" (${(toolParams.content || '').length} karakter)`
-                  : `Menjalankan perintah: "${toolParams.command}"`;
-            }
+          // 2. Pengecekan tool mutatif jika Ask for Approval aktif, atau tool eksternal MCP
+          if (!shouldAskClearance && (toolName === 'write_file' || toolName === 'execute_command' || toolName.startsWith('mcp__'))) {
+            shouldAskClearance = true;
+            clearanceReason =
+              toolName === 'write_file'
+                ? `Menulis berkas: "${targetPath}" (${(toolParams.content || '').length} karakter)`
+                : toolName === 'execute_command'
+                ? `Menjalankan perintah: "${toolParams.command}"`
+                : `Eksekusi tool eksternal Model Context Protocol (MCP): ${toolName}`;
           }
 
           let allowExecution = true;
@@ -436,10 +442,10 @@ PANDUAN EKSEKUSI TOOL & KEBIJAKAN SISTEM:
                 ...toolParams,
                 _deskripsi: clearanceReason,
                 _is_external: isExternal,
-                risk: isExternal ? 'High' : 'Medium',
+                risk: isExternal || toolName.startsWith('mcp__') ? 'High' : 'Medium',
               },
               requires_clearance: true,
-              risk_level: isExternal ? 'High' : 'Medium',
+              risk_level: isExternal || toolName.startsWith('mcp__') ? 'High' : 'Medium',
             });
 
             allowExecution = await new Promise<boolean>((resolve) => {

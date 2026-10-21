@@ -144,3 +144,19 @@ export function isPathExternal(targetPath: string, workspaceRoot: string): boole
 
   return false;
 }
+
+import type { McpToolInfo } from '../types';
+
+export function convertMcpToolToDefinition(tool: McpToolInfo): ToolDefinition {
+  return {
+    type: 'function',
+    function: {
+      name: tool.namespaced_name,
+      description: `[MCP: ${tool.server_name}] ${tool.description || tool.original_name}`,
+      parameters:
+        tool.input_schema && typeof tool.input_schema === 'object' && tool.input_schema.type === 'object'
+          ? tool.input_schema
+          : { type: 'object', properties: {} },
+    },
+  };
+}

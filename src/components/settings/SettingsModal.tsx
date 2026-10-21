@@ -31,6 +31,7 @@ import { NetworkAccessRulesModal } from './NetworkAccessRulesModal';
 import { BrowserActuationRulesModal } from './BrowserActuationRulesModal';
 import { ShortcutsModal } from './ShortcutsModal';
 import { CreateSkillModal } from './CreateSkillModal';
+import { McpServersTab } from './McpServersTab';
 import { getOfflineSpeechStatus, triggerVoiceModelDownload, OfflineSpeechStatus } from '../../utils/audioRecorder';
 
 interface StandardProviderConfig {
@@ -81,7 +82,7 @@ const STANDARD_PROVIDERS: StandardProviderConfig[] = [
   },
 ];
 
-type SettingsSection = 'general' | 'application' | 'appearance' | 'models' | 'skills';
+type SettingsSection = 'general' | 'application' | 'appearance' | 'models' | 'skills' | 'mcp';
 
 const PERMISSION_OPTIONS = [
   { value: 'turbo', label: 'Turbo (Auto Execution)', description: 'Agen mengeksekusi semua perintah alat tanpa konfirmasi.' },
@@ -131,6 +132,7 @@ export const SettingsModal: React.FC = () => {
     workspaceProjectRoot,
     pickAndSetWorkspaceRoot,
     pickAndScanLocalSkills,
+    mcpServers,
   } = useStore();
 
   const [activeSection, setActiveSection] = useState<SettingsSection>('general');
@@ -364,6 +366,26 @@ export const SettingsModal: React.FC = () => {
                     {installedSkills.length}
                   </span>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveSection('mcp')}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors ${
+                    activeSection === 'mcp'
+                      ? 'bg-[#262626] text-white font-semibold'
+                      : 'text-[#b4b4b4] hover:bg-[#212121] hover:text-[#ececec]'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Server className="w-4 h-4 text-[#ececec]" />
+                    <span>MCP Servers</span>
+                  </div>
+                  {mcpServers.length > 0 && (
+                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-[#2f2f2f] text-[#ececec] border border-[#383838]">
+                      {mcpServers.length}
+                    </span>
+                  )}
+                </button>
               </div>
             </div>
 
@@ -413,8 +435,8 @@ export const SettingsModal: React.FC = () => {
           {/* Top Header */}
           <div className="flex items-center justify-between px-8 py-5 border-b border-[#2e2e2e]">
             <div>
-              <h2 className="text-xl font-semibold tracking-tight text-[#ececec] capitalize">
-                {activeSection}
+              <h2 className="text-xl font-semibold tracking-tight text-[#ececec]">
+                {activeSection === 'mcp' ? 'MCP Servers' : activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}
               </h2>
               <p className="text-xs text-[#b4b4b4] mt-0.5">
                 {activeSection === 'general' && 'Configure agent execution, queued message delivery, and permissions.'}
@@ -422,6 +444,7 @@ export const SettingsModal: React.FC = () => {
                 {activeSection === 'appearance' && "Configure the agent's visual theme and display preferences."}
                 {activeSection === 'models' && 'Manage AI endpoints, provider credentials, and model detection.'}
                 {activeSection === 'skills' && 'Explore and configure installed skills for autonomous agents.'}
+                {activeSection === 'mcp' && 'Manage external tool servers via Model Context Protocol (MCP).'}
               </p>
             </div>
             <button
@@ -1465,6 +1488,9 @@ export const SettingsModal: React.FC = () => {
                 )}
               </div>
             )}
+
+            {/* 6. MCP SERVERS TAB */}
+            {activeSection === 'mcp' && <McpServersTab />}
           </div>
         </div>
       </motion.div>

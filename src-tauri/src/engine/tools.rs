@@ -23,6 +23,7 @@ use std::sync::{Arc, RwLock};
 #[derive(Clone)]
 pub struct ToolRunner {
     workspace_root: Arc<RwLock<PathBuf>>,
+    mcp_manager: Arc<RwLock<Option<Arc<crate::engine::mcp::McpClientManager>>>>,
 }
 
 pub fn normalize_path(path: &Path) -> PathBuf {
@@ -49,6 +50,13 @@ impl ToolRunner {
     pub fn new(workspace_root: PathBuf) -> Self {
         Self {
             workspace_root: Arc::new(RwLock::new(workspace_root)),
+            mcp_manager: Arc::new(RwLock::new(None)),
+        }
+    }
+
+    pub fn set_mcp_manager(&self, manager: Arc<crate::engine::mcp::McpClientManager>) {
+        if let Ok(mut lock) = self.mcp_manager.write() {
+            *lock = Some(manager);
         }
     }
 
@@ -175,7 +183,23 @@ impl ToolRunner {
                     Err(e) => Err(format!("Error performing web search: {}", e)),
                 }
             }
-            _ => Err(format!("Unknown tool: {}", tool_name)),
+            _ => {
+                if tool_name.starts_with("mcp__") {
+                    let mgr_opt = {
+                        self.mcp_manager.read().ok().and_then(|lock| lock.clone())
+                    };
+                    if let Some(mgr) = mgr_opt {
+                        match mgr.call_tool(tool_name, request.parameters.clone()).await {
+                            Ok(out) => Ok(out),
+                            Err(e) => Err(format!("Error calling MCP tool '{}': {}", tool_name, e)),
+                        }
+                    } else {
+                        Err(format!("MCP client manager tidak aktif untuk tool: {}", tool_name))
+                    }
+                } else {
+                    Err(format!("Unknown tool: {}", tool_name))
+                }
+            }
         };
 
         let elapsed = start.elapsed().as_millis();

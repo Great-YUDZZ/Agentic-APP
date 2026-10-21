@@ -27,6 +27,8 @@ export const App: React.FC = () => {
     toggleBuildSubMode,
     loadApiKeysFromDb,
     loadSessionsFromDb,
+    fetchMcpServers,
+    fetchMcpTools,
     isVaultPageOpen,
   } = useStore();
 
@@ -52,7 +54,9 @@ export const App: React.FC = () => {
   React.useEffect(() => {
     loadApiKeysFromDb();
     loadSessionsFromDb();
-  }, [loadApiKeysFromDb, loadSessionsFromDb]);
+    fetchMcpServers();
+    fetchMcpTools();
+  }, [loadApiKeysFromDb, loadSessionsFromDb, fetchMcpServers, fetchMcpTools]);
 
   return (
     <ErrorBoundary fallbackTitle="Agentic Native Hub Workspace Error">

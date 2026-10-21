@@ -30,10 +30,13 @@ import {
   GraphSnapshot,
   ScoredSearchResult,
   ExecutionStep,
+  McpServerConfig,
+  McpToolInfo,
+  McpServerStatus,
 } from '../types';
 import { parseRobustJson, getChatEndpoint, getModelsEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../utils/api';
 import { extractCodeReviewItems } from '../utils/codeExtractor';
-import { AGENT_AVAILABLE_TOOLS, isPathExternal } from '../utils/tools';
+import { AGENT_AVAILABLE_TOOLS, isPathExternal, convertMcpToolToDefinition } from '../utils/tools';
 
 export const BUILTIN_LEAD_ORCHESTRATOR = {
   id: 'builtin-lead-orchestrator',
@@ -252,6 +255,19 @@ interface AppStore {
   fetchVaultAuditLog: (limit?: number) => Promise<void>;
   getGraphSnapshot: () => Promise<GraphSnapshot | null>;
   searchNotesHybrid: (query: string, limit?: number) => Promise<ScoredSearchResult[]>;
+
+  // MCP (Model Context Protocol) State
+  mcpServers: McpServerConfig[];
+  mcpTools: McpToolInfo[];
+  mcpStatuses: McpServerStatus[];
+  fetchMcpServers: () => Promise<void>;
+  saveMcpServer: (config: McpServerConfig) => Promise<void>;
+  deleteMcpServer: (id: string) => Promise<void>;
+  toggleMcpServer: (id: string, isActive: boolean) => Promise<void>;
+  importMcpConfigJson: (jsonStr: string) => Promise<number>;
+  fetchMcpTools: () => Promise<void>;
+  fetchMcpStatuses: () => Promise<void>;
+  callMcpTool: (namespacedName: string, args: any) => Promise<string>;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -1138,6 +1154,11 @@ ATURAN KOMUNIKASI & EKSEKUSI TOOL:
         }
         iteration++;
 
+        const combinedTools = [
+          ...AGENT_AVAILABLE_TOOLS,
+          ...get().mcpTools.map(convertMcpToolToDefinition),
+        ];
+
         const res = await fetch(targetChatUrl, {
           method: 'POST',
           headers: {
@@ -1147,7 +1168,7 @@ ATURAN KOMUNIKASI & EKSEKUSI TOOL:
           body: JSON.stringify({
             model,
             messages: messagesHistory,
-            tools: AGENT_AVAILABLE_TOOLS,
+            tools: combinedTools,
             temperature: 0.5,
           }),
         });
@@ -1230,13 +1251,15 @@ ATURAN KOMUNIKASI & EKSEKUSI TOOL:
             }
           }
 
-          // 2. Strict approval mode atau tool berisiko (execute_command)
-          if (state.isStrictApprovalMode || toolName === 'execute_command') {
+          // 2. Strict approval mode atau tool berisiko (execute_command atau tool eksternal MCP)
+          if (state.isStrictApprovalMode || toolName === 'execute_command' || toolName.startsWith('mcp__')) {
             shouldAskClearance = true;
             if (!clearanceReason) {
               clearanceReason =
                 toolName === 'execute_command'
                   ? `Eksekusi perintah terminal: ${toolParams.command || ''}`
+                  : toolName.startsWith('mcp__')
+                  ? `Eksekusi tool eksternal Model Context Protocol (MCP): ${toolName}`
                   : `Menjalankan aksi tool: ${toolName}`;
             }
           }
@@ -1255,7 +1278,7 @@ ATURAN KOMUNIKASI & EKSEKUSI TOOL:
                     _is_external: isExternal,
                   },
                   requires_clearance: true,
-                  risk_level: toolName === 'execute_command' || isExternal ? 'High' : 'Medium',
+                  risk_level: toolName === 'execute_command' || toolName.startsWith('mcp__') || isExternal ? 'High' : 'Medium',
                 },
               });
             });
@@ -2511,6 +2534,120 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
       return await invoke<ScoredSearchResult[]>('search_notes_hybrid', { query, limit });
     } catch {
       return [];
+    }
+  },
+
+  // MCP (Model Context Protocol) Implementation
+  mcpServers: [],
+  mcpTools: [],
+  mcpStatuses: [],
+
+  fetchMcpServers: async () => {
+    try {
+      if ((window as any).__TAURI_INTERNALS__) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const list = await invoke<McpServerConfig[]>('mcp_list_servers');
+        set({ mcpServers: list || [] });
+      }
+    } catch (e) {
+      console.error('Failed to list MCP servers:', e);
+    }
+  },
+
+  fetchMcpTools: async () => {
+    try {
+      if ((window as any).__TAURI_INTERNALS__) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const tools = await invoke<McpToolInfo[]>('mcp_list_active_tools');
+        const statuses = await invoke<McpServerStatus[]>('mcp_get_server_statuses');
+        set({ mcpTools: tools || [], mcpStatuses: statuses || [] });
+      }
+    } catch (e) {
+      console.error('Failed to list MCP tools:', e);
+    }
+  },
+
+  fetchMcpStatuses: async () => {
+    try {
+      if ((window as any).__TAURI_INTERNALS__) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const statuses = await invoke<McpServerStatus[]>('mcp_get_server_statuses');
+        set({ mcpStatuses: statuses || [] });
+      }
+    } catch (e) {
+      console.error('Failed to get MCP server statuses:', e);
+    }
+  },
+
+  saveMcpServer: async (config: McpServerConfig) => {
+    try {
+      if ((window as any).__TAURI_INTERNALS__) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('mcp_save_server', { config });
+        await get().fetchMcpServers();
+        await get().fetchMcpTools();
+        get().addToast('success', `Konfigurasi server MCP '${config.name}' berhasil disimpan.`);
+      }
+    } catch (e: any) {
+      get().addToast('error', `Gagal menyimpan server MCP: ${e}`);
+      throw e;
+    }
+  },
+
+  deleteMcpServer: async (id: string) => {
+    try {
+      if ((window as any).__TAURI_INTERNALS__) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('mcp_delete_server', { id });
+        await get().fetchMcpServers();
+        await get().fetchMcpTools();
+        get().addToast('info', 'Server MCP berhasil dihapus.');
+      }
+    } catch (e: any) {
+      get().addToast('error', `Gagal menghapus server MCP: ${e}`);
+    }
+  },
+
+  toggleMcpServer: async (id: string, isActive: boolean) => {
+    try {
+      if ((window as any).__TAURI_INTERNALS__) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('mcp_toggle_server', { id, isActive });
+        await get().fetchMcpServers();
+        await get().fetchMcpTools();
+        get().addToast('info', `Server MCP ${isActive ? 'diaktifkan' : 'dinonaktifkan'}.`);
+      }
+    } catch (e: any) {
+      get().addToast('error', `Gagal mengubah status server MCP: ${e}`);
+    }
+  },
+
+  importMcpConfigJson: async (jsonStr: string) => {
+    try {
+      if ((window as any).__TAURI_INTERNALS__) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const count = await invoke<number>('mcp_import_json_config', { jsonStr });
+        await get().fetchMcpServers();
+        await get().fetchMcpTools();
+        get().addToast('success', `Berhasil mengimpor ${count} server MCP.`);
+        return count;
+      }
+      return 0;
+    } catch (e: any) {
+      get().addToast('error', `Gagal mengimpor konfigurasi MCP: ${e}`);
+      throw e;
+    }
+  },
+
+  callMcpTool: async (namespacedName: string, args: any) => {
+    try {
+      if ((window as any).__TAURI_INTERNALS__) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        return await invoke<string>('mcp_call_tool', { namespacedName, arguments: args });
+      }
+      return 'Simulated MCP call result (browser mode)';
+    } catch (e: any) {
+      throw new Error(`MCP tool call failed: ${e}`);
     }
   },
 }));

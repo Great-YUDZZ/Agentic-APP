@@ -29,6 +29,7 @@ pub struct AppState {
     pub active_terminal_processes: Arc<Mutex<HashMap<String, u32>>>,
     pub pty_sessions: Arc<Mutex<HashMap<String, PtySession>>>,
     pub vault: Arc<crate::vault::VaultState>,
+    pub mcp_manager: Arc<crate::engine::mcp::McpClientManager>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -1673,6 +1674,81 @@ pub async fn get_offline_speech_status() -> Result<serde_json::Value, String> {
 pub async fn trigger_voice_model_download(app: tauri::AppHandle) -> Result<(), String> {
     crate::voice::downloader::start_model_download(Some(app));
     Ok(())
+}
+
+// ==========================================
+// MCP (Model Context Protocol) IPC Commands
+// ==========================================
+
+#[tauri::command]
+pub async fn mcp_list_servers(
+    state: State<'_, AppState>,
+) -> Result<Vec<crate::engine::mcp::McpServerConfig>, String> {
+    Ok(state.mcp_manager.list_servers().await)
+}
+
+#[tauri::command]
+pub async fn mcp_save_server(
+    state: State<'_, AppState>,
+    config: crate::engine::mcp::McpServerConfig,
+) -> Result<(), String> {
+    state.mcp_manager.save_server(config).await
+}
+
+#[tauri::command]
+pub async fn mcp_delete_server(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<(), String> {
+    state.mcp_manager.delete_server(&id).await
+}
+
+#[tauri::command]
+pub async fn mcp_toggle_server(
+    state: State<'_, AppState>,
+    id: String,
+    is_active: bool,
+) -> Result<(), String> {
+    state.mcp_manager.toggle_server(&id, is_active).await
+}
+
+#[tauri::command]
+pub async fn mcp_import_json_config(
+    state: State<'_, AppState>,
+    json_str: String,
+) -> Result<usize, String> {
+    state.mcp_manager.import_json_config(&json_str).await
+}
+
+#[tauri::command]
+pub async fn mcp_list_active_tools(
+    state: State<'_, AppState>,
+) -> Result<Vec<crate::engine::mcp::McpToolInfo>, String> {
+    Ok(state.mcp_manager.list_active_tools().await)
+}
+
+#[tauri::command]
+pub async fn mcp_call_tool(
+    state: State<'_, AppState>,
+    namespaced_name: String,
+    arguments: serde_json::Value,
+) -> Result<String, String> {
+    state.mcp_manager.call_tool(&namespaced_name, arguments).await
+}
+
+#[tauri::command]
+pub async fn mcp_get_server_statuses(
+    state: State<'_, AppState>,
+) -> Result<Vec<crate::engine::mcp::McpServerStatus>, String> {
+    Ok(state.mcp_manager.get_server_statuses().await)
+}
+
+#[tauri::command]
+pub async fn mcp_connect_server(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<Vec<crate::engine::mcp::McpToolInfo>, String> {
+    state.mcp_manager.connect_server(&id).await
 }
 
 #[cfg(test)]
