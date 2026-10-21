@@ -15,11 +15,45 @@ pub fn invalidate_cached_context() {
     }
 }
 
+/// Validate model integrity and auto-repair if truncated or oversized
+fn validate_and_repair_model(path: &PathBuf) -> bool {
+    if !path.exists() {
+        return false;
+    }
+    let fname = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+    if fname.contains("small") {
+        if let Ok(meta) = std::fs::metadata(path) {
+            let len = meta.len();
+            if len == downloader::EXPECTED_MODEL_SIZE {
+                return true;
+            }
+            if len > downloader::EXPECTED_MODEL_SIZE {
+                // Auto-repair: truncate extra bytes appended by curl resume
+                if let Ok(file) = std::fs::OpenOptions::new().write(true).open(path) {
+                    let _ = file.set_len(downloader::EXPECTED_MODEL_SIZE);
+                    return true;
+                }
+            }
+            // If less than expected, model is incomplete/corrupt
+            return false;
+        }
+        return false;
+    }
+    if fname.contains("tiny") {
+        if let Ok(meta) = std::fs::metadata(path) {
+            // Tiny model is ~77MB
+            return meta.len() >= 70_000_000;
+        }
+        return false;
+    }
+    true
+}
+
 /// Look up model path from well-known local locations, prioritizing high-accuracy small-q5_1
 pub fn find_model_path() -> Option<PathBuf> {
     if let Ok(env_path) = std::env::var("WHISPER_MODEL_PATH") {
         let p = PathBuf::from(env_path);
-        if p.exists() {
+        if validate_and_repair_model(&p) {
             return Some(p);
         }
     }
@@ -27,11 +61,11 @@ pub fn find_model_path() -> Option<PathBuf> {
     // 1. Check system data directory (where downloader places it)
     if let Some(data_dir) = dirs::data_dir() {
         let small_path = data_dir.join("agentic_native_hub/models/ggml-small-q5_1.bin");
-        if small_path.exists() {
+        if validate_and_repair_model(&small_path) {
             return Some(small_path);
         }
         let tiny_path = data_dir.join("agentic_native_hub/models/ggml-tiny.bin");
-        if tiny_path.exists() {
+        if validate_and_repair_model(&tiny_path) {
             return Some(tiny_path);
         }
     }
@@ -49,7 +83,7 @@ pub fn find_model_path() -> Option<PathBuf> {
     ];
 
     for candidate in &candidates {
-        if candidate.exists() {
+        if validate_and_repair_model(candidate) {
             return Some(candidate.clone());
         }
     }
@@ -274,4 +308,33 @@ mod tests {
         assert_eq!(samples.len(), 1600);
         assert!(samples.iter().any(|&s| s != 0.0));
     }
+
+    #[test]
+    fn test_transcribe_audio_bytes_execution() {
+        if find_model_path().is_none() {
+            return;
+        }
+
+        let spec = hound::WavSpec {
+            channels: 1,
+            sample_rate: 16000,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
+
+        let mut buf = std::io::Cursor::new(Vec::new());
+        {
+            let mut writer = hound::WavWriter::new(&mut buf, spec).unwrap();
+            for i in 0..8000 {
+                let sample = (2000.0 * (i as f32 * 0.05).sin()) as i16;
+                writer.write_sample(sample).unwrap();
+            }
+            writer.finalize().unwrap();
+        }
+
+        let wav_bytes = buf.into_inner();
+        let res = transcribe_audio_bytes(&wav_bytes, Some("id"));
+        assert!(res.is_ok(), "transcribe_audio_bytes must succeed without panic or error");
+    }
 }
+

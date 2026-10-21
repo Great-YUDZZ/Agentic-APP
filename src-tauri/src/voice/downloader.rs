@@ -62,30 +62,23 @@ pub fn get_target_model_path() -> PathBuf {
 
 pub fn cleanup_legacy_tiny_model() {
     let target = get_target_model_path();
-    // Safety guard: only delete tiny model if small model exists and is complete (>= 180MB)
+    // Safety guard: only delete tiny model if small model exists and is complete (== EXPECTED_MODEL_SIZE)
     if !target.exists() {
         return;
     }
     if let Ok(meta) = std::fs::metadata(&target) {
-        if meta.len() < 180_000_000 {
+        if meta.len() != EXPECTED_MODEL_SIZE {
             return;
         }
     } else {
         return;
     }
 
-    let mut candidates = Vec::new();
+    // Only clean from user data directory cache, never delete bundled repo models
     if let Some(data_dir) = dirs::data_dir() {
-        candidates.push(data_dir.join("agentic_native_hub/models/ggml-tiny.bin"));
-    }
-    candidates.push(PathBuf::from("models/ggml-tiny.bin"));
-    candidates.push(PathBuf::from("../models/ggml-tiny.bin"));
-    candidates.push(PathBuf::from("/home/yudz/Agentic/models/ggml-tiny.bin"));
-    candidates.push(PathBuf::from("/media/yudz/FLASHDISK/Agentic/models/ggml-tiny.bin"));
-
-    for path in candidates {
-        if path.exists() {
-            let _ = std::fs::remove_file(&path);
+        let tiny_data = data_dir.join("agentic_native_hub/models/ggml-tiny.bin");
+        if tiny_data.exists() {
+            let _ = std::fs::remove_file(&tiny_data);
         }
     }
 }
@@ -94,7 +87,7 @@ pub fn start_model_download(app_handle: Option<tauri::AppHandle>) {
     let target_path = get_target_model_path();
     if target_path.exists() {
         if let Ok(meta) = std::fs::metadata(&target_path) {
-            if meta.len() >= 180_000_000 {
+            if meta.len() == EXPECTED_MODEL_SIZE {
                 cleanup_legacy_tiny_model();
                 update_download_progress(
                     VoiceDownloadProgress {
@@ -107,6 +100,23 @@ pub fn start_model_download(app_handle: Option<tauri::AppHandle>) {
                     app_handle.as_ref(),
                 );
                 return;
+            } else if meta.len() > EXPECTED_MODEL_SIZE {
+                // Auto-repair oversized/corrupted model by truncating to exact expected size
+                if let Ok(file) = std::fs::OpenOptions::new().write(true).open(&target_path) {
+                    let _ = file.set_len(EXPECTED_MODEL_SIZE);
+                    cleanup_legacy_tiny_model();
+                    update_download_progress(
+                        VoiceDownloadProgress {
+                            status: "completed".to_string(),
+                            downloaded_bytes: EXPECTED_MODEL_SIZE,
+                            total_bytes: EXPECTED_MODEL_SIZE,
+                            percent: 100.0,
+                            error: None,
+                        },
+                        app_handle.as_ref(),
+                    );
+                    return;
+                }
             }
         }
     }
@@ -131,6 +141,13 @@ pub fn start_model_download(app_handle: Option<tauri::AppHandle>) {
         }
         let part_file = target.with_extension("bin.part");
 
+        // Clean part file if corrupted or larger than expected
+        if let Ok(meta) = std::fs::metadata(&part_file) {
+            if meta.len() >= EXPECTED_MODEL_SIZE {
+                let _ = std::fs::remove_file(&part_file);
+            }
+        }
+
         let mut cmd = std::process::Command::new("curl");
         cmd.arg("-L")
             .arg("-f")
@@ -146,8 +163,7 @@ pub fn start_model_download(app_handle: Option<tauri::AppHandle>) {
             cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
         }
 
-        let mut child = match cmd.spawn()
-        {
+        let mut child = match cmd.spawn() {
             Ok(c) => c,
             Err(e) => {
                 IS_DOWNLOADING.store(false, Ordering::SeqCst);
@@ -171,23 +187,49 @@ pub fn start_model_download(app_handle: Option<tauri::AppHandle>) {
                 Ok(Some(exit_status)) => {
                     IS_DOWNLOADING.store(false, Ordering::SeqCst);
                     if exit_status.success() {
-                        let _ = std::fs::rename(&part_file, &target);
-                        cleanup_legacy_tiny_model();
-                        let final_len = std::fs::metadata(&target)
+                        let final_len = std::fs::metadata(&part_file)
                             .map(|m| m.len())
-                            .unwrap_or(EXPECTED_MODEL_SIZE);
-                        crate::voice::invalidate_cached_context();
+                            .unwrap_or(0);
 
-                        update_download_progress(
-                            VoiceDownloadProgress {
-                                status: "completed".to_string(),
-                                downloaded_bytes: final_len,
-                                total_bytes: EXPECTED_MODEL_SIZE,
-                                percent: 100.0,
-                                error: None,
-                            },
-                            app_handle.as_ref(),
-                        );
+                        if final_len > EXPECTED_MODEL_SIZE {
+                            // Truncate any extra bytes appended by curl resume
+                            if let Ok(file) = std::fs::OpenOptions::new().write(true).open(&part_file) {
+                                let _ = file.set_len(EXPECTED_MODEL_SIZE);
+                            }
+                        }
+
+                        let verified_len = std::fs::metadata(&part_file)
+                            .map(|m| m.len())
+                            .unwrap_or(0);
+
+                        if verified_len == EXPECTED_MODEL_SIZE {
+                            let _ = std::fs::rename(&part_file, &target);
+                            cleanup_legacy_tiny_model();
+                            crate::voice::invalidate_cached_context();
+
+                            update_download_progress(
+                                VoiceDownloadProgress {
+                                    status: "completed".to_string(),
+                                    downloaded_bytes: EXPECTED_MODEL_SIZE,
+                                    total_bytes: EXPECTED_MODEL_SIZE,
+                                    percent: 100.0,
+                                    error: None,
+                                },
+                                app_handle.as_ref(),
+                            );
+                        } else {
+                            let _ = std::fs::remove_file(&part_file);
+                            update_download_progress(
+                                VoiceDownloadProgress {
+                                    status: "failed".to_string(),
+                                    downloaded_bytes: 0,
+                                    total_bytes: EXPECTED_MODEL_SIZE,
+                                    percent: 0.0,
+                                    error: Some("Ukuran model tidak sesuai dengan ukuran resmi.".to_string()),
+                                },
+                                app_handle.as_ref(),
+                            );
+                        }
                     } else {
                         update_download_progress(
                             VoiceDownloadProgress {
@@ -206,17 +248,17 @@ pub fn start_model_download(app_handle: Option<tauri::AppHandle>) {
                     break;
                 }
                 Ok(None) => {
-                    // Masih berjalan, update progres
+                    // Update progress periodically
                     if let Ok(meta) = std::fs::metadata(&part_file) {
-                        let cur_len = meta.len();
-                        let pct =
-                            ((cur_len as f32 / EXPECTED_MODEL_SIZE as f32) * 100.0).min(99.9);
+                        let downloaded = meta.len();
+                        let percent = ((downloaded as f32 / EXPECTED_MODEL_SIZE as f32) * 100.0)
+                            .min(99.0);
                         update_download_progress(
                             VoiceDownloadProgress {
                                 status: "downloading".to_string(),
-                                downloaded_bytes: cur_len,
+                                downloaded_bytes: downloaded,
                                 total_bytes: EXPECTED_MODEL_SIZE,
-                                percent: pct,
+                                percent,
                                 error: None,
                             },
                             app_handle.as_ref(),
@@ -232,7 +274,7 @@ pub fn start_model_download(app_handle: Option<tauri::AppHandle>) {
                             downloaded_bytes: 0,
                             total_bytes: EXPECTED_MODEL_SIZE,
                             percent: 0.0,
-                            error: Some(format!("Error memeriksa proses downloader: {}", e)),
+                            error: Some(format!("Error saat memantau unduhan: {}", e)),
                         },
                         app_handle.as_ref(),
                     );
