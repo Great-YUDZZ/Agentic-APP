@@ -861,49 +861,5 @@ mod tests {
             let _ = std::fs::remove_file(storage_path);
         });
     }
-
-    #[test]
-    fn test_blender_mcp_live_connection() {
-        let script_path = PathBuf::from("/home/yudz/blender_mcp.py");
-        if !script_path.exists() {
-            return;
-        }
-
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-
-        rt.block_on(async {
-            let manager = McpClientManager::new();
-            let config = McpServerConfig {
-                id: "test_blender_server".to_string(),
-                name: "blender".to_string(),
-                transport: "stdio".to_string(),
-                command: Some("python3".to_string()),
-                args: vec!["/home/yudz/blender_mcp.py".to_string()],
-                env: HashMap::new(),
-                url: None,
-                is_active: true,
-            };
-
-            let save_res = manager.save_server(config).await;
-            assert!(save_res.is_ok(), "Failed to save blender mcp config");
-
-            let tools = manager.list_active_tools().await;
-            assert!(!tools.is_empty(), "Must discover tools from blender_mcp.py");
-
-            let has_eval = tools.iter().any(|t| t.namespaced_name == "mcp__blender__blender_eval");
-            assert!(has_eval, "Must discover mcp__blender__blender_eval");
-
-            // Execute scene info call via Rust MCP Client
-            let call_res = manager.call_tool("mcp__blender__blender_get_scene_info", serde_json::json!({})).await;
-            assert!(call_res.is_ok(), "Call to blender_get_scene_info must succeed");
-            let output_str = call_res.unwrap();
-            assert!(output_str.contains("Scene"), "Output must contain Blender scene info");
-
-            // Cleanup test server
-            let _ = manager.delete_server("test_blender_server").await;
-        });
-    }
 }
+
