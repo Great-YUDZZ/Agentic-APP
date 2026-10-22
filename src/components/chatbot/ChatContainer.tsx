@@ -19,9 +19,11 @@ import {
 } from 'lucide-react';
 import { useVoiceRecorder } from '../../utils/audioRecorder';
 import { useStore } from '../../store/useStore';
-import { ChatMessage } from '../../types';
+import { ChatMessage, AttachedFile } from '../../types';
 import { EmptyState } from '../common/EmptyState';
 import { ContextTelemetryBar } from '../common/ContextTelemetryBar';
+import { AttachmentChips } from '../common/AttachmentChips';
+import { processSelectedFiles, formatAttachedPrompt } from '../../utils/fileUpload';
 import {
   parseRobustJson,
   getChatEndpoint,
@@ -78,8 +80,52 @@ export const ChatContainer: React.FC = () => {
 
   const [inputPrompt, setInputPrompt] = useState('');
   const [isWebSearchActive, setIsWebSearchActive] = useState(false);
-  const [hasContextAttached, setHasContextAttached] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const res = await processSelectedFiles(files);
+    if (res.error) {
+      addToast('warning', res.error);
+    }
+    if (res.files.length > 0) {
+      setAttachedFiles((prev) => [...prev, ...res.files]);
+      addToast('success', `${res.files.length} file berhasil dilampirkan.`);
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+    const res = await processSelectedFiles(files);
+    if (res.error) {
+      addToast('warning', res.error);
+    }
+    if (res.files.length > 0) {
+      setAttachedFiles((prev) => [...prev, ...res.files]);
+      addToast('success', `${res.files.length} file berhasil dilampirkan.`);
+    }
+  };
 
   // Slash Command Autocomplete State
   const [isSlashOpen, setIsSlashOpen] = useState(false);
@@ -275,15 +321,19 @@ export const ChatContainer: React.FC = () => {
 
   const handleSendMessage = async (explicitText?: string) => {
     const rawText = (explicitText !== undefined ? explicitText : inputPrompt).trim();
-    if (!rawText) return;
+    if (!rawText && attachedFiles.length === 0) return;
+
+    const filesToAttach = [...attachedFiles];
+    const fullPrompt = formatAttachedPrompt(rawText, filesToAttach);
 
     const isBusy = isGenerating || isStreaming || isWorking;
     if (isBusy && explicitText === undefined) {
       if (settings.queuedMessages === 'queue') {
-        addQueuedMessage(rawText);
+        addQueuedMessage(fullPrompt);
         setInputPrompt('');
+        setAttachedFiles([]);
         setIsSlashOpen(false);
-        addToast('info', 'Pesan ditambahkan ke antrean.');
+        addToast('info', 'Pesan dan berkas ditambahkan ke antrean.');
         return;
       }
       // When settings.queuedMessages === 'immediate', send immediately without queuing
@@ -299,9 +349,9 @@ export const ChatContainer: React.FC = () => {
       id: userMsgId,
       session_id: targetSessionId,
       role: 'user',
-      content: rawText,
+      content: fullPrompt,
       created_at: new Date().toISOString(),
-      token_count: Math.ceil(rawText.length / 4),
+      token_count: Math.ceil(fullPrompt.length / 4),
     };
 
     addMessage(userMsg);
@@ -310,12 +360,13 @@ export const ChatContainer: React.FC = () => {
     // Update judul sesi jika masih default "Obrolan Baru"
     const currentSession = sessions.find((s) => s.id === targetSessionId);
     if (!currentSession || currentSession.title === 'Obrolan Baru') {
-      const summaryTitle = userMsg.content.slice(0, 32) + (userMsg.content.length > 32 ? '...' : '');
+      const summaryTitle = (rawText || filesToAttach[0]?.name || 'Obrolan').slice(0, 32);
       updateSessionTitle(targetSessionId, summaryTitle);
     }
 
     if (explicitText === undefined) {
       setInputPrompt('');
+      setAttachedFiles([]);
       setIsSlashOpen(false);
     }
     setIsGenerating(true);
@@ -820,8 +871,44 @@ export const ChatContainer: React.FC = () => {
             isProcessing={isGenerating || isStreaming}
           />
 
-          {/* ChatGPT Capsule Prompt Input Container with Integrated Model Selector & Slash Command Popover */}
-          <div className="relative rounded-3xl bg-[#2f2f2f] border border-[#383838] p-2.5 px-3.5 focus-within:border-[#4f4f4f] transition-colors">
+          {/* ChatGPT Capsule Prompt Input Container with Drag-and-Drop & Attachment Chips */}
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`relative rounded-3xl bg-[#2f2f2f] border transition-colors p-2.5 px-3.5 ${
+              isDragOver
+                ? 'border-[#ececec] bg-[#333333]'
+                : 'border-[#383838] focus-within:border-[#4f4f4f]'
+            }`}
+          >
+            {/* Drag-over dropzone overlay */}
+            {isDragOver && (
+              <div className="absolute inset-0 rounded-3xl bg-[#212121]/90 border-2 border-dashed border-[#ececec] flex items-center justify-center z-30 pointer-events-none">
+                <div className="flex items-center gap-2 text-xs font-medium text-[#ececec]">
+                  <Paperclip className="w-4 h-4 animate-bounce" />
+                  <span>Lepaskan berkas untuk melampirkan ke obrolan</span>
+                </div>
+              </div>
+            )}
+
+            {/* Hidden file input */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              multiple
+              accept="*/*"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+
+            {/* Attachment Chips Preview */}
+            <AttachmentChips
+              files={attachedFiles}
+              onRemove={(id) => setAttachedFiles((prev) => prev.filter((f) => f.id !== id))}
+              className="mb-1.5"
+            />
+
             {isSlashOpen && (
               <SlashCommandPopover
                 filter={slashFilter}
@@ -1068,15 +1155,21 @@ export const ChatContainer: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() => setHasContextAttached(!hasContextAttached)}
+                  onClick={() => fileInputRef.current?.click()}
                   className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                    hasContextAttached
+                    attachedFiles.length > 0
                       ? 'bg-white/10 text-white border border-white/20'
                       : 'text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#383838]'
                   }`}
+                  title="Lampirkan berkas dari komputer (atau tarik & lepas file ke kolom obrolan)"
                 >
                   <Paperclip className="w-3.5 h-3.5" />
                   <span>Lampirkan</span>
+                  {attachedFiles.length > 0 && (
+                    <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-[#ececec] text-[#171717] font-semibold">
+                      {attachedFiles.length}
+                    </span>
+                  )}
                 </button>
               </div>
 
