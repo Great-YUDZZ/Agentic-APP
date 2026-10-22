@@ -37,7 +37,7 @@ import { useStore } from '../../store/useStore';
 import { CustomSelect } from '../common/CustomSelect';
 import { AttachedFile, ExecutionStep } from '../../types';
 import { AttachmentChips } from '../common/AttachmentChips';
-import { processSelectedFiles, formatAttachedPrompt } from '../../utils/fileUpload';
+import { processSelectedFiles, formatAttachedPrompt, pickNativeFiles } from '../../utils/fileUpload';
 import { extractCodeReviewItems } from '../../utils/codeExtractor';
 import { getDailyGreeting } from '../../utils/dailyGreetings';
 import { getConversationWidthClass } from '../../utils/layout';
@@ -256,6 +256,22 @@ export const MultiAgentDiscussion: React.FC = () => {
       addToast('success', `${res.files.length} file berhasil dilampirkan.`);
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleAttachClick = async () => {
+    if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+      try {
+        const picked = await pickNativeFiles();
+        if (picked && picked.length > 0) {
+          setAttachedFiles((prev) => [...prev, ...picked]);
+          addToast('success', `${picked.length} file berhasil dilampirkan.`);
+        }
+        return;
+      } catch (err) {
+        console.warn('Native file picker fallback to HTML input:', err);
+      }
+    }
+    fileInputRef.current?.click();
   };
 
   const dailyGreeting = getDailyGreeting();
@@ -945,7 +961,7 @@ export const MultiAgentDiscussion: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={handleAttachClick}
                   title="Unggah file dari direktori lokal"
                   className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors shrink-0 ${
                     attachedFiles.length > 0

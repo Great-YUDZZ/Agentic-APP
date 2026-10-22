@@ -118,3 +118,21 @@ export function formatAttachedPrompt(userText: string, attachedFiles: AttachedFi
   formatted += '=== AKHIR LAMPIRAN FILE ===';
   return formatted;
 }
+
+/**
+ * Membuka jendela dialog pemilih berkas bawaan OS secara langsung melalui Tauri IPC.
+ * Memungkinkan navigasi bebas ke seluruh folder dan subdirektori sistem berkas tanpa batasan WebKit.
+ */
+export async function pickNativeFiles(): Promise<AttachedFile[]> {
+  if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const files = await invoke<AttachedFile[]>('pick_files_native');
+      return files || [];
+    } catch (err) {
+      console.error('Gagal membuka pemilih berkas bawaan OS:', err);
+      throw err;
+    }
+  }
+  return [];
+}

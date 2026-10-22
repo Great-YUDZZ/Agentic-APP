@@ -33,7 +33,7 @@ import { AgentCreatorModal } from './AgentCreatorModal';
 import { AttachmentChips } from '../common/AttachmentChips';
 import { FormattedMessage } from '../common/FormattedMessage';
 import { ContextTelemetryBar } from '../common/ContextTelemetryBar';
-import { processSelectedFiles, formatAttachedPrompt } from '../../utils/fileUpload';
+import { processSelectedFiles, formatAttachedPrompt, pickNativeFiles } from '../../utils/fileUpload';
 import { parseRobustJson, getChatEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../../utils/api';
 import { getDailyGreeting } from '../../utils/dailyGreetings';
 import { getConversationWidthClass } from '../../utils/layout';
@@ -182,6 +182,22 @@ export const AgentWorkspace: React.FC = () => {
       addToast('success', `${res.files.length} file berhasil dilampirkan.`);
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleAttachClick = async () => {
+    if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+      try {
+        const picked = await pickNativeFiles();
+        if (picked && picked.length > 0) {
+          setAttachedFiles((prev) => [...prev, ...picked]);
+          addToast('success', `${picked.length} file berhasil dilampirkan.`);
+        }
+        return;
+      } catch (err) {
+        console.warn('Native file picker fallback to HTML input:', err);
+      }
+    }
+    fileInputRef.current?.click();
   };
 
   const dailyGreeting = getDailyGreeting();
@@ -1242,7 +1258,7 @@ ${mcpTools.length > 0 ? `\n2. Anda juga memiliki akses langsung ke perkakas ekst
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={handleAttachClick}
                     title="Tambah lampiran file dari direktori"
                     className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors shrink-0 ${
                       attachedFiles.length > 0

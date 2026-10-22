@@ -565,6 +565,257 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {{
     .map_err(|e| format!("Gagal menjalankan dialog simpan berkas: {}", e))?
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PickedNativeFile {
+    pub id: String,
+    pub name: String,
+    pub size: u64,
+    #[serde(rename = "type")]
+    pub file_type: String,
+    pub content: String,
+    #[serde(rename = "isImage")]
+    pub is_image: bool,
+}
+
+pub fn encode_base64_simple(bytes: &[u8]) -> String {
+    const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity((bytes.len() + 2) / 3 * 4);
+    for chunk in bytes.chunks(3) {
+        let b0 = chunk[0];
+        let b1 = if chunk.len() > 1 { chunk[1] } else { 0 };
+        let b2 = if chunk.len() > 2 { chunk[2] } else { 0 };
+
+        out.push(CHARSET[(b0 >> 2) as usize] as char);
+        out.push(CHARSET[(((b0 & 0x03) << 4) | (b1 >> 4)) as usize] as char);
+
+        if chunk.len() > 1 {
+            out.push(CHARSET[(((b1 & 0x0f) << 2) | (b2 >> 6)) as usize] as char);
+        } else {
+            out.push('=');
+        }
+
+        if chunk.len() > 2 {
+            out.push(CHARSET[(b2 & 0x3f) as usize] as char);
+        } else {
+            out.push('=');
+        }
+    }
+    out
+}
+
+pub fn read_picked_files_to_payload(paths: Vec<String>) -> Vec<PickedNativeFile> {
+    let mut results = Vec::new();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+
+    for (idx, path_str) in paths.into_iter().enumerate() {
+        let path = std::path::Path::new(&path_str);
+        if !path.is_file() {
+            continue;
+        }
+
+        let name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| "unnamed_file".to_string());
+
+        let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+
+        let ext = path
+            .extension()
+            .map(|e| e.to_string_lossy().to_lowercase())
+            .unwrap_or_default();
+
+        let is_image = matches!(
+            ext.as_str(),
+            "png" | "jpg" | "jpeg" | "gif" | "webp" | "svg" | "bmp" | "ico"
+        );
+
+        let mime = match ext.as_str() {
+            "png" => "image/png",
+            "jpg" | "jpeg" => "image/jpeg",
+            "gif" => "image/gif",
+            "webp" => "image/webp",
+            "svg" => "image/svg+xml",
+            "bmp" => "image/bmp",
+            "ico" => "image/x-icon",
+            "json" => "application/json",
+            "js" => "application/javascript",
+            "ts" | "tsx" => "application/typescript",
+            "html" | "htm" => "text/html",
+            "css" => "text/css",
+            "md" | "markdown" => "text/markdown",
+            "txt" => "text/plain",
+            "rs" => "text/rust",
+            "py" => "text/python",
+            "sh" | "bash" => "text/x-shellscript",
+            "sql" => "text/sql",
+            "yaml" | "yml" => "text/yaml",
+            _ => {
+                if is_image {
+                    "image/png"
+                } else {
+                    "text/plain"
+                }
+            }
+        };
+
+        let content = if size > 30 * 1024 * 1024 {
+            format!(
+                "[Peringatan: Berkas \"{}\" berukuran {:.1} MB, melebihi batas aman 30 MB. Lampirkan berkas yang lebih ringkas.]",
+                name,
+                size as f64 / (1024.0 * 1024.0)
+            )
+        } else if is_image {
+            match std::fs::read(path) {
+                Ok(bytes) => format!("data:{};base64,{}", mime, encode_base64_simple(&bytes)),
+                Err(_) => String::new(),
+            }
+        } else {
+            // Coba baca sebagai teks UTF-8
+            match std::fs::read_to_string(path) {
+                Ok(text) => text,
+                Err(_) => {
+                    // Fallback berkas biner ke Base64 dataURL
+                    match std::fs::read(path) {
+                        Ok(bytes) => {
+                            let binary_mime = if ext == "pdf" {
+                                "application/pdf"
+                            } else {
+                                "application/octet-stream"
+                            };
+                            format!("data:{};base64,{}", binary_mime, encode_base64_simple(&bytes))
+                        }
+                        Err(_) => String::new(),
+                    }
+                }
+            }
+        };
+
+        results.push(PickedNativeFile {
+            id: format!("file-{}-{}-{}", now, idx, Uuid::new_v4().simple()),
+            name,
+            size,
+            file_type: mime.to_string(),
+            content,
+            is_image,
+        });
+    }
+
+    results
+}
+
+#[tauri::command]
+pub async fn pick_files_native() -> Result<Vec<PickedNativeFile>, String> {
+    tokio::task::spawn_blocking(move || {
+        let selected_paths: Vec<String> = {
+            #[cfg(target_os = "linux")]
+            {
+                let mut paths = Vec::new();
+                // 1. Coba zenity --file-selection --multiple --separator="|"
+                let zenity_res = std::process::Command::new("zenity")
+                    .args([
+                        "--file-selection",
+                        "--multiple",
+                        "--separator=|",
+                        "--file-filter=Semua Berkas | *",
+                        "--file-filter=Dokumen & Kode | *.txt *.md *.json *.py *.rs *.ts *.tsx *.js *.html *.css *.yaml *.yml *.sh *.sql",
+                        "--file-filter=Gambar | *.png *.jpg *.jpeg *.gif *.webp *.svg",
+                        "--title=Pilih Berkas untuk Dilampirkan",
+                    ])
+                    .output();
+
+                if let Ok(out) = zenity_res {
+                    if out.status.success() {
+                        let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                        if !stdout.is_empty() {
+                            for p in stdout.split('|') {
+                                let trimmed = p.trim();
+                                if !trimmed.is_empty() {
+                                    paths.push(trimmed.to_string());
+                                }
+                            }
+                            return Ok(read_picked_files_to_payload(paths));
+                        }
+                    }
+                    return Ok(Vec::new());
+                }
+
+                // 2. Fallback kdialog untuk lingkungan KDE
+                let kdialog_res = std::process::Command::new("kdialog")
+                    .args([
+                        "--getopenfilename",
+                        "--multiple",
+                        "--separate-output",
+                        ".",
+                        "*",
+                    ])
+                    .output();
+
+                if let Ok(out) = kdialog_res {
+                    if out.status.success() {
+                        let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                        if !stdout.is_empty() {
+                            for line in stdout.lines() {
+                                let trimmed = line.trim();
+                                if !trimmed.is_empty() {
+                                    paths.push(trimmed.to_string());
+                                }
+                            }
+                            return Ok(read_picked_files_to_payload(paths));
+                        }
+                    }
+                    return Ok(Vec::new());
+                }
+
+                paths
+            }
+
+            #[cfg(target_os = "windows")]
+            {
+                use std::os::windows::process::CommandExt;
+                let script = r#"
+Add-Type -AssemblyName System.Windows.Forms
+$dialog = New-Object System.Windows.Forms.OpenFileDialog
+$dialog.Multiselect = $true
+$dialog.Title = "Pilih Berkas untuk Dilampirkan"
+$dialog.Filter = "Semua Berkas (*.*)|*.*|Dokumen & Kode (*.txt;*.md;*.json;*.py;*.rs;*.ts;*.js)|*.txt;*.md;*.json;*.py;*.rs;*.ts;*.js|Gambar (*.png;*.jpg;*.jpeg;*.gif;*.webp)|*.png;*.jpg;*.jpeg;*.gif;*.webp"
+if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+    $dialog.FileNames | ForEach-Object { Write-Output $_ }
+}
+"#;
+                let mut cmd = std::process::Command::new("powershell");
+                cmd.args(["-NoProfile", "-Command", script]);
+                cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+                let mut paths = Vec::new();
+                if let Ok(out) = cmd.output() {
+                    if out.status.success() {
+                        let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                        for line in stdout.lines() {
+                            let trimmed = line.trim();
+                            if !trimmed.is_empty() {
+                                paths.push(trimmed.to_string());
+                            }
+                        }
+                    }
+                }
+                paths
+            }
+
+            #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+            {
+                Vec::new()
+            }
+        };
+
+        Ok(read_picked_files_to_payload(selected_paths))
+    })
+    .await
+    .map_err(|e| format!("Gagal menjalankan dialog pemilih berkas: {}", e))?
+}
+
 #[tauri::command]
 pub async fn perform_web_search(
     query: String,
@@ -2015,6 +2266,37 @@ mod tests {
             let val = res.unwrap();
             assert!(val.get("model_name").is_some());
         });
+    }
+
+    #[test]
+    fn test_encode_base64_simple() {
+        assert_eq!(encode_base64_simple(b""), "");
+        assert_eq!(encode_base64_simple(b"f"), "Zg==");
+        assert_eq!(encode_base64_simple(b"fo"), "Zm8=");
+        assert_eq!(encode_base64_simple(b"foo"), "Zm9v");
+        assert_eq!(encode_base64_simple(b"foob"), "Zm9vYg==");
+        assert_eq!(encode_base64_simple(b"fooba"), "Zm9vYmE=");
+        assert_eq!(encode_base64_simple(b"foobar"), "Zm9vYmFy");
+    }
+
+    #[test]
+    fn test_read_picked_files_to_payload() {
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join("test_agentic_picked_file.txt");
+        std::fs::write(&test_file, "Halo dunia dari file picker!").unwrap();
+
+        let paths = vec![test_file.to_string_lossy().to_string()];
+        let payloads = read_picked_files_to_payload(paths);
+
+        assert_eq!(payloads.len(), 1);
+        let first = &payloads[0];
+        assert_eq!(first.name, "test_agentic_picked_file.txt");
+        assert_eq!(first.file_type, "text/plain");
+        assert!(!first.is_image);
+        assert_eq!(first.content, "Halo dunia dari file picker!");
+        assert!(first.size > 0);
+
+        let _ = std::fs::remove_file(&test_file);
     }
 }
 

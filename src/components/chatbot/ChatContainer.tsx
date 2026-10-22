@@ -23,7 +23,7 @@ import { ChatMessage, AttachedFile } from '../../types';
 import { EmptyState } from '../common/EmptyState';
 import { ContextTelemetryBar } from '../common/ContextTelemetryBar';
 import { AttachmentChips } from '../common/AttachmentChips';
-import { processSelectedFiles, formatAttachedPrompt } from '../../utils/fileUpload';
+import { processSelectedFiles, formatAttachedPrompt, pickNativeFiles } from '../../utils/fileUpload';
 import {
   parseRobustJson,
   getChatEndpoint,
@@ -97,6 +97,22 @@ export const ChatContainer: React.FC = () => {
       addToast('success', `${res.files.length} file berhasil dilampirkan.`);
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleAttachClick = async () => {
+    if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+      try {
+        const picked = await pickNativeFiles();
+        if (picked && picked.length > 0) {
+          setAttachedFiles((prev) => [...prev, ...picked]);
+          addToast('success', `${picked.length} file berhasil dilampirkan.`);
+        }
+        return;
+      } catch (err) {
+        console.warn('Native file picker fallback to HTML input:', err);
+      }
+    }
+    fileInputRef.current?.click();
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -1155,7 +1171,7 @@ export const ChatContainer: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={handleAttachClick}
                   className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                     attachedFiles.length > 0
                       ? 'bg-white/10 text-white border border-white/20'

@@ -169,6 +169,7 @@ pub fn run() {
             ipc::git_branches,
             ipc::git_checkout,
             ipc::git_create_branch,
+            ipc::pick_files_native,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
