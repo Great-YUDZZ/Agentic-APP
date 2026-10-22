@@ -38,133 +38,6 @@ import {
 import { LoadingSkeleton } from '../common/LoadingSkeleton';
 import { EmptyState } from '../common/EmptyState';
 
-const DUMMY_STAGED_FILES: GitFileItem[] = [
-  {
-    path: 'src/components/canvas/SidecarViewer.tsx',
-    status: 'modified',
-    is_staged: true,
-  },
-  {
-    path: 'src/utils/canvasService.ts',
-    status: 'added',
-    is_staged: true,
-  },
-];
-
-const DUMMY_UNSTAGED_FILES: GitFileItem[] = [
-  {
-    path: 'src-tauri/src/engine/canvas.rs',
-    status: 'modified',
-    is_staged: false,
-  },
-  {
-    path: 'src/types/canvas.ts',
-    status: 'modified',
-    is_staged: false,
-  },
-];
-
-const DUMMY_UNTRACKED_FILES: GitFileItem[] = [
-  {
-    path: 'docs/sidecar-architecture.md',
-    status: 'untracked',
-    is_staged: false,
-  },
-];
-
-const DUMMY_GIT_DIFFS: Record<string, string> = {
-  'src/components/canvas/SidecarViewer.tsx': `--- a/src/components/canvas/SidecarViewer.tsx
-+++ b/src/components/canvas/SidecarViewer.tsx
-@@ -1,7 +1,32 @@
--import React from 'react';
-+import React, { useState } from 'react';
-+import { PanelRightClose, Code, Eye, RefreshCw, Copy, Check } from 'lucide-react';
-
- export const SidecarViewer: React.FC = () => {
-+  const [activeTab, setActiveTab] = useState<'preview' | 'code'>('preview');
-+  const [copied, setCopied] = useState<boolean>(false);
-+
-+  const handleCopy = () => {
-+    setCopied(true);
-+    setTimeout(() => setCopied(false), 2000);
-+  };
-+
-   return (
--    <div className="p-4 text-xs text-[#707070]">
--      Panel sidecar canvas belum diinisialisasi.
--    </div>
-+    <div className="flex flex-col h-full bg-[#171717] border-l border-[#303030]">
-+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#262626] bg-[#212121]">
-+        <div className="flex items-center gap-2">
-+          <Code className="w-4 h-4 text-[#ececec]" />
-+          <span className="text-xs font-semibold text-[#ececec]">Artifact Canvas</span>
-+        </div>
-+        <button onClick={handleCopy} className="p-1 rounded text-[#b4b4b4]">
-+          {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-+        </button>
-+      </div>
-+      <div className="flex-1 p-4 text-xs text-[#ececec]">
-+        <p>Pratinjau interaktif artefak kode, diagram Mermaid, dan dokumen HTML.</p>
-+      </div>
-+    </div>
-   );
- };`,
-  'src/utils/canvasService.ts': `--- /dev/null
-+++ b/src/utils/canvasService.ts
-@@ -0,0 +1,15 @@
-+export interface CanvasArtifact {
-+  id: string;
-+  title: string;
-+  type: 'code' | 'mermaid' | 'html' | 'markdown';
-+  content: string;
-+}
-+
-+export function parseArtifactFromMessage(message: string): CanvasArtifact | null {
-+  const match = message.match(/\\\`\\\`\\\`(\\w+)\\n([\\s\\S]*?)\\\`\\\`\\\`/);
-+  if (!match) return null;
-+  return {
-+    id: \`art-\${Date.now()}\`,
-+    title: 'Extracted Snippet',
-+    type: 'code',
-+    content: match[2],
-+  };
-+}`,
-  'src-tauri/src/engine/canvas.rs': `--- a/src-tauri/src/engine/canvas.rs
-+++ b/src-tauri/src/engine/canvas.rs
-@@ -1,5 +1,11 @@
- pub fn init_canvas_engine() -> Result<(), String> {
--    Ok(())
-+    println!("Inisialisasi engine sidecar canvas");
-+    Ok(())
-+}
-+
-+pub fn render_mermaid_svg(diagram: &str) -> Result<String, String> {
-+    if diagram.is_empty() {
-+        return Err("Diagram mermaid tidak boleh kosong".to_string());
-+    }
-+    Ok(format!("<svg><!-- rendered {} --></svg>", diagram.len()))
- }`,
-  'src/types/canvas.ts': `--- a/src/types/canvas.ts
-+++ b/src/types/canvas.ts
-@@ -1,3 +1,8 @@
--export type CanvasMode = 'hidden' | 'visible';
-+export type CanvasMode = 'hidden' | 'sidecar' | 'fullscreen';
-+
-+export interface CanvasViewProps {
-+  isOpen: boolean;
-+  onClose: () => void;
-+}`,
-  'docs/sidecar-architecture.md': `--- /dev/null
-+++ b/docs/sidecar-architecture.md
-@@ -0,0 +1,9 @@
-+# Arsitektur Sidecar Artifacts & Canvas
-+
-+Panel mandiri di sisi kanan kanvas chat untuk menampilkan pratinjau:
-+- Kode sumber dengan syntax highlighting dan aksi copy
-+- Diagram alur Mermaid interaktif
-+- Tabel data dan dokumen HTML`,
-};
-
 export const VisualGitManager: React.FC = () => {
   const { addToast, selectedModel, availableModels, apiKeys } = useStore();
 
@@ -199,35 +72,15 @@ export const VisualGitManager: React.FC = () => {
         getGitStatus(),
         listGitBranches().catch(() => []),
       ]);
-
-      const hasRealChanges =
-        statusRes.staged_files.length > 0 ||
-        statusRes.unstaged_files.length > 0 ||
-        statusRes.untracked_files.length > 0;
-
-      const effectiveStatus: GitStatusResponse = hasRealChanges
-        ? statusRes
-        : {
-            ...statusRes,
-            ahead: statusRes.ahead > 0 ? statusRes.ahead : 1,
-            staged_files: DUMMY_STAGED_FILES,
-            unstaged_files: DUMMY_UNSTAGED_FILES,
-            untracked_files: DUMMY_UNTRACKED_FILES,
-          };
-
-      setGitStatus(effectiveStatus);
-      setBranches(
-        branchList.length > 0
-          ? branchList
-          : ['main', 'feature/visual-git-manager', 'feature/canvas-sidecar']
-      );
+      setGitStatus(statusRes);
+      setBranches(branchList);
 
       // If selected file is no longer changed, reset selection
       if (selectedFile) {
         const stillExists =
-          effectiveStatus.staged_files.some((f) => f.path === selectedFile.path) ||
-          effectiveStatus.unstaged_files.some((f) => f.path === selectedFile.path) ||
-          effectiveStatus.untracked_files.some((f) => f.path === selectedFile.path);
+          statusRes.staged_files.some((f) => f.path === selectedFile.path) ||
+          statusRes.unstaged_files.some((f) => f.path === selectedFile.path) ||
+          statusRes.untracked_files.some((f) => f.path === selectedFile.path);
         if (!stillExists) {
           setSelectedFile(null);
           setFileDiff('');
@@ -251,19 +104,11 @@ export const VisualGitManager: React.FC = () => {
       setSelectedFile(file);
       setIsLoadingDiff(true);
       try {
-        if (DUMMY_GIT_DIFFS[file.path]) {
-          setFileDiff(DUMMY_GIT_DIFFS[file.path]);
-        } else {
-          const diff = await getGitDiff(file.path, file.is_staged);
-          setFileDiff(diff);
-        }
+        const diff = await getGitDiff(file.path, file.is_staged);
+        setFileDiff(diff);
       } catch (err: any) {
-        if (DUMMY_GIT_DIFFS[file.path]) {
-          setFileDiff(DUMMY_GIT_DIFFS[file.path]);
-        } else {
-          addToast('error', `Gagal membaca diff: ${err?.message || err}`, 4000);
-          setFileDiff('');
-        }
+        addToast('error', `Gagal membaca diff: ${err?.message || err}`, 4000);
+        setFileDiff('');
       } finally {
         setIsLoadingDiff(false);
       }
@@ -288,26 +133,6 @@ export const VisualGitManager: React.FC = () => {
   const handleStageFile = async (e: React.MouseEvent, path: string) => {
     e.stopPropagation();
     try {
-      if (DUMMY_GIT_DIFFS[path]) {
-        setGitStatus((prev) => {
-          if (!prev) return prev;
-          const fileToStage =
-            prev.unstaged_files.find((f) => f.path === path) ||
-            prev.untracked_files.find((f) => f.path === path);
-          if (!fileToStage) return prev;
-          return {
-            ...prev,
-            staged_files: [...prev.staged_files, { ...fileToStage, is_staged: true }],
-            unstaged_files: prev.unstaged_files.filter((f) => f.path !== path),
-            untracked_files: prev.untracked_files.filter((f) => f.path !== path),
-          };
-        });
-        addToast('success', `File di-stage: ${path}`, 2000);
-        if (selectedFile?.path === path) {
-          setSelectedFile({ ...selectedFile, is_staged: true });
-        }
-        return;
-      }
       await stageGitFile(path);
       addToast('success', `File di-stage: ${path}`, 2000);
       await refreshStatus();
@@ -322,23 +147,6 @@ export const VisualGitManager: React.FC = () => {
   // Stage all
   const handleStageAll = async () => {
     try {
-      if (gitStatus && gitStatus.unstaged_files.some((f) => DUMMY_GIT_DIFFS[f.path])) {
-        setGitStatus((prev) => {
-          if (!prev) return prev;
-          const allToStage: GitFileItem[] = [
-            ...prev.unstaged_files.map((f) => ({ ...f, is_staged: true })),
-            ...prev.untracked_files.map((f) => ({ ...f, is_staged: true })),
-          ];
-          return {
-            ...prev,
-            staged_files: [...prev.staged_files, ...allToStage],
-            unstaged_files: [],
-            untracked_files: [],
-          };
-        });
-        addToast('success', 'Semua perubahan berhasil di-stage', 2500);
-        return;
-      }
       await stageAllGit();
       addToast('success', 'Semua perubahan berhasil di-stage', 2500);
       await refreshStatus();
@@ -351,23 +159,6 @@ export const VisualGitManager: React.FC = () => {
   const handleUnstageFile = async (e: React.MouseEvent, path: string) => {
     e.stopPropagation();
     try {
-      if (DUMMY_GIT_DIFFS[path]) {
-        setGitStatus((prev) => {
-          if (!prev) return prev;
-          const fileToUnstage = prev.staged_files.find((f) => f.path === path);
-          if (!fileToUnstage) return prev;
-          return {
-            ...prev,
-            staged_files: prev.staged_files.filter((f) => f.path !== path),
-            unstaged_files: [...prev.unstaged_files, { ...fileToUnstage, is_staged: false }],
-          };
-        });
-        addToast('info', `File di-unstage: ${path}`, 2000);
-        if (selectedFile?.path === path) {
-          setSelectedFile({ ...selectedFile, is_staged: false });
-        }
-        return;
-      }
       await unstageGitFile(path);
       addToast('success', `File di-unstage: ${path}`, 2000);
       await refreshStatus();
@@ -382,21 +173,6 @@ export const VisualGitManager: React.FC = () => {
   // Unstage all
   const handleUnstageAll = async () => {
     try {
-      if (gitStatus && gitStatus.staged_files.some((f) => DUMMY_GIT_DIFFS[f.path])) {
-        setGitStatus((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            unstaged_files: [
-              ...prev.unstaged_files,
-              ...prev.staged_files.map((f) => ({ ...f, is_staged: false })),
-            ],
-            staged_files: [],
-          };
-        });
-        addToast('info', 'Semua file di-unstage', 2500);
-        return;
-      }
       await unstageAllGit();
       addToast('success', 'Semua file di-unstage', 2500);
       await refreshStatus();
@@ -414,22 +190,6 @@ export const VisualGitManager: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      if (DUMMY_GIT_DIFFS[path]) {
-        setGitStatus((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            unstaged_files: prev.unstaged_files.filter((f) => f.path !== path),
-            untracked_files: prev.untracked_files.filter((f) => f.path !== path),
-          };
-        });
-        if (selectedFile?.path === path) {
-          setSelectedFile(null);
-          setFileDiff('');
-        }
-        addToast('success', `Perubahan dibatalkan: ${path}`, 2500);
-        return;
-      }
       await discardGitFile(path);
       addToast('success', `Perubahan dibatalkan: ${path}`, 2500);
       await refreshStatus();
@@ -447,20 +207,6 @@ export const VisualGitManager: React.FC = () => {
 
     setIsCommitting(true);
     try {
-      if (gitStatus && gitStatus.staged_files.some((f) => DUMMY_GIT_DIFFS[f.path])) {
-        const msg = commitMessage.trim();
-        setGitStatus((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            ahead: (prev.ahead || 0) + 1,
-            staged_files: [],
-          };
-        });
-        addToast('success', `Commit dibuat: ${msg}`, 3000);
-        setCommitMessage('');
-        return;
-      }
       await commitGit(commitMessage.trim());
       addToast('success', 'Commit berhasil dibuat', 3000);
       setCommitMessage('');
@@ -476,21 +222,11 @@ export const VisualGitManager: React.FC = () => {
   const handleGenerateAiCommit = async () => {
     setIsGeneratingAi(true);
     try {
+      // First try to get staged diff
       let diffForAi = await getGitDiff(undefined, true);
+      // If staged diff is empty, fallback to unstaged diff
       if (!diffForAi.trim()) {
         diffForAi = await getGitDiff(undefined, false);
-      }
-
-      if (!diffForAi.trim() && gitStatus) {
-        const dummyStaged = gitStatus.staged_files
-          .map((f) => DUMMY_GIT_DIFFS[f.path] || '')
-          .filter(Boolean)
-          .join('\n\n');
-        const dummyUnstaged = gitStatus.unstaged_files
-          .map((f) => DUMMY_GIT_DIFFS[f.path] || '')
-          .filter(Boolean)
-          .join('\n\n');
-        diffForAi = dummyStaged || dummyUnstaged;
       }
 
       if (!diffForAi.trim()) {
@@ -508,13 +244,9 @@ export const VisualGitManager: React.FC = () => {
       if (generated) {
         setCommitMessage(generated);
         addToast('success', 'Pesan commit berhasil dibuat oleh AI', 3000);
-      } else {
-        setCommitMessage('feat(canvas): implement sidecar viewer component and artifact preview bridge');
-        addToast('info', 'Pesan commit disarankan dari diff berkas', 3000);
       }
     } catch (err: any) {
-      setCommitMessage('feat(canvas): implement sidecar viewer component and artifact preview bridge');
-      addToast('info', 'Pesan commit disarankan dari diff berkas', 3000);
+      addToast('error', `AI generator error: ${err?.message || err}`, 5000);
     } finally {
       setIsGeneratingAi(false);
     }
