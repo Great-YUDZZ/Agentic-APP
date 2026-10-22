@@ -1756,6 +1756,187 @@ pub async fn mcp_connect_server(
     state.mcp_manager.connect_server(&id).await
 }
 
+// ==========================================
+// Git Version Control IPC Commands
+// ==========================================
+
+#[tauri::command]
+pub async fn git_status(
+    state: State<'_, AppState>,
+) -> Result<crate::engine::git::GitStatusResponse, String> {
+    let ws = state.tool_runner.workspace_root();
+    tokio::task::spawn_blocking(move || {
+        crate::engine::git::get_git_status(&ws).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("Task execution failed: {}", e))?
+}
+
+#[tauri::command]
+pub async fn git_diff(
+    state: State<'_, AppState>,
+    file_path: Option<String>,
+    staged: Option<bool>,
+) -> Result<String, String> {
+    let ws = state.tool_runner.workspace_root();
+    tokio::task::spawn_blocking(move || {
+        crate::engine::git::get_git_diff(&ws, file_path.as_deref(), staged.unwrap_or(false))
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("Task execution failed: {}", e))?
+}
+
+#[tauri::command]
+pub async fn git_stage(
+    state: State<'_, AppState>,
+    file_path: String,
+) -> Result<(), String> {
+    let ws = state.tool_runner.workspace_root();
+    tokio::task::spawn_blocking(move || {
+        crate::engine::git::git_stage_file(&ws, &file_path).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("Task execution failed: {}", e))?
+}
+
+#[tauri::command]
+pub async fn git_stage_all(
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let ws = state.tool_runner.workspace_root();
+    tokio::task::spawn_blocking(move || {
+        crate::engine::git::git_stage_all(&ws).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("Task execution failed: {}", e))?
+}
+
+#[tauri::command]
+pub async fn git_unstage(
+    state: State<'_, AppState>,
+    file_path: String,
+) -> Result<(), String> {
+    let ws = state.tool_runner.workspace_root();
+    tokio::task::spawn_blocking(move || {
+        crate::engine::git::git_unstage_file(&ws, &file_path).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("Task execution failed: {}", e))?
+}
+
+#[tauri::command]
+pub async fn git_unstage_all(
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let ws = state.tool_runner.workspace_root();
+    tokio::task::spawn_blocking(move || {
+        crate::engine::git::git_unstage_all(&ws).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("Task execution failed: {}", e))?
+}
+
+#[tauri::command]
+pub async fn git_discard(
+    state: State<'_, AppState>,
+    file_path: String,
+) -> Result<(), String> {
+    let ws = state.tool_runner.workspace_root();
+    tokio::task::spawn_blocking(move || {
+        crate::engine::git::git_discard_file(&ws, &file_path).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("Task execution failed: {}", e))?
+}
+
+#[tauri::command]
+pub async fn git_commit(
+    state: State<'_, AppState>,
+    message: String,
+) -> Result<String, String> {
+    let ws = state.tool_runner.workspace_root();
+    tokio::task::spawn_blocking(move || {
+        crate::engine::git::git_commit(&ws, &message).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("Task execution failed: {}", e))?
+}
+
+#[tauri::command]
+pub async fn git_push(
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let ws = state.tool_runner.workspace_root();
+    tokio::task::spawn_blocking(move || {
+        crate::engine::git::git_push(&ws).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("Task execution failed: {}", e))?
+}
+
+#[tauri::command]
+pub async fn git_pull(
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let ws = state.tool_runner.workspace_root();
+    tokio::task::spawn_blocking(move || {
+        crate::engine::git::git_pull(&ws).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("Task execution failed: {}", e))?
+}
+
+#[tauri::command]
+pub async fn git_fetch(
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let ws = state.tool_runner.workspace_root();
+    tokio::task::spawn_blocking(move || {
+        crate::engine::git::git_fetch(&ws).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("Task execution failed: {}", e))?
+}
+
+#[tauri::command]
+pub async fn git_branches(
+    state: State<'_, AppState>,
+) -> Result<Vec<String>, String> {
+    let ws = state.tool_runner.workspace_root();
+    tokio::task::spawn_blocking(move || {
+        crate::engine::git::git_list_branches(&ws).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("Task execution failed: {}", e))?
+}
+
+#[tauri::command]
+pub async fn git_checkout(
+    state: State<'_, AppState>,
+    branch: String,
+) -> Result<(), String> {
+    let ws = state.tool_runner.workspace_root();
+    tokio::task::spawn_blocking(move || {
+        crate::engine::git::git_checkout_branch(&ws, &branch).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("Task execution failed: {}", e))?
+}
+
+#[tauri::command]
+pub async fn git_create_branch(
+    state: State<'_, AppState>,
+    branch_name: String,
+) -> Result<(), String> {
+    let ws = state.tool_runner.workspace_root();
+    tokio::task::spawn_blocking(move || {
+        crate::engine::git::git_create_branch(&ws, &branch_name).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("Task execution failed: {}", e))?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

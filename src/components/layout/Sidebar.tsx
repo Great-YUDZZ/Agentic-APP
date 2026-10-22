@@ -11,6 +11,7 @@ import {
   History,
   ShieldAlert,
   Download,
+  GitBranch,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { exportConversationSession } from '../../utils/exporter';
@@ -366,7 +367,14 @@ export const Sidebar: React.FC = () => {
                         }`}
                       />
                       <div className="truncate">
-                        <p className="truncate">{session.title}</p>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          {session.parent_session_id && (
+                            <span title="Sesi Cabang (Forked)">
+                              <GitBranch className="w-3 h-3 text-[#b4b4b4] shrink-0" />
+                            </span>
+                          )}
+                          <p className="truncate">{session.title}</p>
+                        </div>
                         <span className="text-[10px] text-[#707070]">
                           {session.model.replace('gemini-', '').replace('claude-', '')}
                         </span>

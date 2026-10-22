@@ -24,6 +24,7 @@ import {
   Zap,
   Hand,
   RotateCw,
+  GitBranch,
 } from 'lucide-react';
 import { useVoiceRecorder } from '../../utils/audioRecorder';
 import { useStore } from '../../store/useStore';
@@ -31,6 +32,7 @@ import { CustomAgent, AttachedFile, ChatMessage } from '../../types';
 import { AgentCreatorModal } from './AgentCreatorModal';
 import { AttachmentChips } from '../common/AttachmentChips';
 import { FormattedMessage } from '../common/FormattedMessage';
+import { ContextTelemetryBar } from '../common/ContextTelemetryBar';
 import { processSelectedFiles, formatAttachedPrompt } from '../../utils/fileUpload';
 import { parseRobustJson, getChatEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../../utils/api';
 import { getDailyGreeting } from '../../utils/dailyGreetings';
@@ -80,6 +82,8 @@ export const AgentWorkspace: React.FC = () => {
     createNewSession,
     updateSessionTitle,
     sessions,
+    forkSessionFromMessage,
+    selectSession,
   } = useStore();
 
   const convWidthClass = getConversationWidthClass(settings?.conversationWidth);
@@ -790,6 +794,37 @@ ${mcpTools.length > 0 ? `\n2. Anda juga memiliki akses langsung ke perkakas ekst
         </div>
       ) : null}
 
+      {/* Fork Origin Notification Banner if session is forked */}
+      {(() => {
+        const curSession = sessions.find((s) => s.id === activeSessionId);
+        if (curSession?.parent_session_id) {
+          const parentSession = sessions.find((s) => s.id === curSession.parent_session_id);
+          return (
+            <div className="flex items-center justify-between px-3.5 py-2 rounded-2xl bg-[#262626] border border-[#383838] text-xs text-[#b4b4b4]">
+              <div className="flex items-center gap-2 min-w-0">
+                <GitBranch className="w-3.5 h-3.5 text-[#ececec] shrink-0" />
+                <span className="truncate">
+                  Task ini merupakan cabang dari:{' '}
+                  <span className="font-semibold text-[#ececec]">
+                    {parentSession?.title || 'Sesi Induk'}
+                  </span>
+                </span>
+              </div>
+              {parentSession && (
+                <button
+                  type="button"
+                  onClick={() => selectSession(parentSession.id)}
+                  className="px-2.5 py-1 rounded-xl bg-[#212121] hover:bg-[#282828] border border-[#383838] text-[#ececec] text-[11px] font-medium transition-colors shrink-0 ml-2"
+                >
+                  Buka Sesi Induk
+                </button>
+              )}
+            </div>
+          );
+        }
+        return null;
+      })()}
+
       {/* 3. Conversation & Task Execution History Stream */}
       {currentMessages.length > 0 && (
         <div className="space-y-4 pt-1">
@@ -797,7 +832,7 @@ ${mcpTools.length > 0 ? `\n2. Anda juga memiliki akses langsung ke perkakas ekst
             const isUser = msg.role === 'user';
             if (isUser) {
               return (
-                <div key={msg.id} className="flex justify-end w-full">
+                <div key={msg.id} className="group flex flex-col items-end w-full space-y-1">
                   <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-[#2f2f2f] border border-[#383838] p-4 text-[#ececec] shadow-sm">
                     <div className="flex items-center justify-end gap-2 pb-1.5 border-b border-[#383838] mb-2 text-xs">
                       <span className="text-[10px] text-[#707070] font-mono">
@@ -807,12 +842,24 @@ ${mcpTools.length > 0 ? `\n2. Anda juga memiliki akses langsung ke perkakas ekst
                     </div>
                     <p className="text-xs sm:text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                   </div>
+                  {/* Fork Action Button */}
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => activeSessionId && forkSessionFromMessage(activeSessionId, msg.id)}
+                      title="Cabangkan task baru dari pesan ini"
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium bg-[#262626] hover:bg-[#303030] text-[#707070] hover:text-[#ececec] border border-[#303030] hover:border-[#383838] transition-colors"
+                    >
+                      <GitBranch className="w-3 h-3 text-[#b4b4b4]" />
+                      <span>Cabangkan (Fork)</span>
+                    </button>
+                  </div>
                 </div>
               );
             }
 
             return (
-              <div key={msg.id} className="flex justify-start w-full">
+              <div key={msg.id} className="group flex flex-col items-start w-full space-y-1">
                 <div className="w-full rounded-2xl rounded-tl-sm bg-[#262626] border border-[#383838] p-4 space-y-3 shadow-sm">
                   <div className="flex items-center justify-between pb-2 border-b border-[#303030]">
                     <div className="flex items-center gap-2">
@@ -837,6 +884,18 @@ ${mcpTools.length > 0 ? `\n2. Anda juga memiliki akses langsung ke perkakas ekst
                     reasoning={msg.reasoning}
                     verbose={settings?.verboseAgentChat ?? true}
                   />
+                </div>
+                {/* Fork Action Button */}
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex justify-start">
+                  <button
+                    type="button"
+                    onClick={() => activeSessionId && forkSessionFromMessage(activeSessionId, msg.id)}
+                    title="Cabangkan task baru dari respons ini"
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium bg-[#262626] hover:bg-[#303030] text-[#707070] hover:text-[#ececec] border border-[#303030] hover:border-[#383838] transition-colors"
+                  >
+                    <GitBranch className="w-3 h-3 text-[#b4b4b4]" />
+                    <span>Cabangkan (Fork)</span>
+                  </button>
                 </div>
               </div>
             );
@@ -1105,6 +1164,12 @@ ${mcpTools.length > 0 ? `\n2. Anda juga memiliki akses langsung ke perkakas ekst
 
           {/* 2-Tier Input Dock Container */}
           <div className="space-y-2">
+            {/* Real-time Token Counter & Context Meter Telemetry Bar */}
+            <ContextTelemetryBar
+              draftPrompt={taskInput}
+              isProcessing={isExecuting || isWorking || isStreaming}
+            />
+
             {/* Top Tier: Main Input Capsule */}
             <div className="relative rounded-3xl bg-[#2f2f2f] border border-[#383838] p-2.5 px-3.5 focus-within:border-[#4f4f4f] transition-colors">
               {/* Attachment Chips Preview */}

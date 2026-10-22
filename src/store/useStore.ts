@@ -142,6 +142,18 @@ interface AppStore {
   messages: ChatMessage[];
   isContextCompressed: boolean;
   contextUsagePercent: number;
+  lastTelemetry: {
+    ttftMs: number | null;
+    totalLatencyMs: number | null;
+    lastInputTokens: number;
+    lastOutputTokens: number;
+  };
+  setLastTelemetry: (telemetry: {
+    ttftMs: number | null;
+    totalLatencyMs: number | null;
+    lastInputTokens?: number;
+    lastOutputTokens?: number;
+  }) => void;
   setContextCompressed: (compressed: boolean) => void;
   setContextUsagePercent: (percent: number) => void;
   setSessions: (sessions: ChatSession[]) => void;
@@ -149,6 +161,7 @@ interface AppStore {
   setMessages: (messages: ChatMessage[]) => void;
   addMessage: (msg: ChatMessage) => void;
   createNewSession: (title?: string, mode?: AppMode) => string;
+  forkSessionFromMessage: (sessionId: string, upToMessageId: string) => Promise<string | null>;
   deleteSession: (id: string) => Promise<void>;
   loadSessionsFromDb: () => Promise<void>;
   selectSession: (id: string) => Promise<void>;
@@ -724,6 +737,19 @@ export const useStore = create<AppStore>((set, get) => ({
   messages: [],
   isContextCompressed: false,
   contextUsagePercent: 0,
+  lastTelemetry: {
+    ttftMs: null,
+    totalLatencyMs: null,
+    lastInputTokens: 0,
+    lastOutputTokens: 0,
+  },
+  setLastTelemetry: (telemetry) =>
+    set((s) => ({
+      lastTelemetry: {
+        ...s.lastTelemetry,
+        ...telemetry,
+      },
+    })),
   setContextCompressed: (isContextCompressed) => set({ isContextCompressed }),
   setContextUsagePercent: (contextUsagePercent) => set({ contextUsagePercent }),
   setSessions: (sessions) => set({ sessions }),
@@ -848,11 +874,80 @@ export const useStore = create<AppStore>((set, get) => ({
           model: newSession.model || 'default',
           provider: newSession.provider || 'custom',
           mode: effectiveMode,
+          parentSessionId: null,
+          forkedFromMessageId: null,
         }).catch((e) => console.warn('Gagal simpan create_chat_session ke SQLite:', e));
       });
     }
 
     return newId;
+  },
+
+  forkSessionFromMessage: async (sessionId: string, upToMessageId: string) => {
+    const state = get();
+    const sourceSession = state.sessions.find((s) => s.id === sessionId);
+    if (!sourceSession) {
+      state.addToast('error', 'Sesi asal tidak ditemukan.');
+      return null;
+    }
+
+    // Ambil riwayat pesan hingga pesan yang dipilih
+    let sourceMessages = state.messages.filter((m) => m.session_id === sessionId);
+    if (sourceMessages.length === 0 && (window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        sourceMessages = (await invoke('get_chat_messages', { sessionId })) as ChatMessage[];
+      } catch (e) {
+        console.warn('Gagal memuat pesan untuk forking:', e);
+      }
+    }
+
+    const targetIdx = sourceMessages.findIndex((m) => m.id === upToMessageId);
+    const messagesToClone =
+      targetIdx !== -1 ? sourceMessages.slice(0, targetIdx + 1) : sourceMessages;
+
+    const newForkedId = `session-fork-${Date.now()}`;
+    const cleanOriginTitle = sourceSession.title.replace(/^\[Cabang\]\s*/, '');
+    const newTitle = `[Cabang] ${cleanOriginTitle}`;
+
+    const newSession: ChatSession = {
+      id: newForkedId,
+      title: newTitle,
+      model: sourceSession.model || state.selectedModel,
+      provider: sourceSession.provider || state.selectedProvider,
+      mode: sourceSession.mode || state.currentMode,
+      parent_session_id: sessionId,
+      forked_from_message_id: upToMessageId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const clonedMessages: ChatMessage[] = messagesToClone.map((m, idx) => ({
+      ...m,
+      id: `fork-msg-${Date.now()}-${idx}`,
+      session_id: newForkedId,
+    }));
+
+    set((s) => ({
+      sessions: [newSession, ...s.sessions],
+      activeSessionId: newForkedId,
+      messages: clonedMessages,
+    }));
+
+    if ((window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('fork_chat_session', {
+          session: newSession,
+          messages: clonedMessages,
+        });
+      } catch (err) {
+        console.warn('Gagal menyimpan sesi forked ke SQLite:', err);
+      }
+    }
+
+    state.addToast('success', `Percabangan berhasil dibuat dari pesan terpilih (${clonedMessages.length} pesan).`);
+    return newForkedId;
   },
 
   saveChatMessageToDb: async (msg: ChatMessage) => {

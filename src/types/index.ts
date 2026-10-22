@@ -1,5 +1,5 @@
 export type AppMode = 'chatbot' | 'agent' | 'build';
-export type StudioTab = 'discussion' | 'hierarchy' | 'kanban' | 'diff';
+export type StudioTab = 'discussion' | 'hierarchy' | 'kanban' | 'diff' | 'git';
 
 export interface ApiKeyRecord {
   provider: string; // 'custom', 'custom_<id>', 'gemini', 'openai', 'claude', 'deepseek', 'ollama'
@@ -25,8 +25,20 @@ export interface ChatSession {
   model: string;
   provider: string;
   mode?: AppMode;
+  parent_session_id?: string;
+  forked_from_message_id?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface SessionTelemetry {
+  inputTokens: number;
+  outputTokens: number;
+  totalSessionTokens: number;
+  contextLimit: number;
+  usagePercent: number;
+  ttftMs: number | null;
+  totalLatencyMs: number | null;
 }
 
 export interface ChatMessage {
@@ -329,5 +341,22 @@ export interface McpServerStatus {
   is_connected: boolean;
   tools_count: number;
   error_message?: string;
+}
+
+export interface GitFileItem {
+  path: string;
+  status: 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked';
+  is_staged: boolean;
+}
+
+export interface GitStatusResponse {
+  is_git_repo: boolean;
+  current_branch: string;
+  upstream_branch?: string | null;
+  ahead: number;
+  behind: number;
+  staged_files: GitFileItem[];
+  unstaged_files: GitFileItem[];
+  untracked_files: GitFileItem[];
 }
 

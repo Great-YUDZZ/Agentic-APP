@@ -155,6 +155,20 @@ pub fn run() {
             ipc::mcp_call_tool,
             ipc::mcp_get_server_statuses,
             ipc::mcp_connect_server,
+            ipc::git_status,
+            ipc::git_diff,
+            ipc::git_stage,
+            ipc::git_stage_all,
+            ipc::git_unstage,
+            ipc::git_unstage_all,
+            ipc::git_discard,
+            ipc::git_commit,
+            ipc::git_push,
+            ipc::git_pull,
+            ipc::git_fetch,
+            ipc::git_branches,
+            ipc::git_checkout,
+            ipc::git_create_branch,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

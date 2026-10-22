@@ -3,6 +3,7 @@ import { MultiAgentDiscussion } from './MultiAgentDiscussion';
 import { AgentHierarchyTree } from './AgentHierarchyTree';
 import { TaskKanban } from './TaskKanban';
 import { DiffViewer } from './DiffViewer';
+import { VisualGitManager } from './VisualGitManager';
 import { useStore } from '../../store/useStore';
 
 export const BuildStudio: React.FC = () => {
@@ -14,6 +15,7 @@ export const BuildStudio: React.FC = () => {
       {activeStudioTab === 'hierarchy' && <AgentHierarchyTree />}
       {activeStudioTab === 'kanban' && <TaskKanban />}
       {activeStudioTab === 'diff' && <DiffViewer />}
+      {activeStudioTab === 'git' && <VisualGitManager />}
     </div>
   );
 };

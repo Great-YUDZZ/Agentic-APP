@@ -112,3 +112,45 @@ export function preparePrunedContextMessages(
     prunedCount,
   };
 }
+
+/**
+ * Menghitung metrik telemetri penggunaan konteks dan token secara real-time.
+ */
+export function calculateSessionTelemetry(
+  historyMessages: ChatMessage[],
+  draftInput: string,
+  modelId: string,
+  availableModels: ModelOption[],
+  lastLatency?: { ttftMs: number | null; totalLatencyMs: number | null }
+) {
+  const contextLimit = getModelContextLimit(modelId, availableModels);
+
+  let inputTokens = 0;
+  let outputTokens = 0;
+
+  for (const msg of historyMessages) {
+    const tokens = msg.token_count || estimateTokenCount(msg.content);
+    if (msg.role === 'assistant') {
+      outputTokens += tokens;
+    } else {
+      inputTokens += tokens;
+    }
+  }
+
+  // Tambahkan perkiraan token dari input draf yang sedang diketik
+  const draftTokens = estimateTokenCount(draftInput);
+  inputTokens += draftTokens;
+
+  const totalSessionTokens = inputTokens + outputTokens;
+  const usagePercent = Math.min(100, Math.round((totalSessionTokens / contextLimit) * 100));
+
+  return {
+    inputTokens,
+    outputTokens,
+    totalSessionTokens,
+    contextLimit,
+    usagePercent,
+    ttftMs: lastLatency?.ttftMs ?? null,
+    totalLatencyMs: lastLatency?.totalLatencyMs ?? null,
+  };
+}

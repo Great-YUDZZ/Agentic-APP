@@ -12,6 +12,7 @@ import {
   Check,
   ShieldAlert,
   Download,
+  GitBranch,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { AppMode, StudioTab } from '../../types';
@@ -29,6 +30,7 @@ const STUDIO_TABS: { id: StudioTab; label: string; icon: React.ElementType }[] =
   { id: 'hierarchy', label: 'Hierarki', icon: Layers },
   { id: 'kanban', label: 'Kanban', icon: CheckSquare },
   { id: 'diff', label: 'Diff', icon: FileDiff },
+  { id: 'git', label: 'Git Control', icon: GitBranch },
 ];
 
 export const TitleBar: React.FC = () => {
