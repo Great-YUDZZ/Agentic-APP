@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ChevronRight, Copy, Check } from 'lucide-react';
+import { ChevronRight, Copy, Check, PanelRightOpen } from 'lucide-react';
+import { useStore } from '../../store/useStore';
 import Prism from 'prismjs';
 // Base, Markup & Web
 import 'prismjs/components/prism-markup';
@@ -132,6 +133,7 @@ export const FormattedMessage: React.FC<FormattedMessageProps> = ({
   reasoning,
   verbose = true,
 }) => {
+  const { openArtifact } = useStore();
   const [copiedCodeIndex, setCopiedCodeIndex] = useState<number | null>(null);
 
   const parts = content.split(/(```[\s\S]*?```)/g);
@@ -140,6 +142,29 @@ export const FormattedMessage: React.FC<FormattedMessageProps> = ({
     navigator.clipboard.writeText(codeText);
     setCopiedCodeIndex(index);
     setTimeout(() => setCopiedCodeIndex(null), 2000);
+  };
+
+  const handleOpenInCanvas = (codeBody: string, lang: string, index: number) => {
+    const artifactId = `art-${lang}-${Date.now()}-${index}`;
+    const title = `Snippet ${lang.toUpperCase()}`;
+    openArtifact({
+      id: artifactId,
+      title,
+      language: lang,
+      content: codeBody,
+      versions: [
+        {
+          version: 1,
+          content: codeBody,
+          timestamp: new Date().toISOString(),
+          author: 'ai',
+          summary: 'Diekstrak dari pesan percakapan',
+        },
+      ],
+      currentVersionIndex: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
   };
 
   return (
@@ -177,23 +202,34 @@ export const FormattedMessage: React.FC<FormattedMessageProps> = ({
                 <span className="font-mono text-[#b4b4b4] text-[11px] lowercase">
                   {lang}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => handleCopyCode(codeBody, index)}
-                  className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg hover:bg-[#2f2f2f] text-[#b4b4b4] hover:text-[#ececec] transition-colors text-[11px]"
-                >
-                  {copiedCodeIndex === index ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-[#ececec]" />
-                      <span className="text-[#ececec]">Copied</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Copy</span>
-                    </>
-                  )}
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenInCanvas(codeBody, lang, index)}
+                    title="Buka kode ini di panel Sidecar Canvas terpisah"
+                    className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg hover:bg-[#2f2f2f] text-[#b4b4b4] hover:text-[#ececec] transition-colors text-[11px]"
+                  >
+                    <PanelRightOpen className="w-3.5 h-3.5" />
+                    <span>Buka di Canvas</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyCode(codeBody, index)}
+                    className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg hover:bg-[#2f2f2f] text-[#b4b4b4] hover:text-[#ececec] transition-colors text-[11px]"
+                  >
+                    {copiedCodeIndex === index ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-[#ececec]" />
+                        <span className="text-[#ececec]">Copied</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copy</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
               <pre className="p-3.5 overflow-x-auto text-xs font-mono text-[#ececec] leading-relaxed bg-[#171717]">
                 {renderCodeBlock(codeBody, lang)}

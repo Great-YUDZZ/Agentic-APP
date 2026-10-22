@@ -13,6 +13,7 @@ import {
   ShieldAlert,
   Download,
   GitBranch,
+  PanelRight,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { AppMode, StudioTab } from '../../types';
@@ -57,6 +58,9 @@ export const TitleBar: React.FC = () => {
     customAgents,
     kanbanTasks,
     codeReviewItems,
+    isSidecarOpen,
+    toggleSidecar,
+    artifacts,
   } = useStore();
 
   const [isStudioMenuOpen, setIsStudioMenuOpen] = useState(false);
@@ -282,6 +286,28 @@ export const TitleBar: React.FC = () => {
             <span className="hidden sm:inline">Terminal</span>
           </button>
         ) : null}
+
+        {/* Dedicated Canvas / Artifacts Sidecar Toggle Button */}
+        {(currentMode === 'chatbot' || currentMode === 'agent') && !isVaultPageOpen && (
+          <button
+            type="button"
+            onClick={toggleSidecar}
+            title={isSidecarOpen ? 'Tutup Panel Canvas' : 'Buka Panel Canvas'}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors border ${
+              isSidecarOpen
+                ? 'bg-[#2b2b2b] text-[#ececec] border-[#4f4f4f] shadow-sm'
+                : 'bg-[#212121] text-[#8e8e8e] hover:text-[#ececec] border-[#303030] hover:bg-[#2b2b2b]'
+            }`}
+          >
+            <PanelRight className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Canvas</span>
+            {artifacts.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-[#2f2f2f] text-[#ececec] border border-[#383838]">
+                {artifacts.length}
+              </span>
+            )}
+          </button>
+        )}
 
         {/* Global Vault Pending Approvals Button */}
         {pendingDeleteRequests.length > 0 && !isVaultPageOpen && (

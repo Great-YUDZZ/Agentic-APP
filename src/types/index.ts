@@ -360,3 +360,24 @@ export interface GitStatusResponse {
   untracked_files: GitFileItem[];
 }
 
+export interface ArtifactVersion {
+  version: number;
+  content: string;
+  timestamp: string;
+  author: 'ai' | 'user';
+  summary?: string;
+}
+
+export interface Artifact {
+  id: string;
+  title: string;
+  language: string;
+  content: string;
+  versions: ArtifactVersion[];
+  currentVersionIndex: number;
+  createdAt: string;
+  updatedAt: string;
+  sessionId?: string;
+  messageId?: string;
+}
+

@@ -16,6 +16,7 @@ import { GraphViewModal } from './components/vault/GraphViewModal';
 import { VaultWorkspace } from './components/vault/VaultWorkspace';
 import { ToastFeedback } from './components/common/ToastFeedback';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { SidecarViewer } from './components/canvas/SidecarViewer';
 import { useStore } from './store/useStore';
 import { applyTheme } from './utils/theme';
 
@@ -30,6 +31,8 @@ export const App: React.FC = () => {
     fetchMcpServers,
     fetchMcpTools,
     isVaultPageOpen,
+    isSidecarOpen,
+    toggleSidecar,
   } = useStore();
 
   React.useEffect(() => {
@@ -42,6 +45,10 @@ export const App: React.FC = () => {
         e.preventDefault();
         setSettingsOpen(true);
       }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'e' || e.key === 'E')) {
+        e.preventDefault();
+        toggleSidecar();
+      }
       if (e.ctrlKey && e.key === 'Tab' && currentMode === 'build') {
         e.preventDefault();
         toggleBuildSubMode();
@@ -49,7 +56,7 @@ export const App: React.FC = () => {
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [setSettingsOpen, toggleBuildSubMode, currentMode]);
+  }, [setSettingsOpen, toggleBuildSubMode, toggleSidecar, currentMode]);
 
   React.useEffect(() => {
     loadApiKeysFromDb();
@@ -74,11 +81,16 @@ export const App: React.FC = () => {
               {isVaultPageOpen ? (
                 <VaultWorkspace />
               ) : (
-                <>
-                  {currentMode === 'chatbot' && <ChatContainer />}
-                  {currentMode === 'agent' && <AgentWorkspace />}
-                  {currentMode === 'build' && <BuildStudio />}
-                </>
+                <div className="flex-1 flex h-full overflow-hidden relative">
+                  <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
+                    {currentMode === 'chatbot' && <ChatContainer />}
+                    {currentMode === 'agent' && <AgentWorkspace />}
+                    {currentMode === 'build' && <BuildStudio />}
+                  </div>
+                  {(currentMode === 'chatbot' || currentMode === 'agent') && isSidecarOpen && (
+                    <SidecarViewer />
+                  )}
+                </div>
               )}
             </ErrorBoundary>
           </main>

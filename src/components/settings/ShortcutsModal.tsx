@@ -58,6 +58,12 @@ const SHORTCUTS: ShortcutItem[] = [
     description: 'Slash Commands',
   },
   {
+    id: 'toggle-canvas',
+    category: 'Navigation',
+    keys: ['Ctrl', 'E'],
+    description: 'Toggle Sidecar Canvas',
+  },
+  {
     id: 'close-modal',
     category: 'Navigation',
     keys: ['Esc'],

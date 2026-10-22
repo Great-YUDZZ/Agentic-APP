@@ -522,6 +522,38 @@ export const ChatContainer: React.FC = () => {
         saveChatMessageToDb(finalMsg);
       }
 
+      // Auto-detect artifacts if message contains code block or diagram
+      const finalContent = finalMsg?.content || '';
+      const codeBlockMatch = finalContent.match(/```([a-zA-Z0-9_-]+)?\n([\s\S]*?)```/);
+      if (codeBlockMatch) {
+        const lang = codeBlockMatch[1] || 'code';
+        const codeBody = codeBlockMatch[2].trim();
+        if (codeBody.split('\n').length >= 6 || ['mermaid', 'html', 'svg'].includes(lang.toLowerCase())) {
+          const artifactId = `art-auto-${Date.now()}`;
+          const cleanTitle = `Snippet ${lang.toUpperCase()}`;
+          useStore.getState().openArtifact({
+            id: artifactId,
+            title: cleanTitle,
+            language: lang,
+            content: codeBody,
+            versions: [
+              {
+                version: 1,
+                content: codeBody,
+                timestamp: new Date().toISOString(),
+                author: 'ai',
+                summary: 'Dibuat otomatis oleh asisten model',
+              },
+            ],
+            currentVersionIndex: 0,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            sessionId: activeSessionId || undefined,
+            messageId: assistantMsgId,
+          });
+        }
+      }
+
       // Check planReviewPolicy when /plan command runs
       const isPlan = userMsg.content.trim().startsWith('/plan');
       if (isPlan) {

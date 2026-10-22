@@ -33,6 +33,8 @@ import {
   McpServerConfig,
   McpToolInfo,
   McpServerStatus,
+  Artifact,
+  ArtifactVersion,
 } from '../types';
 import { parseRobustJson, getChatEndpoint, getModelsEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../utils/api';
 import { extractCodeReviewItems } from '../utils/codeExtractor';
@@ -281,6 +283,22 @@ interface AppStore {
   fetchMcpTools: () => Promise<void>;
   fetchMcpStatuses: () => Promise<void>;
   callMcpTool: (namespacedName: string, args: any) => Promise<string>;
+
+  // Dedicated Artifacts & Canvas (Sidecar Viewer)
+  artifacts: Artifact[];
+  activeArtifactId: string | null;
+  isSidecarOpen: boolean;
+  sidecarWidth: number;
+  sidecarTab: 'preview' | 'code';
+  openArtifact: (artifact: Artifact) => void;
+  closeSidecar: () => void;
+  toggleSidecar: () => void;
+  setSidecarTab: (tab: 'preview' | 'code') => void;
+  setSidecarWidth: (width: number) => void;
+  setActiveArtifactId: (id: string | null) => void;
+  updateArtifactContent: (id: string, newContent: string, author: 'ai' | 'user', summary?: string) => void;
+  setArtifactVersion: (id: string, versionIndex: number) => void;
+  saveArtifactToWorkspace: (id: string, relativePath: string) => Promise<boolean>;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -2837,6 +2855,135 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
       return 'Simulated MCP call result (browser mode)';
     } catch (e: any) {
       throw new Error(`MCP tool call failed: ${e}`);
+    }
+  },
+
+  // Dedicated Artifacts & Canvas (Sidecar Viewer) Implementation
+  artifacts: [],
+  activeArtifactId: null,
+  isSidecarOpen: false,
+  sidecarWidth: 540,
+  sidecarTab: 'code',
+
+  openArtifact: (artifact: Artifact) => {
+    const existing = get().artifacts.find((a) => a.id === artifact.id);
+    const isPreviewable = ['html', 'svg', 'mermaid', 'markdown'].includes(artifact.language.toLowerCase());
+    if (!existing) {
+      set((s) => ({
+        artifacts: [artifact, ...s.artifacts],
+        activeArtifactId: artifact.id,
+        isSidecarOpen: true,
+        sidecarTab: isPreviewable ? 'preview' : 'code',
+      }));
+    } else {
+      set({
+        activeArtifactId: artifact.id,
+        isSidecarOpen: true,
+        sidecarTab: isPreviewable ? 'preview' : 'code',
+      });
+    }
+  },
+
+  closeSidecar: () => set({ isSidecarOpen: false }),
+
+  toggleSidecar: () => set((s) => ({ isSidecarOpen: !s.isSidecarOpen })),
+
+  setSidecarTab: (sidecarTab) => set({ sidecarTab }),
+
+  setSidecarWidth: (sidecarWidth) => set({ sidecarWidth: Math.max(360, Math.min(840, sidecarWidth)) }),
+
+  setActiveArtifactId: (activeArtifactId) => {
+    const art = get().artifacts.find((a) => a.id === activeArtifactId);
+    const isPreviewable = art ? ['html', 'svg', 'mermaid', 'markdown'].includes(art.language.toLowerCase()) : false;
+    set({
+      activeArtifactId,
+      sidecarTab: isPreviewable ? 'preview' : 'code',
+    });
+  },
+
+  updateArtifactContent: (id, newContent, author, summary) => {
+    set((s) => ({
+      artifacts: s.artifacts.map((a) => {
+        if (a.id !== id) return a;
+        const newVersionNumber = a.versions.length + 1;
+        const newVersion: ArtifactVersion = {
+          version: newVersionNumber,
+          content: newContent,
+          timestamp: new Date().toISOString(),
+          author,
+          summary: summary || (author === 'user' ? 'Operator manual edit' : 'AI generated revision'),
+        };
+        const updatedVersions = [...a.versions, newVersion];
+        return {
+          ...a,
+          content: newContent,
+          versions: updatedVersions,
+          currentVersionIndex: updatedVersions.length - 1,
+          updatedAt: new Date().toISOString(),
+        };
+      }),
+    }));
+  },
+
+  setArtifactVersion: (id, versionIndex) => {
+    set((s) => ({
+      artifacts: s.artifacts.map((a) => {
+        if (a.id !== id) return a;
+        const targetVersion = a.versions[versionIndex];
+        if (!targetVersion) return a;
+        return {
+          ...a,
+          content: targetVersion.content,
+          currentVersionIndex: versionIndex,
+          updatedAt: new Date().toISOString(),
+        };
+      }),
+    }));
+  },
+
+  saveArtifactToWorkspace: async (id, relativePath) => {
+    const art = get().artifacts.find((a) => a.id === id);
+    if (!art) {
+      get().addToast('error', 'Artefak tidak ditemukan.');
+      return false;
+    }
+    const defaultExt =
+      art.language === 'markdown'
+        ? 'md'
+        : art.language === 'typescript'
+        ? 'ts'
+        : art.language === 'javascript'
+        ? 'js'
+        : art.language === 'python'
+        ? 'py'
+        : art.language === 'rust'
+        ? 'rs'
+        : art.language === 'html'
+        ? 'html'
+        : art.language === 'css'
+        ? 'css'
+        : art.language === 'json'
+        ? 'json'
+        : 'txt';
+    const targetPath =
+      relativePath.trim() ||
+      (art.title.includes('.') ? art.title : `${art.title.toLowerCase().replace(/[^a-z0-9_-]/g, '_')}.${defaultExt}`);
+    try {
+      if ((window as any).__TAURI_INTERNALS__) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('execute_sandbox_tool', {
+          toolName: 'write_file',
+          parameters: {
+            path: targetPath,
+            content: art.content,
+          },
+        });
+      }
+      get().addToast('success', `Berhasil menyimpan artefak ke "${targetPath}"`);
+      return true;
+    } catch (e: any) {
+      get().addToast('error', `Gagal menyimpan artefak: ${e?.message || e}`);
+      return false;
     }
   },
 }));

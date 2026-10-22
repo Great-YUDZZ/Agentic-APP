@@ -573,6 +573,37 @@ ${mcpTools.length > 0 ? `\n2. Anda juga memiliki akses langsung ke perkakas ekst
       addMessage(assistantMsg);
       saveChatMessageToDb(assistantMsg);
 
+      // Auto-detect artifacts if message contains code block or diagram
+      const codeBlockMatch = finalContent.match(/```([a-zA-Z0-9_-]+)?\n([\s\S]*?)```/);
+      if (codeBlockMatch) {
+        const lang = codeBlockMatch[1] || 'code';
+        const codeBody = codeBlockMatch[2].trim();
+        if (codeBody.split('\n').length >= 6 || ['mermaid', 'html', 'svg'].includes(lang.toLowerCase())) {
+          const artifactId = `art-auto-${Date.now()}`;
+          const cleanTitle = `Snippet ${lang.toUpperCase()}`;
+          useStore.getState().openArtifact({
+            id: artifactId,
+            title: cleanTitle,
+            language: lang,
+            content: codeBody,
+            versions: [
+              {
+                version: 1,
+                content: codeBody,
+                timestamp: new Date().toISOString(),
+                author: 'ai',
+                summary: `Dibuat otomatis oleh agen ${activeAgent.name}`,
+              },
+            ],
+            currentVersionIndex: 0,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            sessionId: targetSessionId,
+            messageId: assistantMsg.id,
+          });
+        }
+      }
+
       const currentSession = sessions.find((s) => s.id === targetSessionId);
       if (
         currentSession &&
