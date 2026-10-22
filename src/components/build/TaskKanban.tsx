@@ -5,6 +5,8 @@ import {
   ArrowLeft,
   User,
   X,
+  CheckCircle2,
+  ShieldCheck,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { KanbanTask } from '../../types';
@@ -24,6 +26,15 @@ export const TaskKanban: React.FC = () => {
   const [newAgent, setNewAgent] = useState('Coder Agent #1');
   const [newPriority, setNewPriority] = useState<KanbanTask['priority']>('medium');
 
+  const handleApproveTask = (taskId: string) => {
+    setKanbanTasks(
+      kanbanTasks.map((t) =>
+        t.id === taskId ? { ...t, status: 'done', progress: 100 } : t
+      )
+    );
+    addToast('success', `Tugas ${taskId} telah diverifikasi & selesai!`);
+  };
+
   const moveTask = (taskId: string, direction: 'prev' | 'next') => {
     const task = kanbanTasks.find((t) => t.id === taskId);
     if (!task) return;
@@ -34,8 +45,12 @@ export const TaskKanban: React.FC = () => {
 
     if (nextIndex >= 0 && nextIndex < statusOrder.length) {
       const nextStatus = statusOrder[nextIndex];
-      updateTaskStatus(taskId, nextStatus);
-      addToast('info', `Pindah ke ${nextStatus.replace('_', ' ')}`);
+      if (nextStatus === 'done') {
+        handleApproveTask(taskId);
+      } else {
+        updateTaskStatus(taskId, nextStatus);
+        addToast('info', `Pindah ke ${nextStatus.replace('_', ' ')}`);
+      }
     }
   };
 
@@ -131,6 +146,24 @@ export const TaskKanban: React.FC = () => {
                           />
                         </div>
                       </div>
+
+                      {/* In Review Indicator & Operator Approval Button */}
+                      {task.status === 'in_review' && (
+                        <div className="pt-1.5 border-t border-[#383838] space-y-2">
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-300">
+                            <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                            <span>Menunggu Review Operator</span>
+                          </div>
+                          <button
+                            onClick={() => handleApproveTask(task.id)}
+                            className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-[#ececec] hover:bg-white text-black font-semibold text-xs transition-colors shadow-sm"
+                            title="Setujui hasil kerja dan tandai tugas selesai"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 text-black" />
+                            <span>Setujui & Selesai</span>
+                          </button>
+                        </div>
+                      )}
 
                       {/* Card Move Controls */}
                       <div className="flex items-center justify-between pt-1 border-t border-[#383838]">

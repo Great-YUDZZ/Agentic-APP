@@ -125,6 +125,35 @@ export const AGENT_AVAILABLE_TOOLS: ToolDefinition[] = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'update_kanban_task',
+      description: 'Memperbarui status dan progres tugas pada papan Kanban proyek (misal: memindahkan ke "in_progress" saat mulai bekerja, atau ke "in_review" saat implementasi selesai). Catatan: Status "done" hanya dapat disetujui secara langsung oleh operator.',
+      parameters: {
+        type: 'object',
+        properties: {
+          task_id: {
+            type: 'string',
+            description: 'ID tugas yang akan diperbarui (misal: "T-101")',
+          },
+          status: {
+            type: 'string',
+            description: 'Status baru tugas: "in_progress" atau "in_review". Perpindahan ke "done" wajib melalui persetujuan manual operator.',
+          },
+          progress: {
+            type: 'number',
+            description: 'Persentase progres tugas saat ini (0-100)',
+          },
+          note: {
+            type: 'string',
+            description: 'Catatan ringkas progres atau hasil pengujian tugas',
+          },
+        },
+        required: ['task_id', 'status'],
+      },
+    },
+  },
 ];
 
 export function isPathExternal(targetPath: string, workspaceRoot: string): boolean {

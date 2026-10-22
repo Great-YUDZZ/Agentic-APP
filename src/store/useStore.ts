@@ -1196,6 +1196,17 @@ export const useStore = create<AppStore>((set, get) => ({
       .map((m) => `${m.agent_name} (${m.agent_role}): ${m.content}`)
       .join('\n\n');
 
+    const activeTasksSummary = state.kanbanTasks.length > 0
+      ? `\n\nDaftar Tugas Papan Kanban Proyek Saat Ini:\n` +
+        state.kanbanTasks
+          .map(
+            (t) =>
+              `- [${t.id}] (${t.status}, progress: ${t.progress}%) ${t.title} [Ditugaskan: ${t.assigned_agent}]`
+          )
+          .join('\n') +
+        `\n\nUntuk memperbarui progres tugas, panggil tool 'update_kanban_task' dengan parameter 'task_id' dan 'status' ('in_progress' saat mulai mengerjakan, atau 'in_review' saat implementasi/pengujian selesai). Catatan: Status 'done' hanya dapat disetujui secara langsung oleh operator.`
+      : '';
+
     const systemPrompt = `Anda adalah ${currentAgent.name}, dengan peran: ${currentAgent.role}.
 Tugas utama Anda: ${currentAgent.task_description}
 Keahlian/Skills yang Anda miliki: ${currentAgent.skills.join(', ')}
@@ -1206,10 +1217,11 @@ Target Proyek Bersama:
 
 Direktori Workspace Proyek Aktif:
 "${state.workspaceProjectRoot}"
+${activeTasksSummary}
 
 ATURAN KOMUNIKASI & EKSEKUSI TOOL:
 1. WAJIB menggunakan Bahasa Indonesia yang ramah, profesional, dan terstruktur.
-2. Anda memiliki akses ke tool nyata sistem (read_file, write_file, list_dir, execute_command, web_fetch, web_search).
+2. Anda memiliki akses ke tool nyata sistem (read_file, write_file, list_dir, execute_command, web_fetch, web_search, update_kanban_task).
 3. Jika tugas Anda membutuhkan pencarian internet terbaru, pembacaan file, pembuatan file, pemeriksaan folder, atau pengetesan perintah, panggillah tools yang sesuai secara bertahap.
 4. Jangan ragu memanggil tools berulang kali jika diperlukan untuk menyelesaikan giliran tugas Anda secara tuntas.
 5. Setelah semua tool selesai dijalankan, berikan rangkuman hasil kerja dan penjelasan yang jelas kepada tim.`;
@@ -1406,10 +1418,92 @@ ATURAN KOMUNIKASI & EKSEKUSI TOOL:
             continue;
           }
 
-          // Eksekusi tool via Tauri IPC
+          // Eksekusi tool via Tauri IPC atau State Handler
           const startTime = Date.now();
           let stepOutput = '';
           let stepSuccess = false;
+
+          // Handler khusus untuk tool update_kanban_task (State Store)
+          if (toolName === 'update_kanban_task') {
+            const taskId = String(toolParams.task_id || '').trim();
+            const requestedStatus = String(toolParams.status || '').trim().toLowerCase();
+            const progress = typeof toolParams.progress === 'number' ? toolParams.progress : undefined;
+            const note = toolParams.note ? String(toolParams.note).trim() : '';
+
+            const existingTask = get().kanbanTasks.find((t) => t.id === taskId);
+            if (!existingTask) {
+              stepSuccess = false;
+              stepOutput = `Error: Tugas dengan ID '${taskId}' tidak ditemukan di papan Kanban. Pastikan ID sesuai dengan daftar tugas aktif.`;
+            } else {
+              stepSuccess = true;
+              let finalStatus: KanbanTask['status'] = 'in_progress';
+              let warningNote = '';
+
+              if (requestedStatus === 'done') {
+                // Human-in-the-Loop Guardrail:
+                // Status 'done' hanya dapat disetujui secara manual oleh operator/user!
+                finalStatus = 'in_review';
+                warningNote = ` Catatan Keamanan: Status 'done' memerlukan persetujuan dan verifikasi manual dari operator. Tugas secara otomatis dialihkan ke status 'in_review' dan menunggu review operator.`;
+                get().addToast('info', `Tugas ${taskId} dialihkan ke In Review (menunggu verifikasi operator)`, 4000);
+              } else if (requestedStatus === 'in_review') {
+                finalStatus = 'in_review';
+                get().addToast('info', `Tugas ${taskId} dipindahkan ke In Review oleh ${currentAgent.name}`, 3000);
+              } else {
+                finalStatus = 'in_progress';
+                get().addToast('info', `Tugas ${taskId} mulai dikerjakan (In Progress) oleh ${currentAgent.name}`, 3000);
+              }
+
+              const newProgress =
+                progress !== undefined
+                  ? Math.min(100, Math.max(0, progress))
+                  : finalStatus === 'in_review'
+                  ? 90
+                  : 50;
+
+              set((s) => ({
+                kanbanTasks: s.kanbanTasks.map((t) =>
+                  t.id === taskId
+                    ? {
+                        ...t,
+                        status: finalStatus,
+                        progress: newProgress,
+                        assigned_agent: currentAgent.name,
+                      }
+                    : t
+                ),
+              }));
+
+              stepOutput = `Sukses: Status tugas '${taskId}' (${existingTask.title}) berhasil diperbarui menjadi '${finalStatus}' dengan progres ${newProgress}%.${note ? ` Catatan: ${note}.` : ''}${warningNote}`;
+            }
+
+            const elapsedMs = Date.now() - startTime;
+            accumulatedSteps.push({
+              id: `step-${Date.now()}-${accumulatedSteps.length}`,
+              name: toolName,
+              tool: toolName,
+              params: toolParams,
+              status: stepSuccess ? 'success' : 'failed',
+              duration: `${elapsedMs}ms`,
+              output: stepOutput,
+              timestamp: new Date().toLocaleTimeString(),
+            });
+
+            messagesHistory.push({
+              role: 'tool',
+              tool_call_id: call.id,
+              content: stepOutput,
+            });
+
+            state.addLog({
+              id: `log-kanban-${Date.now()}`,
+              agent_name: currentAgent.name,
+              level: 'INFO',
+              message: `Memperbarui status tugas ${taskId} menjadi ${toolParams.status}`,
+              timestamp: new Date().toLocaleTimeString(),
+            });
+
+            continue;
+          }
 
           if ((window as any).__TAURI_INTERNALS__) {
             try {
@@ -1933,14 +2027,181 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
     s.addToast('success', 'Rencana disetujui, tugas telah dialokasikan ke tim.');
   },
 
-  // CLEAN MULTI-AGENT STATE (Zero test traces)
-  subagents: [],
-  kanbanTasks: [],
+  // DUMMY PREVIEW DATA FOR BUILD MODE
+  subagents: [
+    {
+      id: 'agent-root',
+      name: 'Lead Architect',
+      role: 'System Orchestrator & Task Decomposer',
+      status: 'Thinking',
+      current_step: 'Menganalisis dependensi arsitektur dan memvalidasi alur eksekusi pipeline multi-agen.',
+      progress: 75,
+    },
+    {
+      id: 'agent-frontend',
+      parent_id: 'agent-root',
+      name: 'Frontend UI Specialist',
+      role: 'React 19 & Motion Engineer',
+      status: 'ExecutingTool',
+      current_step: 'Merancang tata letak panel Sidecar Canvas dan visual state 4 boundary.',
+      progress: 85,
+    },
+    {
+      id: 'agent-rust',
+      parent_id: 'agent-root',
+      name: 'Rust Core Engineer',
+      role: 'Tauri 2.0 & Tokio Runtime',
+      status: 'ExecutingTool',
+      current_step: 'Mengimplementasikan sandboxed tool runner dan IPC command bridge.',
+      progress: 60,
+    },
+    {
+      id: 'agent-qa',
+      parent_id: 'agent-root',
+      name: 'QA & Security Auditor',
+      role: 'Sandbox Confinement & Policy Verifier',
+      status: 'Completed',
+      current_step: 'Audit keamanan traversal path dan verifikasi 33 unit test backend tuntas.',
+      progress: 100,
+    },
+  ],
+  kanbanTasks: [
+    {
+      id: 'T-101',
+      title: 'Desain antarmuka Dedicated Artifacts & Canvas Sidecar Viewer',
+      status: 'backlog',
+      assigned_agent: 'Frontend UI Specialist',
+      priority: 'high',
+      progress: 0,
+    },
+    {
+      id: 'T-102',
+      title: 'Benchmarking efisiensi memory footprint pada streaming PTY terminal',
+      status: 'backlog',
+      assigned_agent: 'Rust Core Engineer',
+      priority: 'medium',
+      progress: 0,
+    },
+    {
+      id: 'T-103',
+      title: 'Refaktor debounce context telemetri dan optimasi cache token',
+      status: 'in_progress',
+      assigned_agent: 'Lead Architect',
+      priority: 'high',
+      progress: 60,
+    },
+    {
+      id: 'T-104',
+      title: 'Integrasi visual diff viewer dengan pemetaan nomor baris split view',
+      status: 'in_progress',
+      assigned_agent: 'Frontend UI Specialist',
+      priority: 'urgent',
+      progress: 75,
+    },
+    {
+      id: 'T-105',
+      title: 'Audit batas sanitasi path pada seluruh tool execution sandbox',
+      status: 'in_review',
+      assigned_agent: 'QA & Security Auditor',
+      priority: 'urgent',
+      progress: 90,
+    },
+    {
+      id: 'T-106',
+      title: 'Implementasi backend Git Native di Rust dengan runtime Tokio',
+      status: 'done',
+      assigned_agent: 'Rust Core Engineer',
+      priority: 'high',
+      progress: 100,
+    },
+    {
+      id: 'T-107',
+      title: 'Pembuatan komponen Visual Git Manager bergaya ChatGPT Flat Surface',
+      status: 'done',
+      assigned_agent: 'Frontend UI Specialist',
+      priority: 'high',
+      progress: 100,
+    },
+  ],
   logs: [],
   emergencyStopped: false,
   pendingToolClearance: null,
   pendingClearanceResolver: null,
-  diffFiles: [],
+  diffFiles: [
+    {
+      filename: 'src/components/canvas/SidecarViewer.tsx',
+      additions: 38,
+      deletions: 5,
+      status: 'pending',
+      oldContent: `import React from 'react';
+
+export const SidecarViewer: React.FC = () => {
+  return (
+    <div className="p-4 text-xs text-[#707070]">
+      Panel sidecar canvas belum diinisialisasi.
+    </div>
+  );
+};
+
+export default SidecarViewer;`,
+      newContent: `import React, { useState } from 'react';
+import { PanelRightClose, Code, Eye, RefreshCw, Copy, Check } from 'lucide-react';
+
+export const SidecarViewer: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'preview' | 'code'>('preview');
+  const [copied, setCopied] = useState<boolean>(false);
+
+  const handleCopy = () => {
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-[#171717] border-l border-[#303030]">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#262626] bg-[#212121]">
+        <div className="flex items-center gap-2">
+          <Code className="w-4 h-4 text-[#ececec]" />
+          <span className="text-xs font-semibold text-[#ececec]">Artifact Canvas</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button 
+            onClick={handleCopy}
+            className="p-1 rounded-lg hover:bg-[#282828] text-[#b4b4b4] hover:text-[#ececec] transition-colors"
+          >
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+      </div>
+      <div className="flex-1 p-4 overflow-y-auto text-xs text-[#ececec]">
+        <p className="text-[#b4b4b4]">Pratinjau interaktif artefak kode, diagram Mermaid, dan dokumen HTML.</p>
+      </div>
+    </div>
+  );
+};
+
+export default SidecarViewer;`,
+    },
+    {
+      filename: 'src-tauri/src/engine/git.rs',
+      additions: 22,
+      deletions: 3,
+      status: 'accepted',
+      oldContent: `pub fn check_git_repo(path: &str) -> bool {
+    std::path::Path::new(path).join(".git").exists()
+}`,
+      newContent: `pub fn check_git_repo(path: &str) -> bool {
+    let git_dir = std::path::Path::new(path).join(".git");
+    git_dir.exists() && (git_dir.is_dir() || git_dir.is_file())
+}
+
+pub fn get_git_status_cached(path: &str) -> Result<GitStatusResponse, String> {
+    if !check_git_repo(path) {
+        return Err("Direktori bukan merupakan repository Git valid".to_string());
+    }
+    get_git_status(path)
+}`,
+    },
+  ],
   setSubagents: (subagents) => set({ subagents }),
   setKanbanTasks: (kanbanTasks) => set({ kanbanTasks }),
   updateTaskStatus: (taskId, status) =>
