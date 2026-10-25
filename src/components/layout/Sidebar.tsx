@@ -51,6 +51,12 @@ export const Sidebar: React.FC = () => {
     fetchTrashNotes();
   }, [fetchPendingDeleteRequests, fetchTrashNotes]);
 
+  useEffect(() => {
+    if (currentMode !== 'agent' && sidebarTab === 'files') {
+      setSidebarTab('sessions');
+    }
+  }, [currentMode, sidebarTab, setSidebarTab]);
+
   const [searchFilter, setSearchFilter] = useState('');
 
   const activeKeyCount = apiKeys.filter((k) => k.is_active && k.api_key.trim().length > 0).length;
@@ -183,34 +189,38 @@ export const Sidebar: React.FC = () => {
               >
                 <Plus className="w-4 h-4" />
               </button>
-              <button
-                onClick={() => {
-                  setSidebarTab('sessions');
-                  setSidebarOpen(true);
-                }}
-                className={`p-2 rounded-xl transition-colors ${
-                  sidebarTab === 'sessions'
-                    ? 'bg-[#2f2f2f] text-[#ececec] border border-[#383838]'
-                    : 'bg-[#212121] hover:bg-[#282828] border border-[#303030] text-[#b4b4b4] hover:text-[#ececec]'
-                }`}
-                title="Sesi Chat"
-              >
-                <MessageSquare className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => {
-                  setSidebarTab('files');
-                  setSidebarOpen(true);
-                }}
-                className={`p-2 rounded-xl transition-colors ${
-                  sidebarTab === 'files'
-                    ? 'bg-[#2f2f2f] text-[#ececec] border border-[#383838]'
-                    : 'bg-[#212121] hover:bg-[#282828] border border-[#303030] text-[#b4b4b4] hover:text-[#ececec]'
-                }`}
-                title="Berkas Proyek"
-              >
-                <Folder className="w-4 h-4" />
-              </button>
+              {currentMode === 'agent' && (
+                <>
+                  <button
+                    onClick={() => {
+                      setSidebarTab('sessions');
+                      setSidebarOpen(true);
+                    }}
+                    className={`p-2 rounded-xl transition-colors ${
+                      sidebarTab === 'sessions'
+                        ? 'bg-[#2f2f2f] text-[#ececec] border border-[#383838]'
+                        : 'bg-[#212121] hover:bg-[#282828] border border-[#303030] text-[#b4b4b4] hover:text-[#ececec]'
+                    }`}
+                    title="Sesi Task"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSidebarTab('files');
+                      setSidebarOpen(true);
+                    }}
+                    className={`p-2 rounded-xl transition-colors ${
+                      sidebarTab === 'files'
+                        ? 'bg-[#2f2f2f] text-[#ececec] border border-[#383838]'
+                        : 'bg-[#212121] hover:bg-[#282828] border border-[#303030] text-[#b4b4b4] hover:text-[#ececec]'
+                    }`}
+                    title="Berkas Proyek"
+                  >
+                    <Folder className="w-4 h-4" />
+                  </button>
+                </>
+              )}
               <button
                 onClick={() => setIsVaultPageOpen(true)}
                 className="relative p-2 rounded-xl bg-[#212121] hover:bg-[#282828] border border-[#303030] text-[#b4b4b4] hover:text-[#ececec] transition-colors"
@@ -329,35 +339,37 @@ export const Sidebar: React.FC = () => {
               </button>
             </div>
 
-            {/* Tab Switcher: Sesi Chat vs Berkas Proyek */}
-            <div className="grid grid-cols-2 p-0.5 bg-[#212121] rounded-xl border border-[#303030] text-xs">
-              <button
-                type="button"
-                onClick={() => setSidebarTab('sessions')}
-                className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  sidebarTab === 'sessions'
-                    ? 'bg-[#2f2f2f] text-[#ececec] border border-[#383838]'
-                    : 'text-[#707070] hover:text-[#b4b4b4]'
-                }`}
-              >
-                <MessageSquare className="w-3.5 h-3.5" />
-                <span>Sesi</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSidebarTab('files')}
-                className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  sidebarTab === 'files'
-                    ? 'bg-[#2f2f2f] text-[#ececec] border border-[#383838]'
-                    : 'text-[#707070] hover:text-[#b4b4b4]'
-                }`}
-              >
-                <Folder className="w-3.5 h-3.5" />
-                <span>Berkas</span>
-              </button>
-            </div>
+            {/* Tab Switcher: Sesi Task vs Berkas Proyek (Hanya di Mode Agent) */}
+            {currentMode === 'agent' && (
+              <div className="grid grid-cols-2 p-0.5 bg-[#212121] rounded-xl border border-[#303030] text-xs">
+                <button
+                  type="button"
+                  onClick={() => setSidebarTab('sessions')}
+                  className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    sidebarTab === 'sessions'
+                      ? 'bg-[#2f2f2f] text-[#ececec] border border-[#383838]'
+                      : 'text-[#707070] hover:text-[#b4b4b4]'
+                  }`}
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>Sesi</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSidebarTab('files')}
+                  className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    sidebarTab === 'files'
+                      ? 'bg-[#2f2f2f] text-[#ececec] border border-[#383838]'
+                      : 'text-[#707070] hover:text-[#b4b4b4]'
+                  }`}
+                >
+                  <Folder className="w-3.5 h-3.5" />
+                  <span>Berkas</span>
+                </button>
+              </div>
+            )}
 
-            {sidebarTab === 'sessions' && (
+            {(sidebarTab === 'sessions' || currentMode !== 'agent') && (
               <>
                 <button
                   onClick={handleCreateNew}
@@ -406,7 +418,7 @@ export const Sidebar: React.FC = () => {
           </div>
 
           {/* Content Area: Workspace File Explorer or Sessions List */}
-          {sidebarTab === 'files' ? (
+          {currentMode === 'agent' && sidebarTab === 'files' ? (
             <div className="flex-1 overflow-hidden">
               <WorkspaceFileTree />
             </div>

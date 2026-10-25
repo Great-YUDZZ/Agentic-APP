@@ -535,9 +535,31 @@ fn build_file_tree_recursive(
     nodes
 }
 
+pub fn is_system_root_or_home(path: &std::path::Path) -> bool {
+    let path_str = path.to_string_lossy();
+    if path_str == "/" || path_str.is_empty() {
+        return true;
+    }
+    if let Ok(home) = std::env::var("HOME") {
+        if path_str == home || path == std::path::Path::new(&home) {
+            return true;
+        }
+    }
+    #[cfg(target_os = "windows")]
+    if let Ok(userprofile) = std::env::var("USERPROFILE") {
+        if path_str == userprofile || path == std::path::Path::new(&userprofile) {
+            return true;
+        }
+    }
+    false
+}
+
 #[tauri::command]
 pub async fn get_workspace_directory(state: State<'_, AppState>) -> Result<String, String> {
     let ws = state.tool_runner.workspace_root();
+    if is_system_root_or_home(&ws) {
+        return Ok(String::new());
+    }
     Ok(ws.to_string_lossy().to_string())
 }
 
@@ -568,7 +590,7 @@ pub async fn get_workspace_file_tree(
     let depth = max_depth.unwrap_or(6);
 
     tokio::task::spawn_blocking(move || {
-        if !ws.exists() {
+        if !ws.exists() || is_system_root_or_home(&ws) {
             return Ok(Vec::new());
         }
         let tree = build_file_tree_recursive(&ws, &ws, 1, depth);
@@ -731,6 +753,9 @@ pub async fn query_codebase_context(
     let top_k = max_chunks.unwrap_or(4).min(10);
 
     tokio::task::spawn_blocking(move || {
+        if !ws.exists() || is_system_root_or_home(&ws) {
+            return Ok(Vec::new());
+        }
         let chunks = crate::engine::codebase_rag::scan_workspace_chunks(&ws, 500);
         let matches = crate::engine::codebase_rag::search_chunks(&query, &chunks, top_k);
         Ok(matches)

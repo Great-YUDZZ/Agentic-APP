@@ -80,7 +80,6 @@ export const WorkspaceFileTree: React.FC = () => {
     deleteWorkspaceFile,
     revealInFileManager,
     openFileInSidecar,
-    addToast,
   } = useStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -107,17 +106,9 @@ export const WorkspaceFileTree: React.FC = () => {
   };
 
   const handleChangeWorkspace = async () => {
-    if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
-      try {
-        const { invoke } = await import('@tauri-apps/api/core');
-        const selected = await invoke<string | null>('pick_workspace_directory');
-        if (selected) {
-          await fetchWorkspaceFiles();
-          addToast('success', `Direktori workspace diubah ke: ${selected}`);
-        }
-      } catch (err: any) {
-        addToast('error', `Gagal memilih direktori: ${err}`);
-      }
+    const chosen = await useStore.getState().pickAndSetWorkspaceRoot();
+    if (chosen) {
+      await fetchWorkspaceFiles();
     }
   };
 
@@ -448,7 +439,17 @@ export const WorkspaceFileTree: React.FC = () => {
 
       {/* Tree Content Area */}
       <div className="flex-1 overflow-y-auto px-1 py-1 space-y-0.5">
-        {isWorkspaceFilesLoading ? (
+        {!activeWorkspacePath ? (
+          <div className="p-4 text-center">
+            <EmptyState
+              icon={FolderGit2}
+              title="Pilih Folder Proyek"
+              description="Pilih atau buka direktori tempat proyek Anda dibuat untuk membuka work tree."
+              actionLabel="Pilih Folder Proyek"
+              onAction={handleChangeWorkspace}
+            />
+          </div>
+        ) : isWorkspaceFilesLoading ? (
           <div className="p-3 space-y-2">
             <LoadingSkeleton className="h-4 w-3/4" />
             <LoadingSkeleton className="h-4 w-1/2" />
@@ -459,11 +460,11 @@ export const WorkspaceFileTree: React.FC = () => {
           <div className="p-4 text-center">
             <EmptyState
               icon={Folder}
-              title={searchQuery ? 'Berkas Tidak Ditemukan' : 'Direktori Kosong'}
+              title={searchQuery ? 'Berkas Tidak Ditemukan' : 'Folder Proyek Kosong'}
               description={
                 searchQuery
                   ? `Tidak ada berkas yang cocok dengan filter "${searchQuery}".`
-                  : 'Belum ada berkas dalam direktori kerja ini. Gunakan tombol + untuk membuat berkas baru.'
+                  : 'Belum ada berkas dalam folder proyek ini. Gunakan tombol + untuk membuat berkas baru.'
               }
             />
           </div>

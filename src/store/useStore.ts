@@ -421,12 +421,14 @@ export const useStore = create<AppStore>((set, get) => ({
   setWorkspaceProjectRoot: async (workspaceProjectRoot) => {
     set((s) => ({
       workspaceProjectRoot,
+      activeWorkspacePath: workspaceProjectRoot,
       terminalTabs: s.terminalTabs.map((t) => ({ ...t, cwd: workspaceProjectRoot })),
     }));
     if ((window as any).__TAURI_INTERNALS__) {
       try {
         const { invoke } = await import('@tauri-apps/api/core');
         await invoke('set_workspace_directory', { path: workspaceProjectRoot });
+        await get().fetchWorkspaceFiles();
       } catch (err) {
         console.warn('Gagal sinkronisasi workspace directory ke Rust:', err);
       }
@@ -441,8 +443,11 @@ export const useStore = create<AppStore>((set, get) => ({
         if (chosen) {
           set((s) => ({
             workspaceProjectRoot: chosen,
+            activeWorkspacePath: chosen,
             terminalTabs: s.terminalTabs.map((t) => ({ ...t, cwd: chosen })),
           }));
+          await invoke('set_workspace_directory', { path: chosen });
+          await get().fetchWorkspaceFiles();
           get().addToast('success', `Direktori proyek aktif: ${chosen}`);
           return chosen;
         }
@@ -3015,10 +3020,26 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
       try {
         set({ isWorkspaceFilesLoading: true });
         const { invoke } = await import('@tauri-apps/api/core');
-        const [dir, tree] = await Promise.all([
-          invoke<string>('get_workspace_directory'),
-          invoke<FileNode[]>('get_workspace_file_tree', { maxDepth: 6 }),
-        ]);
+        let dir = await invoke<string>('get_workspace_directory');
+
+        if (!dir && get().workspaceProjectRoot) {
+          const defaultProject = get().workspaceProjectRoot;
+          if (defaultProject !== '/home/yudz' && defaultProject !== '/') {
+            await invoke('set_workspace_directory', { path: defaultProject });
+            dir = await invoke<string>('get_workspace_directory');
+          }
+        }
+
+        if (!dir) {
+          set({
+            activeWorkspacePath: null,
+            workspaceFiles: [],
+            isWorkspaceFilesLoading: false,
+          });
+          return;
+        }
+
+        const tree = await invoke<FileNode[]>('get_workspace_file_tree', { maxDepth: 6 });
         set({
           activeWorkspacePath: dir || null,
           workspaceFiles: tree || [],
