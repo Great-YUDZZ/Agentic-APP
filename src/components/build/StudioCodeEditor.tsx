@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import {
   FileCode,
   X,
@@ -7,7 +7,65 @@ import {
   Code2,
   FolderOpen,
 } from 'lucide-react';
+import Prism from 'prismjs';
+// Prism language grammars for comprehensive syntax highlighting
+import 'prismjs/components/prism-markup';
+import 'prismjs/components/prism-css';
+import 'prismjs/components/prism-clike';
+import 'prismjs/components/prism-javascript';
+import 'prismjs/components/prism-typescript';
+import 'prismjs/components/prism-jsx';
+import 'prismjs/components/prism-tsx';
+import 'prismjs/components/prism-rust';
+import 'prismjs/components/prism-python';
+import 'prismjs/components/prism-json';
+import 'prismjs/components/prism-markdown';
+import 'prismjs/components/prism-yaml';
+import 'prismjs/components/prism-toml';
+import 'prismjs/components/prism-sql';
+import 'prismjs/components/prism-bash';
 import { useStore } from '../../store/useStore';
+
+const EXTENSION_MAP: Record<string, string> = {
+  ts: 'typescript',
+  tsx: 'tsx',
+  js: 'javascript',
+  jsx: 'jsx',
+  mjs: 'javascript',
+  cjs: 'javascript',
+  rs: 'rust',
+  py: 'python',
+  json: 'json',
+  md: 'markdown',
+  html: 'markup',
+  xml: 'markup',
+  svg: 'markup',
+  css: 'css',
+  scss: 'css',
+  less: 'css',
+  yaml: 'yaml',
+  yml: 'yaml',
+  toml: 'toml',
+  sql: 'sql',
+  sh: 'bash',
+  bash: 'bash',
+  zsh: 'bash',
+};
+
+const getGrammarInfo = (ext: string) => {
+  const normalized = (ext || '').toLowerCase().replace(/^\./, '');
+  const lang = EXTENSION_MAP[normalized] || normalized || 'typescript';
+  if (Prism.languages[lang]) {
+    return { grammar: Prism.languages[lang], lang };
+  }
+  if (Prism.languages.typescript) {
+    return { grammar: Prism.languages.typescript, lang: 'typescript' };
+  }
+  if (Prism.languages.clike) {
+    return { grammar: Prism.languages.clike, lang: 'clike' };
+  }
+  return { grammar: null, lang: 'text' };
+};
 
 export const StudioCodeEditor: React.FC = () => {
   const {
@@ -21,29 +79,85 @@ export const StudioCodeEditor: React.FC = () => {
   } = useStore();
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const highlightRef = useRef<HTMLPreElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
 
   const activeFile = openEditorFiles.find((f) => f.path === activeEditorFilePath);
 
   // Keyboard shortcut Ctrl+S / Cmd+S untuk simpan
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleSaveKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
         saveActiveEditorFile();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleSaveKeyDown);
+    return () => window.removeEventListener('keydown', handleSaveKeyDown);
   }, [saveActiveEditorFile]);
 
-  // Sinkronisasi scroll textarea dengan gutter nomor baris
+  // Sinkronisasi scroll textarea dengan highlight code dan gutter nomor baris
   const handleScroll = () => {
-    if (textareaRef.current && lineNumbersRef.current) {
-      lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
+    if (textareaRef.current) {
+      const { scrollTop, scrollLeft } = textareaRef.current;
+      if (lineNumbersRef.current) {
+        lineNumbersRef.current.scrollTop = scrollTop;
+      }
+      if (highlightRef.current) {
+        highlightRef.current.scrollTop = scrollTop;
+        highlightRef.current.scrollLeft = scrollLeft;
+      }
     }
   };
+
+  // Dukungan tombol Tab untuk indentasi 2 spasi
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const textarea = textareaRef.current;
+      if (!textarea || !activeFile) return;
+
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const value = textarea.value;
+
+      const newValue = value.substring(0, start) + '  ' + value.substring(end);
+      updateEditorFileContent(activeFile.path, newValue);
+
+      requestAnimationFrame(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + 2;
+      });
+    }
+  };
+
+  const { grammar, lang: targetLang } = useMemo(
+    () => getGrammarInfo(activeFile?.extension || ''),
+    [activeFile?.extension]
+  );
+
+  const highlightedHtml = useMemo(() => {
+    if (!activeFile) return '';
+    if (!grammar) {
+      return (
+        activeFile.content
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;') + (activeFile.content.endsWith('\n') ? ' ' : '')
+      );
+    }
+    try {
+      const raw = Prism.highlight(activeFile.content, grammar, targetLang);
+      return raw + (activeFile.content.endsWith('\n') ? ' ' : '');
+    } catch {
+      return (
+        activeFile.content
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;') + (activeFile.content.endsWith('\n') ? ' ' : '')
+      );
+    }
+  }, [activeFile?.content, grammar, targetLang]);
 
   if (!activeFile || openEditorFiles.length === 0) {
     return (
@@ -68,6 +182,22 @@ export const StudioCodeEditor: React.FC = () => {
 
   const lines = activeFile.content.split('\n');
   const lineCount = lines.length;
+
+  const gutterWidth = lineCount > 9999 ? 'w-16' : lineCount > 999 ? 'w-14' : 'w-12';
+
+  const sharedEditorStyle: React.CSSProperties = {
+    fontFamily: "Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', 'Courier New', monospace",
+    fontSize: '12px',
+    lineHeight: '22px',
+    tabSize: 2,
+    padding: '12px',
+    margin: 0,
+    border: 0,
+    letterSpacing: '0px',
+    whiteSpace: 'pre',
+    wordWrap: 'normal',
+    boxSizing: 'border-box',
+  };
 
   return (
     <div className="flex flex-col h-full bg-[#1e1e1e] font-mono text-xs select-none">
@@ -135,28 +265,63 @@ export const StudioCodeEditor: React.FC = () => {
         </div>
       </div>
 
-      {/* Editor Body Area: Gutter Line Numbers + Editable Textarea */}
+      {/* Editor Body Area: Gutter Line Numbers + Syntax Highlighted Canvas & Textarea */}
       <div className="flex-1 flex overflow-hidden bg-[#1e1e1e] relative">
         {/* Line Numbers Gutter */}
         <div
           ref={lineNumbersRef}
-          className="w-12 py-3 bg-[#181818] border-r border-[#2a2a2a] text-[#555555] text-right pr-2.5 font-mono text-xs select-none overflow-hidden shrink-0 leading-6"
+          className={`${gutterWidth} bg-[#181818] border-r border-[#2a2a2a] text-[#555555] text-right pr-3 select-none overflow-hidden shrink-0 font-mono`}
+          style={{
+            fontFamily: "Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', 'Courier New', monospace",
+            fontSize: '12px',
+            lineHeight: '22px',
+            paddingTop: '12px',
+            paddingBottom: '12px',
+          }}
         >
           {Array.from({ length: lineCount }, (_, i) => (
-            <div key={i + 1}>{i + 1}</div>
+            <div key={i + 1} style={{ height: '22px' }}>
+              {i + 1}
+            </div>
           ))}
         </div>
 
-        {/* Code Input Textarea */}
-        <textarea
-          ref={textareaRef}
-          value={activeFile.content}
-          onChange={(e) => updateEditorFileContent(activeFile.path, e.target.value)}
-          onScroll={handleScroll}
-          spellCheck={false}
-          className="flex-1 h-full p-3 bg-transparent text-[#ececec] font-mono text-xs leading-6 resize-none outline-none overflow-auto select-text whitespace-pre tab-4"
-          style={{ tabSize: 2 }}
-        />
+        {/* Code Canvas Container with Synchronized Highlight Layer and Input Layer */}
+        <div className="flex-1 h-full overflow-hidden relative bg-[#1e1e1e]">
+          {/* Syntax Highlighted Code Layer (Underneath) */}
+          <pre
+            ref={highlightRef}
+            aria-hidden="true"
+            className={`absolute inset-0 bg-transparent pointer-events-none overflow-hidden select-none language-${targetLang}`}
+            style={{
+              ...sharedEditorStyle,
+              color: '#d4d4d4',
+            }}
+          >
+            <code
+              className={`language-${targetLang}`}
+              dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+            />
+          </pre>
+
+          {/* Interactive Textarea Input (On Top) */}
+          <textarea
+            ref={textareaRef}
+            value={activeFile.content}
+            onChange={(e) => updateEditorFileContent(activeFile.path, e.target.value)}
+            onScroll={handleScroll}
+            onKeyDown={handleKeyDown}
+            spellCheck={false}
+            autoCapitalize="off"
+            autoComplete="off"
+            autoCorrect="off"
+            className="absolute inset-0 bg-transparent text-transparent caret-[#ffffff] resize-none outline-none overflow-auto select-text selection:bg-[#264f78]/60"
+            style={{
+              ...sharedEditorStyle,
+              caretColor: '#ffffff',
+            }}
+          />
+        </div>
       </div>
 
       {/* Status Bar Bawah */}
@@ -169,7 +334,7 @@ export const StudioCodeEditor: React.FC = () => {
         <div className="flex items-center gap-3 shrink-0">
           <span>{lineCount} baris</span>
           <span>{activeFile.content.length} karakter</span>
-          <span className="uppercase text-[#aaaaaa] font-semibold">{activeFile.extension || 'TEXT'}</span>
+          <span className="uppercase text-[#aaaaaa] font-semibold">{targetLang}</span>
           <span className={activeFile.isDirty ? 'text-amber-400 font-medium' : 'text-emerald-400'}>
             {activeFile.isDirty ? 'Belum disimpan' : 'Sinkron'}
           </span>

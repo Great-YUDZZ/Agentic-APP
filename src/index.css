@@ -443,6 +443,30 @@ pre[class*="language-"] {
   color: #d7ba7d;
 }
 
+.token.builtin {
+  color: #4ec9b0;
+}
+
+.token.parameter {
+  color: #9cdcfe;
+}
+
+.token.template-string {
+  color: #ce9178;
+}
+
+.token.interpolation {
+  color: #9cdcfe;
+}
+
+.token.interpolation-punctuation {
+  color: #569cd6;
+}
+
+.token.arrow.operator {
+  color: #569cd6;
+}
+
 /* Light theme support for Prism tokens */
 .theme-light .token.comment,
 .theme-light .token.prolog,
