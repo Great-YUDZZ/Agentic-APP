@@ -80,6 +80,8 @@ export const WorkspaceFileTree: React.FC = () => {
     deleteWorkspaceFile,
     revealInFileManager,
     openFileInSidecar,
+    openFileInStudioEditor,
+    currentMode,
   } = useStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -186,7 +188,11 @@ export const WorkspaceFileTree: React.FC = () => {
             if (node.is_dir) {
               toggleFolder(node.relative_path);
             } else {
-              openFileInSidecar(node);
+              if (currentMode === 'build') {
+                openFileInStudioEditor(node);
+              } else {
+                openFileInSidecar(node);
+              }
             }
           }}
           title={node.relative_path}

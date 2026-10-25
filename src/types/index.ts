@@ -1,5 +1,5 @@
 export type AppMode = 'chatbot' | 'agent' | 'build';
-export type StudioTab = 'discussion' | 'hierarchy' | 'kanban' | 'diff' | 'git';
+export type StudioTab = 'discussion' | 'editor' | 'hierarchy' | 'kanban' | 'diff' | 'git';
 
 export interface ApiKeyRecord {
   provider: string; // 'custom', 'custom_<id>', 'gemini', 'openai', 'claude', 'deepseek', 'ollama'
@@ -88,11 +88,21 @@ export interface ToolCallRequest {
 
 export interface DiffFile {
   filename: string;
+  agentName?: string;
   oldContent: string;
   newContent: string;
   additions: number;
   deletions: number;
   status: 'pending' | 'accepted' | 'rejected';
+}
+
+export interface OpenEditorFile {
+  path: string;
+  name: string;
+  extension: string;
+  content: string;
+  originalContent: string;
+  isDirty: boolean;
 }
 
 export interface ToastItem {

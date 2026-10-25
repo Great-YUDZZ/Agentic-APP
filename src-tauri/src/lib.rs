@@ -182,6 +182,7 @@ pub fn run() {
             ipc::pick_files_native,
             ipc::get_workspace_directory,
             ipc::read_workspace_file,
+            ipc::write_workspace_file,
             ipc::get_workspace_file_tree,
             ipc::create_workspace_file,
             ipc::rename_workspace_file,

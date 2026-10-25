@@ -14,6 +14,7 @@ import {
   Download,
   GitBranch,
   PanelRight,
+  Code2,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { AppMode, StudioTab } from '../../types';
@@ -28,6 +29,7 @@ const MODES: { id: AppMode; label: string; icon: React.ElementType }[] = [
 
 const STUDIO_TABS: { id: StudioTab; label: string; icon: React.ElementType }[] = [
   { id: 'discussion', label: 'Diskusi', icon: Users },
+  { id: 'editor', label: 'Editor', icon: Code2 },
   { id: 'hierarchy', label: 'Hierarki', icon: Layers },
   { id: 'kanban', label: 'Kanban', icon: CheckSquare },
   { id: 'diff', label: 'Diff', icon: FileDiff },

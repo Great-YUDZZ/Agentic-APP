@@ -631,6 +631,28 @@ pub async fn create_workspace_file(
 }
 
 #[tauri::command]
+pub async fn write_workspace_file(
+    state: State<'_, AppState>,
+    relative_path: String,
+    content: String,
+) -> Result<(), String> {
+    let sanitized = state
+        .tool_runner
+        .sanitize_path(&relative_path, false)
+        .map_err(|e| e.to_string())?;
+
+    if let Some(parent) = sanitized.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Gagal menyiapkan direktori induk: {}", e))?;
+    }
+
+    std::fs::write(&sanitized, content)
+        .map_err(|e| format!("Gagal menyimpan berkas '{}': {}", relative_path, e))?;
+
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn rename_workspace_file(
     state: State<'_, AppState>,
     old_relative_path: String,
