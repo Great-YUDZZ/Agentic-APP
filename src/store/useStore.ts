@@ -35,6 +35,8 @@ import {
   McpServerStatus,
   Artifact,
   ArtifactVersion,
+  FileNode,
+  CodeChunkMatch,
 } from '../types';
 import { parseRobustJson, getChatEndpoint, getModelsEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../utils/api';
 import { extractCodeReviewItems } from '../utils/codeExtractor';
@@ -299,6 +301,20 @@ interface AppStore {
   updateArtifactContent: (id: string, newContent: string, author: 'ai' | 'user', summary?: string) => void;
   setArtifactVersion: (id: string, versionIndex: number) => void;
   saveArtifactToWorkspace: (id: string, relativePath: string) => Promise<boolean>;
+
+  // Workspace File Explorer & Codebase RAG
+  sidebarTab: 'sessions' | 'files';
+  setSidebarTab: (tab: 'sessions' | 'files') => void;
+  workspaceFiles: FileNode[];
+  activeWorkspacePath: string | null;
+  isWorkspaceFilesLoading: boolean;
+  fetchWorkspaceFiles: () => Promise<void>;
+  createWorkspaceFile: (relativePath: string, isDir: boolean) => Promise<boolean>;
+  renameWorkspaceFile: (oldPath: string, newPath: string) => Promise<boolean>;
+  deleteWorkspaceFile: (relativePath: string) => Promise<boolean>;
+  revealInFileManager: (relativePath?: string) => Promise<void>;
+  openFileInSidecar: (file: FileNode) => Promise<void>;
+  queryCodebase: (query: string, maxChunks?: number) => Promise<CodeChunkMatch[]>;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -2985,5 +3001,162 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
       get().addToast('error', `Gagal menyimpan artefak: ${e?.message || e}`);
       return false;
     }
+  },
+
+  // Workspace File Explorer & Codebase RAG Actions
+  sidebarTab: 'sessions',
+  setSidebarTab: (sidebarTab) => set({ sidebarTab }),
+  workspaceFiles: [],
+  activeWorkspacePath: null,
+  isWorkspaceFilesLoading: false,
+
+  fetchWorkspaceFiles: async () => {
+    if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+      try {
+        set({ isWorkspaceFilesLoading: true });
+        const { invoke } = await import('@tauri-apps/api/core');
+        const [dir, tree] = await Promise.all([
+          invoke<string>('get_workspace_directory'),
+          invoke<FileNode[]>('get_workspace_file_tree', { maxDepth: 6 }),
+        ]);
+        set({
+          activeWorkspacePath: dir || null,
+          workspaceFiles: tree || [],
+          isWorkspaceFilesLoading: false,
+        });
+      } catch (err) {
+        console.error('Failed to fetch workspace files:', err);
+        set({ isWorkspaceFilesLoading: false });
+      }
+    }
+  },
+
+  createWorkspaceFile: async (relativePath: string, isDir: boolean) => {
+    if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('create_workspace_file', { relativePath, isDir });
+        await get().fetchWorkspaceFiles();
+        get().addToast('success', `${isDir ? 'Folder' : 'Berkas'} "${relativePath}" berhasil dibuat.`);
+        return true;
+      } catch (err: any) {
+        get().addToast('error', `Gagal membuat ${isDir ? 'folder' : 'berkas'}: ${err}`);
+        return false;
+      }
+    }
+    return false;
+  },
+
+  renameWorkspaceFile: async (oldRelativePath: string, newRelativePath: string) => {
+    if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('rename_workspace_file', { oldRelativePath, newRelativePath });
+        await get().fetchWorkspaceFiles();
+        get().addToast('success', `Berhasil mengganti nama menjadi "${newRelativePath}".`);
+        return true;
+      } catch (err: any) {
+        get().addToast('error', `Gagal mengganti nama: ${err}`);
+        return false;
+      }
+    }
+    return false;
+  },
+
+  deleteWorkspaceFile: async (relativePath: string) => {
+    if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('delete_workspace_file', { relativePath });
+        await get().fetchWorkspaceFiles();
+        get().addToast('success', `Berkas "${relativePath}" berhasil dihapus.`);
+        return true;
+      } catch (err: any) {
+        get().addToast('error', `Gagal menghapus berkas: ${err}`);
+        return false;
+      }
+    }
+    return false;
+  },
+
+  revealInFileManager: async (relativePath?: string) => {
+    if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('reveal_in_file_manager', { relativePath: relativePath || null });
+      } catch (err: any) {
+        get().addToast('error', `Gagal membuka di file manager: ${err}`);
+      }
+    }
+  },
+
+  openFileInSidecar: async (file: FileNode) => {
+    if (file.is_dir) return;
+    if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const content = await invoke<string>('read_workspace_file', { relativePath: file.relative_path });
+
+        const ext = file.extension.toLowerCase();
+        const langMap: Record<string, string> = {
+          rs: 'rust',
+          ts: 'typescript',
+          tsx: 'tsx',
+          js: 'javascript',
+          jsx: 'jsx',
+          py: 'python',
+          json: 'json',
+          md: 'markdown',
+          html: 'html',
+          css: 'css',
+          sql: 'sql',
+          sh: 'bash',
+          yaml: 'yaml',
+          yml: 'yaml',
+          toml: 'toml',
+        };
+        const language = langMap[ext] || ext || 'text';
+
+        const artifact: Artifact = {
+          id: `file-${file.relative_path.replace(/[^a-zA-Z0-9_-]/g, '_')}`,
+          title: file.name,
+          language,
+          content,
+          versions: [
+            {
+              version: 1,
+              content,
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              author: 'user',
+              summary: `Dibuka dari ${file.relative_path}`,
+            },
+          ],
+          currentVersionIndex: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        get().openArtifact(artifact);
+      } catch (err: any) {
+        get().addToast('error', `Gagal membaca berkas: ${err}`);
+      }
+    }
+  },
+
+  queryCodebase: async (query: string, maxChunks?: number) => {
+    if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const results = await invoke<CodeChunkMatch[]>('query_codebase_context', {
+          query,
+          maxChunks: maxChunks || 4,
+        });
+        return results || [];
+      } catch (err) {
+        console.error('Codebase query error:', err);
+        return [];
+      }
+    }
+    return [];
   },
 }));

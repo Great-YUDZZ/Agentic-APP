@@ -170,6 +170,14 @@ pub fn run() {
             ipc::git_checkout,
             ipc::git_create_branch,
             ipc::pick_files_native,
+            ipc::get_workspace_directory,
+            ipc::read_workspace_file,
+            ipc::get_workspace_file_tree,
+            ipc::create_workspace_file,
+            ipc::rename_workspace_file,
+            ipc::delete_workspace_file,
+            ipc::reveal_in_file_manager,
+            ipc::query_codebase_context,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useVoiceRecorder } from '../../utils/audioRecorder';
 import { useStore } from '../../store/useStore';
-import { ChatMessage, AttachedFile } from '../../types';
+import { ChatMessage, AttachedFile, CodeChunkMatch } from '../../types';
 import { EmptyState } from '../common/EmptyState';
 import { ContextTelemetryBar } from '../common/ContextTelemetryBar';
 import { AttachmentChips } from '../common/AttachmentChips';
@@ -436,6 +436,39 @@ export const ChatContainer: React.FC = () => {
             console.warn('Gagal melakukan pencarian web:', searchErr);
             addToast('warning', 'Pencarian web gagal atau batas waktu tercapai.');
           }
+        }
+      }
+
+      // Injeksi Konteks Codebase RAG (Otomatis atau via @codebase)
+      const isExplicitCodebase = rawText.toLowerCase().includes('@codebase');
+      const cleanSearchQuery = rawText.replace(/@codebase/gi, '').trim();
+
+      if (
+        typeof window !== 'undefined' &&
+        '__TAURI_INTERNALS__' in window &&
+        cleanSearchQuery.length >= 3
+      ) {
+        try {
+          const { invoke } = await import('@tauri-apps/api/core');
+          const matches = await invoke<CodeChunkMatch[]>('query_codebase_context', {
+            query: cleanSearchQuery,
+            maxChunks: 4,
+          });
+
+          if (matches && matches.length > 0 && (isExplicitCodebase || matches[0].score > 3.0)) {
+            let codebaseContext = '\n\n=== KONTEKS CODEBASE PROYEK (RELEVAN) ===\n';
+            for (const m of matches) {
+              codebaseContext += `\n[Berkas: ${m.relative_path} (Baris ${m.start_line}-${m.end_line}) | Skor: ${m.score.toFixed(1)}]\n\`\`\`\n${m.content}\n\`\`\`\n`;
+            }
+            codebaseContext +=
+              '=== AKHIR KONTEKS CODEBASE ===\n(Gunakan konteks codebase proyek di atas jika relevan untuk menjawab pertanyaan pengguna secara akurat.)';
+            finalPromptForContext = `${finalPromptForContext}${codebaseContext}`;
+            if (isExplicitCodebase) {
+              addToast('info', `${matches.length} cuplikan kode dari proyek disematkan.`);
+            }
+          }
+        } catch (codebaseErr) {
+          console.warn('Gagal memindai konteks codebase RAG:', codebaseErr);
         }
       }
 

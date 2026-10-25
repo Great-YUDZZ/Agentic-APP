@@ -381,3 +381,23 @@ export interface Artifact {
   messageId?: string;
 }
 
+export interface FileNode {
+  name: string;
+  path: string;
+  relative_path: string;
+  is_dir: boolean;
+  size: number;
+  extension: string;
+  children?: FileNode[];
+}
+
+export interface CodeChunkMatch {
+  file_path: string;
+  relative_path: string;
+  start_line: number;
+  end_line: number;
+  content: string;
+  score: number;
+  matched_terms: string[];
+}
+

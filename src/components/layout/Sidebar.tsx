@@ -12,10 +12,13 @@ import {
   ShieldAlert,
   Download,
   GitBranch,
+  Folder,
+  MessageSquare,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { exportConversationSession } from '../../utils/exporter';
 import { ChatSession } from '../../types';
+import { WorkspaceFileTree } from '../workspace/WorkspaceFileTree';
 
 export const Sidebar: React.FC = () => {
   const {
@@ -39,6 +42,8 @@ export const Sidebar: React.FC = () => {
     activeVaultTab,
     setActiveVaultTab,
     messages,
+    sidebarTab,
+    setSidebarTab,
   } = useStore();
 
   useEffect(() => {
@@ -179,6 +184,34 @@ export const Sidebar: React.FC = () => {
                 <Plus className="w-4 h-4" />
               </button>
               <button
+                onClick={() => {
+                  setSidebarTab('sessions');
+                  setSidebarOpen(true);
+                }}
+                className={`p-2 rounded-xl transition-colors ${
+                  sidebarTab === 'sessions'
+                    ? 'bg-[#2f2f2f] text-[#ececec] border border-[#383838]'
+                    : 'bg-[#212121] hover:bg-[#282828] border border-[#303030] text-[#b4b4b4] hover:text-[#ececec]'
+                }`}
+                title="Sesi Chat"
+              >
+                <MessageSquare className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => {
+                  setSidebarTab('files');
+                  setSidebarOpen(true);
+                }}
+                className={`p-2 rounded-xl transition-colors ${
+                  sidebarTab === 'files'
+                    ? 'bg-[#2f2f2f] text-[#ececec] border border-[#383838]'
+                    : 'bg-[#212121] hover:bg-[#282828] border border-[#303030] text-[#b4b4b4] hover:text-[#ececec]'
+                }`}
+                title="Berkas Proyek"
+              >
+                <Folder className="w-4 h-4" />
+              </button>
+              <button
                 onClick={() => setIsVaultPageOpen(true)}
                 className="relative p-2 rounded-xl bg-[#212121] hover:bg-[#282828] border border-[#303030] text-[#b4b4b4] hover:text-[#ececec] transition-colors"
                 title="Universal Context Vault"
@@ -296,52 +329,89 @@ export const Sidebar: React.FC = () => {
               </button>
             </div>
 
-            <button
-              onClick={handleCreateNew}
-              className="w-full flex items-center justify-between py-2 px-3 rounded-xl bg-[#212121] hover:bg-[#282828] border border-[#303030] text-[#ececec] text-xs font-medium transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <Plus className="w-4 h-4" />
-                <span>{modeLabel.newBtn}</span>
-              </div>
-              <span className="text-[10px] text-[#707070] font-mono">⌘N</span>
-            </button>
-
-            {/* Dedicated Context Vault Page Navigation Button */}
-            <button
-              type="button"
-              onClick={() => setIsVaultPageOpen(true)}
-              className="w-full flex items-center justify-between py-2 px-3 rounded-xl border border-[#303030] bg-[#212121] hover:bg-[#282828] text-[#b4b4b4] hover:text-[#ececec] text-xs font-medium transition-colors"
-              title="Buka Halaman Khusus Universal Context Vault"
-            >
-              <div className="flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-[#707070]" />
-                <span>Context Vault</span>
-              </div>
-              {pendingDeleteRequests.length > 0 ? (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-[#2f2f2f] border border-[#383838] text-[#ececec]">
-                  {pendingDeleteRequests.length}
-                </span>
-              ) : (
-                <span className="text-[10px] text-[#707070] font-mono">Vault</span>
-              )}
-            </button>
-
-            {/* Search */}
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-[#707070] absolute left-2.5 top-2.5" />
-              <input
-                type="text"
-                placeholder={modeLabel.placeholder}
-                value={searchFilter}
-                onChange={(e) => setSearchFilter(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-[#212121] border border-[#303030] text-xs text-[#ececec] placeholder-[#707070] focus:outline-none focus:border-[#404040] transition-colors"
-              />
+            {/* Tab Switcher: Sesi Chat vs Berkas Proyek */}
+            <div className="grid grid-cols-2 p-0.5 bg-[#212121] rounded-xl border border-[#303030] text-xs">
+              <button
+                type="button"
+                onClick={() => setSidebarTab('sessions')}
+                className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  sidebarTab === 'sessions'
+                    ? 'bg-[#2f2f2f] text-[#ececec] border border-[#383838]'
+                    : 'text-[#707070] hover:text-[#b4b4b4]'
+                }`}
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>Sesi</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSidebarTab('files')}
+                className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  sidebarTab === 'files'
+                    ? 'bg-[#2f2f2f] text-[#ececec] border border-[#383838]'
+                    : 'text-[#707070] hover:text-[#b4b4b4]'
+                }`}
+              >
+                <Folder className="w-3.5 h-3.5" />
+                <span>Berkas</span>
+              </button>
             </div>
+
+            {sidebarTab === 'sessions' && (
+              <>
+                <button
+                  onClick={handleCreateNew}
+                  className="w-full flex items-center justify-between py-2 px-3 rounded-xl bg-[#212121] hover:bg-[#282828] border border-[#303030] text-[#ececec] text-xs font-medium transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Plus className="w-4 h-4" />
+                    <span>{modeLabel.newBtn}</span>
+                  </div>
+                  <span className="text-[10px] text-[#707070] font-mono">⌘N</span>
+                </button>
+
+                {/* Dedicated Context Vault Page Navigation Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsVaultPageOpen(true)}
+                  className="w-full flex items-center justify-between py-2 px-3 rounded-xl border border-[#303030] bg-[#212121] hover:bg-[#282828] text-[#b4b4b4] hover:text-[#ececec] text-xs font-medium transition-colors"
+                  title="Buka Halaman Khusus Universal Context Vault"
+                >
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-[#707070]" />
+                    <span>Context Vault</span>
+                  </div>
+                  {pendingDeleteRequests.length > 0 ? (
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-[#2f2f2f] border border-[#383838] text-[#ececec]">
+                      {pendingDeleteRequests.length}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-[#707070] font-mono">Vault</span>
+                  )}
+                </button>
+
+                {/* Search */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-[#707070] absolute left-2.5 top-2.5" />
+                  <input
+                    type="text"
+                    placeholder={modeLabel.placeholder}
+                    value={searchFilter}
+                    onChange={(e) => setSearchFilter(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-[#212121] border border-[#303030] text-xs text-[#ececec] placeholder-[#707070] focus:outline-none focus:border-[#404040] transition-colors"
+                  />
+                </div>
+              </>
+            )}
           </div>
 
-          {/* Sessions List */}
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          {/* Content Area: Workspace File Explorer or Sessions List */}
+          {sidebarTab === 'files' ? (
+            <div className="flex-1 overflow-hidden">
+              <WorkspaceFileTree />
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {filteredSessions.length === 0 ? (
               <div className="p-4 text-center text-xs text-[#707070]">Belum ada riwayat</div>
             ) : (
@@ -402,6 +472,7 @@ export const Sidebar: React.FC = () => {
               })
             )}
           </div>
+          )}
         </>
       )}
 

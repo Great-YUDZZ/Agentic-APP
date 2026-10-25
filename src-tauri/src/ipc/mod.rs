@@ -448,6 +448,297 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
     .map_err(|e| format!("Failed to spawn dialog thread: {}", e))?
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileNode {
+    pub name: String,
+    pub path: String,
+    pub relative_path: String,
+    pub is_dir: bool,
+    pub size: u64,
+    pub extension: String,
+    pub children: Option<Vec<FileNode>>,
+}
+
+fn build_file_tree_recursive(
+    dir_path: &std::path::Path,
+    workspace_root: &std::path::Path,
+    current_depth: usize,
+    max_depth: usize,
+) -> Vec<FileNode> {
+    if current_depth > max_depth {
+        return Vec::new();
+    }
+
+    let mut nodes = Vec::new();
+    let entries = match std::fs::read_dir(dir_path) {
+        Ok(e) => e,
+        Err(_) => return nodes,
+    };
+
+    let mut dir_entries = Vec::new();
+    for entry in entries.flatten() {
+        dir_entries.push(entry);
+    }
+
+    // Urutkan: direktori lebih dulu (alfabetis), kemudian berkas (alfabetis)
+    dir_entries.sort_by(|a, b| {
+        let a_is_dir = a.file_type().map(|t| t.is_dir()).unwrap_or(false);
+        let b_is_dir = b.file_type().map(|t| t.is_dir()).unwrap_or(false);
+        if a_is_dir == b_is_dir {
+            a.file_name().cmp(&b.file_name())
+        } else if a_is_dir {
+            std::cmp::Ordering::Less
+        } else {
+            std::cmp::Ordering::Greater
+        }
+    });
+
+    for entry in dir_entries {
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+
+        if crate::engine::codebase_rag::should_skip_dir(&name) {
+            continue;
+        }
+
+        let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+        let relative_path = path
+            .strip_prefix(workspace_root)
+            .unwrap_or(&path)
+            .to_string_lossy()
+            .to_string();
+
+        let (size, ext, children) = if is_dir {
+            let child_nodes =
+                build_file_tree_recursive(&path, workspace_root, current_depth + 1, max_depth);
+            (0, String::new(), Some(child_nodes))
+        } else {
+            let meta_size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+            let extension = path
+                .extension()
+                .map(|e| e.to_string_lossy().to_lowercase())
+                .unwrap_or_default();
+            (meta_size, extension, None)
+        };
+
+        nodes.push(FileNode {
+            name,
+            path: path.to_string_lossy().to_string(),
+            relative_path,
+            is_dir,
+            size,
+            extension: ext,
+            children,
+        });
+    }
+
+    nodes
+}
+
+#[tauri::command]
+pub async fn get_workspace_directory(state: State<'_, AppState>) -> Result<String, String> {
+    let ws = state.tool_runner.workspace_root();
+    Ok(ws.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub async fn read_workspace_file(
+    state: State<'_, AppState>,
+    relative_path: String,
+) -> Result<String, String> {
+    let sanitized = state
+        .tool_runner
+        .sanitize_path(&relative_path, false)
+        .map_err(|e| e.to_string())?;
+
+    if !sanitized.exists() {
+        return Err(format!("Berkas '{}' tidak ditemukan.", relative_path));
+    }
+
+    std::fs::read_to_string(&sanitized)
+        .map_err(|e| format!("Gagal membaca berkas '{}': {}", relative_path, e))
+}
+
+#[tauri::command]
+pub async fn get_workspace_file_tree(
+    state: State<'_, AppState>,
+    max_depth: Option<usize>,
+) -> Result<Vec<FileNode>, String> {
+    let ws = state.tool_runner.workspace_root();
+    let depth = max_depth.unwrap_or(6);
+
+    tokio::task::spawn_blocking(move || {
+        if !ws.exists() {
+            return Ok(Vec::new());
+        }
+        let tree = build_file_tree_recursive(&ws, &ws, 1, depth);
+        Ok(tree)
+    })
+    .await
+    .map_err(|e| format!("Gagal memindai pohon berkas workspace: {}", e))?
+}
+
+#[tauri::command]
+pub async fn create_workspace_file(
+    state: State<'_, AppState>,
+    relative_path: String,
+    is_dir: bool,
+) -> Result<(), String> {
+    let sanitized = state
+        .tool_runner
+        .sanitize_path(&relative_path, false)
+        .map_err(|e| e.to_string())?;
+
+    if sanitized.exists() {
+        return Err(format!("Jalur '{}' sudah ada.", relative_path));
+    }
+
+    if is_dir {
+        std::fs::create_dir_all(&sanitized)
+            .map_err(|e| format!("Gagal membuat direktori '{}': {}", relative_path, e))?;
+    } else {
+        if let Some(parent) = sanitized.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("Gagal membuat direktori induk: {}", e))?;
+        }
+        std::fs::write(&sanitized, b"")
+            .map_err(|e| format!("Gagal membuat berkas '{}': {}", relative_path, e))?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn rename_workspace_file(
+    state: State<'_, AppState>,
+    old_relative_path: String,
+    new_relative_path: String,
+) -> Result<(), String> {
+    let old_sanitized = state
+        .tool_runner
+        .sanitize_path(&old_relative_path, false)
+        .map_err(|e| e.to_string())?;
+    let new_sanitized = state
+        .tool_runner
+        .sanitize_path(&new_relative_path, false)
+        .map_err(|e| e.to_string())?;
+
+    if !old_sanitized.exists() {
+        return Err(format!("Berkas sumber '{}' tidak ditemukan.", old_relative_path));
+    }
+    if new_sanitized.exists() {
+        return Err(format!("Berkas target '{}' sudah ada.", new_relative_path));
+    }
+
+    if let Some(parent) = new_sanitized.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| format!("Gagal membuat direktori induk: {}", e))?;
+    }
+
+    std::fs::rename(&old_sanitized, &new_sanitized)
+        .map_err(|e| format!("Gagal mengubah nama berkas: {}", e))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn delete_workspace_file(
+    state: State<'_, AppState>,
+    relative_path: String,
+) -> Result<(), String> {
+    let sanitized = state
+        .tool_runner
+        .sanitize_path(&relative_path, false)
+        .map_err(|e| e.to_string())?;
+
+    if !sanitized.exists() {
+        return Err(format!("Berkas '{}' tidak ditemukan.", relative_path));
+    }
+
+    if sanitized.is_dir() {
+        std::fs::remove_dir_all(&sanitized)
+            .map_err(|e| format!("Gagal menghapus direktori '{}': {}", relative_path, e))?;
+    } else {
+        std::fs::remove_file(&sanitized)
+            .map_err(|e| format!("Gagal menghapus berkas '{}': {}", relative_path, e))?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn reveal_in_file_manager(
+    state: State<'_, AppState>,
+    relative_path: Option<String>,
+) -> Result<(), String> {
+    let target = if let Some(rel) = relative_path {
+        state
+            .tool_runner
+            .sanitize_path(&rel, false)
+            .map_err(|e| e.to_string())?
+    } else {
+        state.tool_runner.workspace_root()
+    };
+
+    #[cfg(target_os = "linux")]
+    {
+        let to_open = if target.is_file() {
+            target.parent().unwrap_or(&target).to_path_buf()
+        } else {
+            target
+        };
+        let _ = std::process::Command::new("xdg-open")
+            .arg(&to_open)
+            .spawn();
+        Ok(())
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if target.is_file() {
+            let _ = std::process::Command::new("explorer")
+                .arg(format!("/select,\"{}\"", target.display()))
+                .spawn();
+        } else {
+            let _ = std::process::Command::new("explorer")
+                .arg(&target)
+                .spawn();
+        }
+        Ok(())
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let _ = std::process::Command::new("open")
+            .arg("-R")
+            .arg(&target)
+            .spawn();
+        Ok(())
+    }
+
+    #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
+    {
+        Ok(())
+    }
+}
+
+#[tauri::command]
+pub async fn query_codebase_context(
+    state: State<'_, AppState>,
+    query: String,
+    max_chunks: Option<usize>,
+) -> Result<Vec<crate::engine::codebase_rag::CodeChunkMatch>, String> {
+    let ws = state.tool_runner.workspace_root();
+    let top_k = max_chunks.unwrap_or(4).min(10);
+
+    tokio::task::spawn_blocking(move || {
+        let chunks = crate::engine::codebase_rag::scan_workspace_chunks(&ws, 500);
+        let matches = crate::engine::codebase_rag::search_chunks(&query, &chunks, top_k);
+        Ok(matches)
+    })
+    .await
+    .map_err(|e| format!("Gagal memproses pencarian codebase RAG: {}", e))?
+}
+
 #[tauri::command]
 pub async fn save_exported_file_dialog(
     default_filename: String,
@@ -2297,6 +2588,25 @@ mod tests {
         assert!(first.size > 0);
 
         let _ = std::fs::remove_file(&test_file);
+    }
+
+    #[test]
+    fn test_build_file_tree_recursive() {
+        let temp_dir = std::env::temp_dir().join(format!("agentic_tree_test_{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let sub_dir = temp_dir.join("subfolder");
+        std::fs::create_dir_all(&sub_dir).unwrap();
+        std::fs::write(temp_dir.join("root.txt"), "root").unwrap();
+        std::fs::write(sub_dir.join("child.ts"), "const a = 1;").unwrap();
+
+        let tree = build_file_tree_recursive(&temp_dir, &temp_dir, 1, 4);
+        assert_eq!(tree.len(), 2); // subfolder and root.txt
+        let folder_node = tree.iter().find(|n| n.is_dir).unwrap();
+        assert_eq!(folder_node.name, "subfolder");
+        assert!(folder_node.children.is_some());
+        assert_eq!(folder_node.children.as_ref().unwrap().len(), 1);
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 }
 
