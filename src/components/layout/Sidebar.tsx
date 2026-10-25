@@ -52,7 +52,7 @@ export const Sidebar: React.FC = () => {
   }, [fetchPendingDeleteRequests, fetchTrashNotes]);
 
   useEffect(() => {
-    if (currentMode !== 'agent' && sidebarTab === 'files') {
+    if (currentMode !== 'build' && sidebarTab === 'files') {
       setSidebarTab('sessions');
     }
   }, [currentMode, sidebarTab, setSidebarTab]);
@@ -189,7 +189,7 @@ export const Sidebar: React.FC = () => {
               >
                 <Plus className="w-4 h-4" />
               </button>
-              {currentMode === 'agent' && (
+              {currentMode === 'build' && (
                 <>
                   <button
                     onClick={() => {
@@ -201,7 +201,7 @@ export const Sidebar: React.FC = () => {
                         ? 'bg-[#2f2f2f] text-[#ececec] border border-[#383838]'
                         : 'bg-[#212121] hover:bg-[#282828] border border-[#303030] text-[#b4b4b4] hover:text-[#ececec]'
                     }`}
-                    title="Sesi Task"
+                    title="Sesi Proyek"
                   >
                     <MessageSquare className="w-4 h-4" />
                   </button>
@@ -339,8 +339,8 @@ export const Sidebar: React.FC = () => {
               </button>
             </div>
 
-            {/* Tab Switcher: Sesi Task vs Berkas Proyek (Hanya di Mode Agent) */}
-            {currentMode === 'agent' && (
+            {/* Tab Switcher: Sesi Proyek vs Berkas Proyek (Hanya di Mode Build) */}
+            {currentMode === 'build' && (
               <div className="grid grid-cols-2 p-0.5 bg-[#212121] rounded-xl border border-[#303030] text-xs">
                 <button
                   type="button"
@@ -369,7 +369,7 @@ export const Sidebar: React.FC = () => {
               </div>
             )}
 
-            {(sidebarTab === 'sessions' || currentMode !== 'agent') && (
+            {(sidebarTab === 'sessions' || currentMode !== 'build') && (
               <>
                 <button
                   onClick={handleCreateNew}
@@ -418,7 +418,7 @@ export const Sidebar: React.FC = () => {
           </div>
 
           {/* Content Area: Workspace File Explorer or Sessions List */}
-          {currentMode === 'agent' && sidebarTab === 'files' ? (
+          {currentMode === 'build' && sidebarTab === 'files' ? (
             <div className="flex-1 overflow-hidden">
               <WorkspaceFileTree />
             </div>
