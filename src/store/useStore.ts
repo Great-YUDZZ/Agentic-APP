@@ -409,129 +409,6 @@ export const DEFAULT_POPULAR_MODELS: ModelOption[] = [
   { id: 'deepseek-chat', name: 'deepseek-chat', provider: 'custom', endpoint_id: 'custom', endpoint_name: 'DeepSeek' },
 ];
 
-export const INITIAL_DIFF_FILES: DiffFile[] = [
-  {
-    filename: 'src/engine/orchestrator.rs',
-    agentName: 'Coder Agent',
-    oldContent: `// Legacy Orchestrator Loop
-pub async fn execute_task(&self, task_id: &str) -> Result<(), String> {
-    println!("Starting task execution: {}", task_id);
-    let result = self.run_agent_sync(task_id).await;
-    match result {
-        Ok(msg) => {
-            println!("Done: {}", msg);
-            Ok(())
-        }
-        Err(err) => Err(err.to_string()),
-    }
-}`,
-    newContent: `// Enhanced Orchestrator Loop with Tokio Timeout & Cancellation
-pub async fn execute_task(&self, task_id: &str) -> Result<(), String> {
-    log::info!("Starting task execution with emergency cancellation: {}", task_id);
-    let cancel_token = self.cancel_token.clone();
-
-    tokio::select! {
-        res = self.run_agent_async(task_id) => {
-            match res {
-                Ok(msg) => {
-                    log::info!("Task {} finished successfully: {}", task_id, msg);
-                    self.update_telemetry(task_id, true).await;
-                    Ok(())
-                }
-                Err(err) => {
-                    log::error!("Task {} failed: {}", task_id, err);
-                    Err(err.to_string())
-                }
-            }
-        }
-        _ = cancel_token.cancelled() => {
-            log::warn!("Task {} halted by operator emergency stop", task_id);
-            Err("Execution cancelled by user".to_string())
-        }
-    }
-}`,
-    additions: 19,
-    deletions: 9,
-    status: 'pending',
-  },
-  {
-    filename: 'src/components/auth/AuthModal.tsx',
-    agentName: 'Security Agent',
-    oldContent: `export const AuthModal: React.FC = () => {
-  const [apiKey, setApiKey] = useState('');
-
-  const handleSubmit = () => {
-    saveToLocalStorage('api_key', apiKey);
-    window.location.reload();
-  };
-
-  return (
-    <form onSubmit={handleSubmit}>
-      <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
-      <button type="submit">Simpan</button>
-    </form>
-  );
-};`,
-    newContent: `export const AuthModal: React.FC = () => {
-  const [apiKey, setApiKey] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const { saveSecureApiKey, addToast } = useStore();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const sanitized = apiKey.trim();
-    if (!sanitized) {
-      setError('Kunci API tidak boleh kosong');
-      return;
-    }
-
-    try {
-      await saveSecureApiKey(sanitized);
-      addToast('success', 'Kunci API berhasil dienkripsi dan disimpan.');
-      setError(null);
-    } catch (err: any) {
-      setError(\`Gagal menyimpan: \${err.message || err}\`);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="p-4 space-y-3">
-      {error && <div className="p-2 text-xs text-rose-300 bg-rose-950/40 border border-rose-800 rounded">{error}</div>}
-      <input
-        type="password"
-        value={apiKey}
-        onChange={(e) => setApiKey(e.target.value)}
-        className="w-full bg-[#1e1e1e] border border-[#383838] px-3 py-1.5 rounded text-xs"
-        placeholder="Masukkan API Key..."
-      />
-      <button type="submit" className="px-4 py-1.5 bg-[#ececec] text-black font-semibold rounded text-xs">Simpan</button>
-    </form>
-  );
-};`,
-    additions: 30,
-    deletions: 8,
-    status: 'pending',
-  },
-  {
-    filename: 'src/utils/tokenCounter.ts',
-    agentName: 'Reviewer Agent',
-    oldContent: `export function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
-}`,
-    newContent: `// Byte-Pair sliding window token calculation
-export function estimateTokens(text: string): number {
-  if (!text) return 0;
-  // CJK and non-ascii words require higher token density weighting
-  const nonAsciiCount = (text.match(/[^\\x00-\\x7F]/g) || []).length;
-  const asciiCount = text.length - nonAsciiCount;
-  return Math.ceil(asciiCount / 4 + nonAsciiCount / 1.5);
-}`,
-    additions: 8,
-    deletions: 2,
-    status: 'pending',
-  },
-];
-
 export const useStore = create<AppStore>((set, get) => ({
   // Studio View Navigation (Build Mode)
   activeStudioTab: 'discussion',
@@ -2206,7 +2083,7 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
   emergencyStopped: false,
   pendingToolClearance: null,
   pendingClearanceResolver: null,
-  diffFiles: INITIAL_DIFF_FILES,
+  diffFiles: [],
   setSubagents: (subagents) => set({ subagents }),
   setKanbanTasks: (kanbanTasks) => set({ kanbanTasks }),
   updateTaskStatus: (taskId, status) =>
