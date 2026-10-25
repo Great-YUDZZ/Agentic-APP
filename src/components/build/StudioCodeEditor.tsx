@@ -8,7 +8,7 @@ import {
   FolderOpen,
 } from 'lucide-react';
 import Prism from 'prismjs';
-// Prism language grammars for comprehensive syntax highlighting
+// Base, Markup & Web
 import 'prismjs/components/prism-markup';
 import 'prismjs/components/prism-css';
 import 'prismjs/components/prism-clike';
@@ -16,53 +16,159 @@ import 'prismjs/components/prism-javascript';
 import 'prismjs/components/prism-typescript';
 import 'prismjs/components/prism-jsx';
 import 'prismjs/components/prism-tsx';
+
+// Systems & Backend
+import 'prismjs/components/prism-c';
+import 'prismjs/components/prism-cpp';
+import 'prismjs/components/prism-csharp';
+import 'prismjs/components/prism-java';
+import 'prismjs/components/prism-kotlin';
+import 'prismjs/components/prism-go';
 import 'prismjs/components/prism-rust';
 import 'prismjs/components/prism-python';
+import 'prismjs/components/prism-ruby';
+import 'prismjs/components/prism-swift';
+import 'prismjs/components/prism-dart';
+import 'prismjs/components/prism-scala';
+import 'prismjs/components/prism-zig';
+import 'prismjs/components/prism-lua';
+import 'prismjs/components/prism-r';
+import 'prismjs/components/prism-elixir';
+import 'prismjs/components/prism-erlang';
+import 'prismjs/components/prism-haskell';
+
+// Templating & Modern Web
+import 'prismjs/components/prism-markup-templating';
+import 'prismjs/components/prism-php';
+import 'prismjs/components/prism-scss';
+import 'prismjs/components/prism-less';
+import 'prismjs/components/prism-graphql';
+import 'prismjs/components/prism-wasm';
+import 'prismjs/components/prism-solidity';
+
+// Shell, DevOps & Config
+import 'prismjs/components/prism-bash';
+import 'prismjs/components/prism-powershell';
+import 'prismjs/components/prism-docker';
+import 'prismjs/components/prism-nginx';
 import 'prismjs/components/prism-json';
-import 'prismjs/components/prism-markdown';
 import 'prismjs/components/prism-yaml';
 import 'prismjs/components/prism-toml';
+import 'prismjs/components/prism-ini';
 import 'prismjs/components/prism-sql';
-import 'prismjs/components/prism-bash';
+import 'prismjs/components/prism-markdown';
+import 'prismjs/components/prism-diff';
 import { useStore } from '../../store/useStore';
 
 const EXTENSION_MAP: Record<string, string> = {
+  // Web & JavaScript Ecosystem
   ts: 'typescript',
   tsx: 'tsx',
   js: 'javascript',
   jsx: 'jsx',
   mjs: 'javascript',
   cjs: 'javascript',
-  rs: 'rust',
-  py: 'python',
-  json: 'json',
-  md: 'markdown',
   html: 'markup',
+  htm: 'markup',
+  xhtml: 'markup',
   xml: 'markup',
   svg: 'markup',
+  vue: 'markup',
+  svelte: 'markup',
+  astro: 'markup',
   css: 'css',
-  scss: 'css',
-  less: 'css',
-  yaml: 'yaml',
-  yml: 'yaml',
-  toml: 'toml',
-  sql: 'sql',
+  scss: 'scss',
+  sass: 'scss',
+  less: 'less',
+
+  // Systems & Compiled Languages
+  c: 'c',
+  h: 'c',
+  cpp: 'cpp',
+  hpp: 'cpp',
+  cc: 'cpp',
+  cxx: 'cpp',
+  hh: 'cpp',
+  cs: 'csharp',
+  rs: 'rust',
+  go: 'go',
+  zig: 'zig',
+  wasm: 'wasm',
+
+  // JVM & Mobile
+  java: 'java',
+  kt: 'kotlin',
+  kts: 'kotlin',
+  scala: 'scala',
+  dart: 'dart',
+  swift: 'swift',
+
+  // Dynamic & Scripting
+  py: 'python',
+  pyw: 'python',
+  rb: 'ruby',
+  php: 'php',
+  phtml: 'php',
+  lua: 'lua',
+  r: 'r',
+  sol: 'solidity',
+
+  // Functional
+  ex: 'elixir',
+  exs: 'elixir',
+  erl: 'erlang',
+  hrl: 'erlang',
+  hs: 'haskell',
+  lhs: 'haskell',
+
+  // Shell & DevOps
   sh: 'bash',
   bash: 'bash',
   zsh: 'bash',
+  fish: 'bash',
+  ps1: 'powershell',
+  psm1: 'powershell',
+  dockerfile: 'docker',
+  containerfile: 'docker',
+  nginx: 'nginx',
+
+  // Data, Query & Config
+  json: 'json',
+  json5: 'json',
+  jsonc: 'json',
+  yaml: 'yaml',
+  yml: 'yaml',
+  toml: 'toml',
+  ini: 'ini',
+  conf: 'ini',
+  cfg: 'ini',
+  env: 'ini',
+  properties: 'ini',
+  sql: 'sql',
+  mysql: 'sql',
+  pgsql: 'sql',
+  graphql: 'graphql',
+  gql: 'graphql',
+
+  // Documentation & VCS
+  md: 'markdown',
+  markdown: 'markdown',
+  mdx: 'markdown',
+  diff: 'diff',
+  patch: 'diff',
 };
 
 const getGrammarInfo = (ext: string) => {
   const normalized = (ext || '').toLowerCase().replace(/^\./, '');
-  const lang = EXTENSION_MAP[normalized] || normalized || 'typescript';
+  const lang = EXTENSION_MAP[normalized] || normalized || 'clike';
   if (Prism.languages[lang]) {
     return { grammar: Prism.languages[lang], lang };
   }
-  if (Prism.languages.typescript) {
-    return { grammar: Prism.languages.typescript, lang: 'typescript' };
-  }
   if (Prism.languages.clike) {
     return { grammar: Prism.languages.clike, lang: 'clike' };
+  }
+  if (Prism.languages.typescript) {
+    return { grammar: Prism.languages.typescript, lang: 'typescript' };
   }
   return { grammar: null, lang: 'text' };
 };
