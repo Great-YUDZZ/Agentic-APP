@@ -189,6 +189,7 @@ pub fn run() {
             ipc::delete_workspace_file,
             ipc::reveal_in_file_manager,
             ipc::query_codebase_context,
+            ipc::search_workspace_text,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

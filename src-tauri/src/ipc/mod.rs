@@ -787,6 +787,36 @@ pub async fn query_codebase_context(
 }
 
 #[tauri::command]
+pub async fn search_workspace_text(
+    state: State<'_, AppState>,
+    query: String,
+    case_sensitive: Option<bool>,
+    whole_word: Option<bool>,
+    max_results: Option<usize>,
+) -> Result<Vec<crate::engine::codebase_rag::TextSearchMatch>, String> {
+    let ws = state.tool_runner.workspace_root();
+    let case_sens = case_sensitive.unwrap_or(false);
+    let whole_w = whole_word.unwrap_or(false);
+    let limit = max_results.unwrap_or(300).min(1000);
+
+    tokio::task::spawn_blocking(move || {
+        if !ws.exists() || is_system_root_or_home(&ws) {
+            return Ok(Vec::new());
+        }
+        let matches = crate::engine::codebase_rag::search_workspace_text_files(
+            &ws,
+            &query,
+            case_sens,
+            whole_w,
+            limit,
+        );
+        Ok(matches)
+    })
+    .await
+    .map_err(|e| format!("Gagal memproses pencarian teks global: {}", e))?
+}
+
+#[tauri::command]
 pub async fn save_exported_file_dialog(
     default_filename: String,
     content: String,

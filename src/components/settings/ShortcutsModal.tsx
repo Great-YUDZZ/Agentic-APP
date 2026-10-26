@@ -34,6 +34,12 @@ const SHORTCUTS: ShortcutItem[] = [
     description: 'Quick Open File',
   },
   {
+    id: 'global-search',
+    category: 'Navigation',
+    keys: ['Ctrl', 'Shift', 'F'],
+    description: 'Global Text Search',
+  },
+  {
     id: 'focus-search',
     category: 'Chat & Models',
     keys: ['Ctrl', 'K'],

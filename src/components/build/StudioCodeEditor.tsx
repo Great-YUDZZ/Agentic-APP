@@ -7,6 +7,7 @@ import {
   Code2,
   FolderOpen,
   Search,
+  FileSearch,
 } from 'lucide-react';
 import Prism from 'prismjs';
 // Base, Markup & Web
@@ -185,6 +186,7 @@ export const StudioCodeEditor: React.FC = () => {
     saveActiveEditorFile,
     pickAndSetWorkspaceRoot,
     setQuickOpenModalOpen,
+    setGlobalSearchModalOpen,
   } = useStore();
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -578,6 +580,18 @@ export const StudioCodeEditor: React.FC = () => {
             <Search className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Cari</span>
             <span className="text-[10px] text-[#555555] font-normal hidden md:inline">Ctrl+F</span>
+          </button>
+
+          {/* Tombol Cari Global */}
+          <button
+            type="button"
+            onClick={() => setGlobalSearchModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs bg-[#252525] hover:bg-[#303030] text-[#909090] hover:text-[#ececec] border border-[#333333] transition-colors"
+            title="Cari teks di seluruh project (Ctrl + Shift + F)"
+          >
+            <FileSearch className="w-3.5 h-3.5 text-[#888888]" />
+            <span className="hidden sm:inline">Cari Global</span>
+            <span className="text-[10px] text-[#555555] font-normal hidden lg:inline">Ctrl+Shift+F</span>
           </button>
 
           {/* Tombol Simpan */}

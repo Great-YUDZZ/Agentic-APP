@@ -37,6 +37,7 @@ import {
   ArtifactVersion,
   FileNode,
   CodeChunkMatch,
+  TextSearchMatch,
   OpenEditorFile,
 } from '../types';
 import { parseRobustJson, getChatEndpoint, getModelsEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../utils/api';
@@ -316,6 +317,12 @@ interface AppStore {
   revealInFileManager: (relativePath?: string) => Promise<void>;
   openFileInSidecar: (file: FileNode) => Promise<void>;
   queryCodebase: (query: string, maxChunks?: number) => Promise<CodeChunkMatch[]>;
+  searchWorkspaceText: (
+    query: string,
+    caseSensitive?: boolean,
+    wholeWord?: boolean,
+    maxResults?: number
+  ) => Promise<TextSearchMatch[]>;
 
   // Studio Code Editor State & Actions
   openEditorFiles: OpenEditorFile[];
@@ -3195,6 +3202,54 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
       }
     }
     return [];
+  },
+
+  searchWorkspaceText: async (
+    query: string,
+    caseSensitive?: boolean,
+    wholeWord?: boolean,
+    maxResults?: number
+  ) => {
+    if (!query.trim()) return [];
+    if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const results = await invoke<TextSearchMatch[]>('search_workspace_text', {
+          query,
+          caseSensitive: caseSensitive || false,
+          wholeWord: wholeWord || false,
+          maxResults: maxResults || 300,
+        });
+        return results || [];
+      } catch (err) {
+        console.error('Workspace text search error:', err);
+        return [];
+      }
+    }
+    // Web fallback
+    const openFiles = get().openEditorFiles;
+    const matches: TextSearchMatch[] = [];
+    const q = caseSensitive ? query : query.toLowerCase();
+    for (const file of openFiles) {
+      const lines = file.content.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const lineToSearch = caseSensitive ? line : line.toLowerCase();
+        let idx = lineToSearch.indexOf(q);
+        while (idx !== -1) {
+          matches.push({
+            relative_path: file.path,
+            file_name: file.name,
+            line_number: i + 1,
+            line_content: line,
+            match_start: idx,
+            match_end: idx + query.length,
+          });
+          idx = lineToSearch.indexOf(q, idx + query.length);
+        }
+      }
+    }
+    return matches;
   },
 
   // Studio Code Editor State & Actions

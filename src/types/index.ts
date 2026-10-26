@@ -411,3 +411,12 @@ export interface CodeChunkMatch {
   matched_terms: string[];
 }
 
+export interface TextSearchMatch {
+  relative_path: string;
+  file_name: string;
+  line_number: number;
+  line_content: string;
+  match_start: number;
+  match_end: number;
+}
+

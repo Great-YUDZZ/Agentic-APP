@@ -24,6 +24,16 @@ pub struct CodeChunkMatch {
     pub matched_terms: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TextSearchMatch {
+    pub relative_path: String,
+    pub file_name: String,
+    pub line_number: usize,
+    pub line_content: String,
+    pub match_start: usize,
+    pub match_end: usize,
+}
+
 const EXCLUDED_DIRS: &[&str] = &[
     ".git",
     "node_modules",
@@ -292,6 +302,147 @@ pub fn search_chunks(query: &str, chunks: &[CodeChunk], top_k: usize) -> Vec<Cod
     scored
 }
 
+/// Pencarian teks global di seluruh berkas kode proyek
+pub fn search_workspace_text_files(
+    workspace_root: &Path,
+    query: &str,
+    case_sensitive: bool,
+    whole_word: bool,
+    max_results: usize,
+) -> Vec<TextSearchMatch> {
+    if query.trim().is_empty() || !workspace_root.exists() {
+        return Vec::new();
+    }
+
+    let mut matches = Vec::new();
+    let query_lower = query.to_lowercase();
+
+    let is_whole_word_boundary = |line: &str, start: usize, end: usize| -> bool {
+        let before_ok = if start == 0 {
+            true
+        } else {
+            let prev_char = line[..start].chars().last().unwrap_or(' ');
+            !prev_char.is_alphanumeric() && prev_char != '_'
+        };
+        let after_ok = if end >= line.len() {
+            true
+        } else {
+            let next_char = line[end..].chars().next().unwrap_or(' ');
+            !next_char.is_alphanumeric() && next_char != '_'
+        };
+        before_ok && after_ok
+    };
+
+    let mut stack = vec![workspace_root.to_path_buf()];
+
+    while let Some(current_dir) = stack.pop() {
+        if matches.len() >= max_results {
+            break;
+        }
+
+        let entries = match fs::read_dir(&current_dir) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+
+        for entry in entries.flatten() {
+            if matches.len() >= max_results {
+                break;
+            }
+
+            let path = entry.path();
+            let file_name = entry.file_name().to_string_lossy().to_string();
+
+            if path.is_dir() {
+                if !should_skip_dir(&file_name) && !file_name.starts_with('.') {
+                    stack.push(path);
+                }
+            } else if path.is_file() {
+                if !is_supported_code_file(&path) {
+                    continue;
+                }
+
+                if let Ok(metadata) = entry.metadata() {
+                    if metadata.len() > 2 * 1024 * 1024 {
+                        continue;
+                    }
+                }
+
+                let relative_path = path
+                    .strip_prefix(workspace_root)
+                    .unwrap_or(&path)
+                    .to_string_lossy()
+                    .replace('\\', "/");
+
+                let content = match fs::read_to_string(&path) {
+                    Ok(c) => c,
+                    Err(_) => continue,
+                };
+
+                for (idx, line) in content.lines().enumerate() {
+                    if matches.len() >= max_results {
+                        break;
+                    }
+
+                    let line_number = idx + 1;
+                    if case_sensitive {
+                        let mut search_from = 0;
+                        while let Some(found_idx) = line[search_from..].find(query) {
+                            let match_start = search_from + found_idx;
+                            let match_end = match_start + query.len();
+                            search_from = match_end;
+
+                            if whole_word && !is_whole_word_boundary(line, match_start, match_end) {
+                                continue;
+                            }
+
+                            matches.push(TextSearchMatch {
+                                relative_path: relative_path.clone(),
+                                file_name: file_name.clone(),
+                                line_number,
+                                line_content: line.trim_end().to_string(),
+                                match_start,
+                                match_end,
+                            });
+
+                            if matches.len() >= max_results {
+                                break;
+                            }
+                        }
+                    } else {
+                        let line_lower = line.to_lowercase();
+                        let mut search_from = 0;
+                        while let Some(found_idx) = line_lower[search_from..].find(&query_lower) {
+                            let match_start = search_from + found_idx;
+                            let match_end = match_start + query.len();
+                            search_from = match_end;
+
+                            if whole_word && !is_whole_word_boundary(line, match_start, match_end) {
+                                continue;
+                            }
+
+                            matches.push(TextSearchMatch {
+                                relative_path: relative_path.clone(),
+                                file_name: file_name.clone(),
+                                line_number,
+                                line_content: line.trim_end().to_string(),
+                                match_start,
+                                match_end,
+                            });
+
+                            if matches.len() >= max_results {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    matches
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -363,5 +514,24 @@ mod tests {
         assert!(!results.is_empty());
         assert_eq!(results[0].relative_path, "src/auth.rs");
         assert!(results[0].score > 0.0);
+    }
+
+    #[test]
+    fn test_search_workspace_text_files() {
+        let temp_dir = std::env::temp_dir().join("agentic_test_search_ws");
+        let _ = fs::create_dir_all(&temp_dir);
+        let file1 = temp_dir.join("main.rs");
+        let file2 = temp_dir.join("helper.ts");
+
+        let _ = fs::write(&file1, "fn main() {\n    let agent_name = \"Antigravity\";\n    println!(\"{}\", agent_name);\n}\n");
+        let _ = fs::write(&file2, "export const agent_name = 'Antigravity';\n");
+
+        let results = search_workspace_text_files(&temp_dir, "agent_name", true, true, 10);
+        assert_eq!(results.len(), 3);
+
+        let whole_word_test = search_workspace_text_files(&temp_dir, "agent", true, true, 10);
+        assert_eq!(whole_word_test.len(), 0);
+
+        let _ = fs::remove_dir_all(&temp_dir);
     }
 }

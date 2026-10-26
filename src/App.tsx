@@ -18,6 +18,7 @@ import { ToastFeedback } from './components/common/ToastFeedback';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { SidecarViewer } from './components/canvas/SidecarViewer';
 import { QuickOpenModal } from './components/build/QuickOpenModal';
+import { GlobalSearchModal } from './components/build/GlobalSearchModal';
 import { useStore } from './store/useStore';
 import { applyTheme } from './utils/theme';
 
@@ -35,6 +36,7 @@ export const App: React.FC = () => {
     isSidecarOpen,
     toggleSidecar,
     setQuickOpenModalOpen,
+    setGlobalSearchModalOpen,
   } = useStore();
 
   React.useEffect(() => {
@@ -47,9 +49,13 @@ export const App: React.FC = () => {
         e.preventDefault();
         setSettingsOpen(true);
       }
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P')) {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'p' || e.key === 'P')) {
         e.preventDefault();
         setQuickOpenModalOpen(true);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'f' || e.key === 'F')) {
+        e.preventDefault();
+        setGlobalSearchModalOpen(true);
       }
       if ((e.ctrlKey || e.metaKey) && (e.key === 'e' || e.key === 'E')) {
         e.preventDefault();
@@ -62,7 +68,7 @@ export const App: React.FC = () => {
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [setSettingsOpen, toggleBuildSubMode, toggleSidecar, setQuickOpenModalOpen, currentMode]);
+  }, [setSettingsOpen, toggleBuildSubMode, toggleSidecar, setQuickOpenModalOpen, setGlobalSearchModalOpen, currentMode]);
 
   React.useEffect(() => {
     loadApiKeysFromDb();
@@ -107,6 +113,7 @@ export const App: React.FC = () => {
 
         {/* Global Floating Modals */}
         <QuickOpenModal />
+        <GlobalSearchModal />
         <SkillsModal />
         <LocalSkillImportModal />
         <CodeReviewModal />
