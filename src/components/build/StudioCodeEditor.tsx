@@ -488,46 +488,6 @@ export const StudioCodeEditor: React.FC = () => {
     }
   }, [activeFile, displayContent, grammar, targetLang]);
 
-  if (!activeFile || openEditorFiles.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full p-8 text-center text-[#707070] select-none bg-[#212121]">
-        <Code2 className="w-12 h-12 mb-3 opacity-40 text-[#b4b4b4]" />
-        <h3 className="text-sm font-semibold text-[#ececec] mb-1">
-          Tidak Ada Berkas Terbuka
-        </h3>
-        <p className="text-xs text-[#707070] max-w-sm mb-4">
-          Pilih berkas dari Pohon Berkas di bilah sisi kiri untuk membaca atau mengedit kode secara langsung di Studio.
-        </p>
-        <button
-          onClick={() => pickAndSetWorkspaceRoot()}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#2f2f2f] hover:bg-[#383838] text-[#ececec] border border-[#383838] text-xs font-medium transition-colors"
-        >
-          <FolderOpen className="w-3.5 h-3.5" />
-          <span>Buka Folder Project</span>
-        </button>
-      </div>
-    );
-  }
-
-  const lines = displayContent.split('\n');
-  const lineCount = lines.length;
-
-  const gutterWidth = lineCount > 9999 ? 'w-16' : lineCount > 999 ? 'w-14' : 'w-12';
-
-  const sharedEditorStyle: React.CSSProperties = {
-    fontFamily: "Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', 'Courier New', monospace",
-    fontSize: '12px',
-    lineHeight: '22px',
-    tabSize: 2,
-    padding: '12px',
-    margin: 0,
-    border: 0,
-    letterSpacing: '0px',
-    whiteSpace: 'pre',
-    wordWrap: 'normal',
-    boxSizing: 'border-box',
-  };
-
   // Render potongan teks penyorotan kecocokan pencarian
   const matchSlices = useMemo(() => {
     if (!searchTerm.trim() || matches.length === 0 || !activeFile) return null;
@@ -570,6 +530,46 @@ export const StudioCodeEditor: React.FC = () => {
 
     return nodes;
   }, [activeFile?.content, matches, activeMatchIndex, searchTerm]);
+
+  if (!activeFile || openEditorFiles.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-8 text-center text-[#707070] select-none bg-[#212121]">
+        <Code2 className="w-12 h-12 mb-3 opacity-40 text-[#b4b4b4]" />
+        <h3 className="text-sm font-semibold text-[#ececec] mb-1">
+          Tidak Ada Berkas Terbuka
+        </h3>
+        <p className="text-xs text-[#707070] max-w-sm mb-4">
+          Pilih berkas dari Pohon Berkas di bilah sisi kiri untuk membaca atau mengedit kode secara langsung di Studio.
+        </p>
+        <button
+          onClick={() => pickAndSetWorkspaceRoot()}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#2f2f2f] hover:bg-[#383838] text-[#ececec] border border-[#383838] text-xs font-medium transition-colors"
+        >
+          <FolderOpen className="w-3.5 h-3.5" />
+          <span>Buka Folder Project</span>
+        </button>
+      </div>
+    );
+  }
+
+  const lines = displayContent.split('\n');
+  const lineCount = lines.length;
+
+  const gutterWidth = lineCount > 9999 ? 'w-16' : lineCount > 999 ? 'w-14' : 'w-12';
+
+  const sharedEditorStyle: React.CSSProperties = {
+    fontFamily: "Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', 'Courier New', monospace",
+    fontSize: '12px',
+    lineHeight: '22px',
+    tabSize: 2,
+    padding: '12px',
+    margin: 0,
+    border: 0,
+    letterSpacing: '0px',
+    whiteSpace: 'pre',
+    wordWrap: 'normal',
+    boxSizing: 'border-box',
+  };
 
   return (
     <div className="flex flex-col h-full bg-[#1e1e1e] font-mono text-xs select-none">
