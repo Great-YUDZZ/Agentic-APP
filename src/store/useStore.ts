@@ -443,13 +443,22 @@ export const useStore = create<AppStore>((set, get) => ({
     if (prevMode === nextMode) return;
 
     // Selalu tutup terminal saat beralih mode agar memulai dalam keadaan tertutup
-    set({ isTerminalOpen: false, currentMode: nextMode, activeSessionId: null, messages: [] });
+    set({
+      isTerminalOpen: false,
+      currentMode: nextMode,
+      activeSessionId: null,
+      messages: [],
+      activeWorkspacePath: null,
+      workspaceFiles: [],
+      openEditorFiles: [],
+      activeEditorFilePath: null,
+    });
   },
   isSidebarOpen: true,
   setSidebarOpen: (isSidebarOpen) => set({ isSidebarOpen }),
 
   // Workspace Project Root & Approval Policy
-  workspaceProjectRoot: '/home/yudz/Agentic',
+  workspaceProjectRoot: '',
   setWorkspaceProjectRoot: async (workspaceProjectRoot) => {
     set((s) => ({
       workspaceProjectRoot,
@@ -2228,7 +2237,7 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
     {
       id: 'term-tab-1',
       title: 'bash #1',
-      cwd: '/home/yudz/Agentic',
+      cwd: '',
       logs: [],
     },
   ],
@@ -3095,6 +3104,16 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
   isWorkspaceFilesLoading: false,
 
   fetchWorkspaceFiles: async () => {
+    // Jika tidak ada sesi aktif, jangan buka atau muat direktori apapun demi keamanan
+    if (!get().activeSessionId) {
+      set({
+        activeWorkspacePath: null,
+        workspaceFiles: [],
+        isWorkspaceFilesLoading: false,
+      });
+      return;
+    }
+
     if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
       try {
         set({ isWorkspaceFilesLoading: true });
@@ -3103,7 +3122,7 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
 
         if (!dir && get().workspaceProjectRoot) {
           const defaultProject = get().workspaceProjectRoot;
-          if (defaultProject !== '/home/yudz' && defaultProject !== '/') {
+          if (defaultProject && defaultProject !== '/home/yudz' && defaultProject !== '/') {
             await invoke('set_workspace_directory', { path: defaultProject });
             dir = await invoke<string>('get_workspace_directory');
           }

@@ -332,6 +332,26 @@ pub fn git_create_branch(workspace: &Path, branch_name: &str) -> Result<()> {
     Ok(())
 }
 
+/// Clone a git repository into the specified directory
+pub fn git_clone_repo(target_dir: &Path, repo_url: &str) -> Result<String> {
+    if let Some(parent) = target_dir.parent() {
+        if !parent.exists() {
+            std::fs::create_dir_all(parent)?;
+        }
+    }
+    let output = Command::new("git")
+        .args(["clone", repo_url, target_dir.to_str().unwrap_or("")])
+        .output()
+        .map_err(|e| anyhow!("Failed to execute git clone: {}", e))?;
+
+    if !output.status.success() {
+        let err_msg = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(anyhow!("Git clone failed: {}", err_msg));
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -408,5 +428,46 @@ mod tests {
         assert!(!status.is_git_repo);
 
         let _ = std::fs::remove_dir_all(&temp_non_repo);
+    }
+
+    #[test]
+    fn test_git_clone_local_repo() {
+        let origin_dir = std::env::temp_dir().join(format!("agentic_git_origin_{}", uuid::Uuid::new_v4()));
+        let clone_dir = std::env::temp_dir().join(format!("agentic_git_cloned_{}", uuid::Uuid::new_v4()));
+        let _ = std::fs::create_dir_all(&origin_dir);
+
+        let init = Command::new("git")
+            .current_dir(&origin_dir)
+            .args(["init", "-b", "main"])
+            .output();
+
+        if let Ok(out) = init {
+            if out.status.success() {
+                let _ = Command::new("git")
+                    .current_dir(&origin_dir)
+                    .args(["config", "user.name", "Test User"])
+                    .output();
+                let _ = Command::new("git")
+                    .current_dir(&origin_dir)
+                    .args(["config", "user.email", "test@example.com"])
+                    .output();
+                let _ = std::fs::write(origin_dir.join("sample.txt"), "hello clone");
+                let _ = Command::new("git")
+                    .current_dir(&origin_dir)
+                    .args(["add", "sample.txt"])
+                    .output();
+                let _ = Command::new("git")
+                    .current_dir(&origin_dir)
+                    .args(["commit", "-m", "init"])
+                    .output();
+
+                let res = git_clone_repo(&clone_dir, origin_dir.to_str().unwrap());
+                assert!(res.is_ok());
+                assert!(clone_dir.join("sample.txt").exists());
+            }
+        }
+
+        let _ = std::fs::remove_dir_all(&origin_dir);
+        let _ = std::fs::remove_dir_all(&clone_dir);
     }
 }

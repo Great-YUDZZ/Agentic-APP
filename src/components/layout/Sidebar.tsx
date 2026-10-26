@@ -112,7 +112,14 @@ export const Sidebar: React.FC = () => {
 
   const handleCreateNew = () => {
     setIsVaultPageOpen(false);
-    useStore.setState({ activeSessionId: null, messages: [] });
+    useStore.setState({
+      activeSessionId: null,
+      messages: [],
+      activeWorkspacePath: null,
+      workspaceFiles: [],
+      openEditorFiles: [],
+      activeEditorFilePath: null,
+    });
     if (currentMode === 'build') {
       useStore.getState().resetBuildDiscussion();
     }

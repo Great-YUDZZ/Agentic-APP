@@ -2556,6 +2556,27 @@ pub async fn git_create_branch(
     .map_err(|e| format!("Task execution failed: {}", e))?
 }
 
+#[tauri::command]
+pub async fn git_clone(
+    state: State<'_, AppState>,
+    repo_url: String,
+    target_dir: String,
+) -> Result<String, String> {
+    let target = std::path::PathBuf::from(&target_dir);
+    if is_system_root_or_home(&target) {
+        return Err("Tidak dapat mengkloning langsung ke direktori root sistem atau direktori home.".to_string());
+    }
+    let target_clone = target.clone();
+    tokio::task::spawn_blocking(move || {
+        crate::engine::git::git_clone_repo(&target_clone, &repo_url).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("Task execution failed: {}", e))??;
+
+    state.tool_runner.set_workspace_root(target.clone());
+    Ok(target.to_string_lossy().to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

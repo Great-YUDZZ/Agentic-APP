@@ -23,17 +23,8 @@ pub fn run() {
     });
 
     let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    let initial_root = if ipc::is_system_root_or_home(&current_dir) {
-        let agentic_dir = current_dir.join("Agentic");
-        if agentic_dir.is_dir() {
-            agentic_dir
-        } else {
-            PathBuf::from("")
-        }
-    } else {
-        current_dir.clone()
-    };
-    let tool_runner = ToolRunner::new(initial_root);
+    // Jangan default ke direktori aplikasi demi keamanan data dan isolasi sesi
+    let tool_runner = ToolRunner::new(PathBuf::from(""));
     let mcp_manager = Arc::new(engine::mcp::McpClientManager::new());
     tool_runner.set_mcp_manager(mcp_manager.clone());
     let orchestrator = Arc::new(AgentOrchestrator::new(db.clone(), tool_runner.clone()));
@@ -179,6 +170,7 @@ pub fn run() {
             ipc::git_branches,
             ipc::git_checkout,
             ipc::git_create_branch,
+            ipc::git_clone,
             ipc::pick_files_native,
             ipc::get_workspace_directory,
             ipc::read_workspace_file,

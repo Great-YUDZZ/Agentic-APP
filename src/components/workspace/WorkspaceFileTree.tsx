@@ -24,6 +24,8 @@ import { useStore } from '../../store/useStore';
 import { FileNode } from '../../types';
 import { LoadingSkeleton } from '../common/LoadingSkeleton';
 import { EmptyState } from '../common/EmptyState';
+import { CloneRepositoryModal } from './CloneRepositoryModal';
+import { GitDocsModal } from './GitDocsModal';
 
 const getFileIcon = (ext: string, isDir: boolean, isOpen: boolean) => {
   if (isDir) {
@@ -83,6 +85,8 @@ export const WorkspaceFileTree: React.FC = () => {
     openFileInStudioEditor,
     currentMode,
     activeAgentWorkFiles,
+    activeSessionId,
+    createNewSession,
   } = useStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -91,6 +95,9 @@ export const WorkspaceFileTree: React.FC = () => {
   const [creatingPath, setCreatingPath] = useState('');
   const [renamingNode, setRenamingNode] = useState<{ oldPath: string; newName: string } | null>(null);
   const [deletingPath, setDeletingPath] = useState<string | null>(null);
+  const [isNoFolderOpen, setIsNoFolderOpen] = useState(true);
+  const [isCloneModalOpen, setIsCloneModalOpen] = useState(false);
+  const [isDocsModalOpen, setIsDocsModalOpen] = useState(false);
 
   useEffect(() => {
     fetchWorkspaceFiles();
@@ -111,8 +118,33 @@ export const WorkspaceFileTree: React.FC = () => {
   const handleChangeWorkspace = async () => {
     const chosen = await useStore.getState().pickAndSetWorkspaceRoot();
     if (chosen) {
+      if (!useStore.getState().activeSessionId) {
+        const folderName = chosen.split('/').filter(Boolean).pop() || 'Proyek Studio';
+        await createNewSession(folderName, 'build');
+      }
       await fetchWorkspaceFiles();
     }
+  };
+
+  const handleOpenFolderAndCreateSession = async () => {
+    const chosen = await useStore.getState().pickAndSetWorkspaceRoot();
+    if (chosen) {
+      if (!useStore.getState().activeSessionId) {
+        const folderName = chosen.split('/').filter(Boolean).pop() || 'Proyek Studio';
+        await createNewSession(folderName, 'build');
+      }
+      await fetchWorkspaceFiles();
+    }
+  };
+
+  const handleCloneSuccess = async (targetPath: string) => {
+    setIsCloneModalOpen(false);
+    await useStore.getState().setWorkspaceProjectRoot(targetPath);
+    if (!useStore.getState().activeSessionId) {
+      const folderName = targetPath.split('/').filter(Boolean).pop() || 'Proyek Kloning';
+      await createNewSession(folderName, 'build');
+    }
+    await fetchWorkspaceFiles();
   };
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
@@ -356,6 +388,83 @@ export const WorkspaceFileTree: React.FC = () => {
       </div>
     );
   };
+
+  if (!activeSessionId || !activeWorkspacePath) {
+    return (
+      <div className="flex flex-col h-full bg-[#171717] text-[#ececec] select-none font-sans text-xs">
+        {/* Accordion Header: No Folder Opened */}
+        <div
+          onClick={() => setIsNoFolderOpen((prev) => !prev)}
+          className="flex items-center gap-1.5 px-3 py-2.5 cursor-pointer hover:bg-[#212121] transition-colors font-medium text-[#cccccc]"
+        >
+          {isNoFolderOpen ? (
+            <ChevronDown className="w-3.5 h-3.5 text-[#858585] shrink-0" />
+          ) : (
+            <ChevronRight className="w-3.5 h-3.5 text-[#858585] shrink-0" />
+          )}
+          <span>No Folder Opened</span>
+        </div>
+
+        {/* Accordion Body */}
+        {isNoFolderOpen && (
+          <div className="px-4 py-2 space-y-3.5">
+            <p className="text-xs text-[#cccccc] leading-relaxed">
+              You have not yet opened a folder.
+            </p>
+
+            <button
+              type="button"
+              onClick={handleOpenFolderAndCreateSession}
+              className="w-full py-1.5 px-3 rounded bg-[#0078d4] hover:bg-[#006cc1] text-white text-xs font-normal transition-colors text-center shadow-xs cursor-pointer"
+            >
+              Open Folder
+            </button>
+
+            <p className="text-xs text-[#cccccc] leading-relaxed pt-1">
+              You can clone a repository locally.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setIsCloneModalOpen(true)}
+              className="w-full py-1.5 px-3 rounded bg-[#0078d4] hover:bg-[#006cc1] text-white text-xs font-normal transition-colors text-center shadow-xs cursor-pointer"
+            >
+              Clone Repository
+            </button>
+
+            <p className="text-xs text-[#858585] leading-relaxed pt-2">
+              To learn more about how to use Git and source control in the IDE{' '}
+              <button
+                type="button"
+                onClick={() => setIsDocsModalOpen(true)}
+                className="text-[#3794ff] hover:underline cursor-pointer inline"
+              >
+                read our docs
+              </button>
+              .
+            </p>
+          </div>
+        )}
+
+        {/* Modal Clone Repository */}
+        {isCloneModalOpen && (
+          <CloneRepositoryModal
+            isOpen={isCloneModalOpen}
+            onClose={() => setIsCloneModalOpen(false)}
+            onSuccess={handleCloneSuccess}
+          />
+        )}
+
+        {/* Modal Docs */}
+        {isDocsModalOpen && (
+          <GitDocsModal
+            isOpen={isDocsModalOpen}
+            onClose={() => setIsDocsModalOpen(false)}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full overflow-hidden text-[#ececec] select-none">
