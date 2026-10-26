@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo, useState } from 'react';
 import {
   FileCode,
   X,
@@ -6,6 +6,7 @@ import {
   Check,
   Code2,
   FolderOpen,
+  Search,
 } from 'lucide-react';
 import Prism from 'prismjs';
 // Base, Markup & Web
@@ -59,6 +60,7 @@ import 'prismjs/components/prism-sql';
 import 'prismjs/components/prism-markdown';
 import 'prismjs/components/prism-diff';
 import { useStore } from '../../store/useStore';
+import { EditorFindReplace } from './EditorFindReplace';
 
 const EXTENSION_MAP: Record<string, string> = {
   // Web & JavaScript Ecosystem
@@ -186,24 +188,76 @@ export const StudioCodeEditor: React.FC = () => {
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLPreElement>(null);
+  const matchOverlayRef = useRef<HTMLDivElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
+
+  // State Find & Replace
+  const [isFindOpen, setIsFindOpen] = useState(false);
+  const [isReplaceMode, setIsReplaceMode] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [replaceTerm, setReplaceTerm] = useState('');
+  const [caseSensitive, setCaseSensitive] = useState(false);
+  const [wholeWord, setWholeWord] = useState(false);
+  const [activeMatchIndex, setActiveMatchIndex] = useState(0);
 
   const activeFile = openEditorFiles.find((f) => f.path === activeEditorFilePath);
 
-  // Keyboard shortcut Ctrl+S / Cmd+S untuk simpan
+  // Keyboard shortcuts: Ctrl+S (Simpan), Ctrl+F (Cari), Ctrl+H (Ganti), Esc (Tutup)
   useEffect(() => {
-    const handleSaveKeyDown = (e: KeyboardEvent) => {
+    const handleEditorShortcuts = (e: KeyboardEvent) => {
+      // Simpan: Ctrl+S
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
         saveActiveEditorFile();
+        return;
+      }
+
+      // Cari: Ctrl+F
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        const selected = textareaRef.current
+          ? textareaRef.current.value.substring(
+              textareaRef.current.selectionStart,
+              textareaRef.current.selectionEnd
+            )
+          : '';
+        if (selected && !selected.includes('\n')) {
+          setSearchTerm(selected);
+        }
+        setIsFindOpen(true);
+        return;
+      }
+
+      // Ganti: Ctrl+H
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        const selected = textareaRef.current
+          ? textareaRef.current.value.substring(
+              textareaRef.current.selectionStart,
+              textareaRef.current.selectionEnd
+            )
+          : '';
+        if (selected && !selected.includes('\n')) {
+          setSearchTerm(selected);
+        }
+        setIsFindOpen(true);
+        setIsReplaceMode(true);
+        return;
+      }
+
+      // Tutup Find: Esc
+      if (e.key === 'Escape' && isFindOpen) {
+        e.preventDefault();
+        setIsFindOpen(false);
+        textareaRef.current?.focus();
       }
     };
 
-    window.addEventListener('keydown', handleSaveKeyDown);
-    return () => window.removeEventListener('keydown', handleSaveKeyDown);
-  }, [saveActiveEditorFile]);
+    window.addEventListener('keydown', handleEditorShortcuts);
+    return () => window.removeEventListener('keydown', handleEditorShortcuts);
+  }, [saveActiveEditorFile, isFindOpen]);
 
-  // Sinkronisasi scroll textarea dengan highlight code dan gutter nomor baris
+  // Sinkronisasi scroll textarea dengan highlight code, match overlay, dan gutter nomor baris
   const handleScroll = () => {
     if (textareaRef.current) {
       const { scrollTop, scrollLeft } = textareaRef.current;
@@ -214,6 +268,113 @@ export const StudioCodeEditor: React.FC = () => {
         highlightRef.current.scrollTop = scrollTop;
         highlightRef.current.scrollLeft = scrollLeft;
       }
+      if (matchOverlayRef.current) {
+        matchOverlayRef.current.scrollTop = scrollTop;
+        matchOverlayRef.current.scrollLeft = scrollLeft;
+      }
+    }
+  };
+
+  // Hitung kecocokan teks pencarian
+  const matches = useMemo(() => {
+    if (!searchTerm.trim() || !activeFile?.content) return [];
+    const content = activeFile.content;
+    try {
+      const escaped = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      let pattern = escaped;
+      if (wholeWord) {
+        pattern = `\\b${pattern}\\b`;
+      }
+      const regex = new RegExp(pattern, caseSensitive ? 'g' : 'gi');
+      const results: { start: number; end: number; lineIndex: number }[] = [];
+      let match: RegExpExecArray | null;
+      let count = 0;
+      while ((match = regex.exec(content)) !== null && count < 5000) {
+        count++;
+        if (match.index === regex.lastIndex) regex.lastIndex++;
+        const lineIndex = content.slice(0, match.index).split('\n').length - 1;
+        results.push({
+          start: match.index,
+          end: match.index + match[0].length,
+          lineIndex,
+        });
+      }
+      return results;
+    } catch {
+      return [];
+    }
+  }, [searchTerm, activeFile?.content, caseSensitive, wholeWord]);
+
+  // Jaga activeMatchIndex tetap valid
+  useEffect(() => {
+    if (matches.length === 0) {
+      setActiveMatchIndex(0);
+    } else if (activeMatchIndex >= matches.length) {
+      setActiveMatchIndex(0);
+    }
+  }, [matches.length, activeMatchIndex]);
+
+  const jumpToMatch = (index: number) => {
+    if (index < 0 || index >= matches.length || !textareaRef.current) return;
+    const match = matches[index];
+    const textarea = textareaRef.current;
+
+    textarea.selectionStart = match.start;
+    textarea.selectionEnd = match.end;
+
+    const targetTop = match.lineIndex * 22;
+    const currentScroll = textarea.scrollTop;
+    const viewHeight = textarea.clientHeight;
+
+    if (targetTop < currentScroll || targetTop > currentScroll + viewHeight - 44) {
+      textarea.scrollTop = Math.max(0, targetTop - Math.floor(viewHeight / 3));
+    }
+
+    handleScroll();
+  };
+
+  const handleNextMatch = () => {
+    if (matches.length === 0) return;
+    const nextIdx = (activeMatchIndex + 1) % matches.length;
+    setActiveMatchIndex(nextIdx);
+    jumpToMatch(nextIdx);
+  };
+
+  const handlePrevMatch = () => {
+    if (matches.length === 0) return;
+    const prevIdx = (activeMatchIndex - 1 + matches.length) % matches.length;
+    setActiveMatchIndex(prevIdx);
+    jumpToMatch(prevIdx);
+  };
+
+  const handleReplaceCurrent = () => {
+    if (!activeFile || matches.length === 0 || activeMatchIndex >= matches.length) return;
+    const current = matches[activeMatchIndex];
+    const oldContent = activeFile.content;
+    const newContent =
+      oldContent.slice(0, current.start) + replaceTerm + oldContent.slice(current.end);
+    updateEditorFileContent(activeFile.path, newContent);
+
+    requestAnimationFrame(() => {
+      jumpToMatch(Math.min(activeMatchIndex, Math.max(0, matches.length - 2)));
+    });
+  };
+
+  const handleReplaceAll = () => {
+    if (!activeFile || matches.length === 0 || !searchTerm.trim()) return;
+    const content = activeFile.content;
+    try {
+      const escaped = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      let pattern = escaped;
+      if (wholeWord) {
+        pattern = `\\b${pattern}\\b`;
+      }
+      const regex = new RegExp(pattern, caseSensitive ? 'g' : 'gi');
+      const newContent = content.replace(regex, replaceTerm);
+      updateEditorFileContent(activeFile.path, newContent);
+      setActiveMatchIndex(0);
+    } catch (err) {
+      console.error('Replace all error:', err);
     }
   };
 
@@ -305,6 +466,49 @@ export const StudioCodeEditor: React.FC = () => {
     boxSizing: 'border-box',
   };
 
+  // Render potongan teks penyorotan kecocokan pencarian
+  const matchSlices = useMemo(() => {
+    if (!searchTerm.trim() || matches.length === 0 || !activeFile) return null;
+    const content = activeFile.content;
+    const nodes: React.ReactNode[] = [];
+    let lastIndex = 0;
+
+    matches.forEach((m, i) => {
+      if (m.start > lastIndex) {
+        nodes.push(
+          <span key={`text-${lastIndex}`} style={{ color: 'transparent' }}>
+            {content.slice(lastIndex, m.start)}
+          </span>
+        );
+      }
+      const isCurrent = i === activeMatchIndex;
+      nodes.push(
+        <mark
+          key={`match-${m.start}-${i}`}
+          className={`rounded-xs transition-colors ${
+            isCurrent
+              ? 'bg-amber-400/60 ring-1 ring-amber-300'
+              : 'bg-yellow-500/25'
+          }`}
+          style={{ color: 'transparent' }}
+        >
+          {content.slice(m.start, m.end)}
+        </mark>
+      );
+      lastIndex = m.end;
+    });
+
+    if (lastIndex < content.length) {
+      nodes.push(
+        <span key="text-end" style={{ color: 'transparent' }}>
+          {content.slice(lastIndex)}
+        </span>
+      );
+    }
+
+    return nodes;
+  }, [activeFile?.content, matches, activeMatchIndex, searchTerm]);
+
   return (
     <div className="flex flex-col h-full bg-[#1e1e1e] font-mono text-xs select-none">
       {/* Tab Bar Berkas Terbuka */}
@@ -343,8 +547,27 @@ export const StudioCodeEditor: React.FC = () => {
           })}
         </div>
 
-        {/* Action Button: Simpan */}
+        {/* Action Buttons: Cari & Simpan */}
         <div className="flex items-center gap-2 shrink-0 py-1.5 pr-2">
+          {/* Tombol Cari */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsFindOpen(true);
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs transition-colors ${
+              isFindOpen
+                ? 'bg-[#383838] text-[#ececec]'
+                : 'bg-[#252525] hover:bg-[#303030] text-[#909090] hover:text-[#ececec] border border-[#333333]'
+            }`}
+            title="Cari di dalam berkas (Ctrl + F)"
+          >
+            <Search className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Cari</span>
+            <span className="text-[10px] text-[#555555] font-normal hidden md:inline">Ctrl+F</span>
+          </button>
+
+          {/* Tombol Simpan */}
           <button
             onClick={() => saveActiveEditorFile()}
             disabled={!activeFile.isDirty}
@@ -392,7 +615,7 @@ export const StudioCodeEditor: React.FC = () => {
           ))}
         </div>
 
-        {/* Code Canvas Container with Synchronized Highlight Layer and Input Layer */}
+        {/* Code Canvas Container with Synchronized Highlight Layer, Match Overlay and Input Layer */}
         <div className="flex-1 h-full overflow-hidden relative bg-[#1e1e1e]">
           {/* Syntax Highlighted Code Layer (Underneath) */}
           <pre
@@ -410,6 +633,21 @@ export const StudioCodeEditor: React.FC = () => {
             />
           </pre>
 
+          {/* Search Matches Highlight Layer (Between Code and Textarea) */}
+          {matchSlices && (
+            <div
+              ref={matchOverlayRef}
+              aria-hidden="true"
+              className="absolute inset-0 pointer-events-none select-none overflow-hidden"
+              style={{
+                ...sharedEditorStyle,
+                color: 'transparent',
+              }}
+            >
+              {matchSlices}
+            </div>
+          )}
+
           {/* Interactive Textarea Input (On Top) */}
           <textarea
             ref={textareaRef}
@@ -426,6 +664,31 @@ export const StudioCodeEditor: React.FC = () => {
               ...sharedEditorStyle,
               caretColor: '#ffffff',
             }}
+          />
+
+          {/* Floating Find & Replace Widget */}
+          <EditorFindReplace
+            isOpen={isFindOpen}
+            isReplaceMode={isReplaceMode}
+            onClose={() => {
+              setIsFindOpen(false);
+              textareaRef.current?.focus();
+            }}
+            onToggleReplaceMode={() => setIsReplaceMode(!isReplaceMode)}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            replaceTerm={replaceTerm}
+            setReplaceTerm={setReplaceTerm}
+            matchIndex={activeMatchIndex}
+            totalMatches={matches.length}
+            onNext={handleNextMatch}
+            onPrev={handlePrevMatch}
+            onReplace={handleReplaceCurrent}
+            onReplaceAll={handleReplaceAll}
+            caseSensitive={caseSensitive}
+            setCaseSensitive={setCaseSensitive}
+            wholeWord={wholeWord}
+            setWholeWord={setWholeWord}
           />
         </div>
       </div>
