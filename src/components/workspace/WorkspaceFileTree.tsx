@@ -82,6 +82,7 @@ export const WorkspaceFileTree: React.FC = () => {
     openFileInSidecar,
     openFileInStudioEditor,
     currentMode,
+    activeAgentWorkFiles,
   } = useStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -177,13 +178,26 @@ export const WorkspaceFileTree: React.FC = () => {
     const isExpanded = expandedFolders.has(node.relative_path) || searchQuery.trim().length > 0;
     const isRenaming = renamingNode?.oldPath === node.relative_path;
     const isDeleting = deletingPath === node.relative_path;
+    const activeWork = activeAgentWorkFiles ? activeAgentWorkFiles[node.relative_path] : null;
+    const isChildWorking =
+      node.is_dir &&
+      activeAgentWorkFiles &&
+      Object.keys(activeAgentWorkFiles).some((p) => p.startsWith(`${node.relative_path}/`));
 
     return (
       <div key={node.relative_path} className="flex flex-col">
         {/* Row File / Folder */}
         <div
-          style={{ paddingLeft: `${Math.max(8, level * 14 + 8)}px` }}
-          className="group flex items-center justify-between py-1 px-2 rounded-lg text-xs hover:bg-[#262626] cursor-pointer transition-colors text-[#b4b4b4] hover:text-[#ececec]"
+          style={{
+            paddingLeft: `${Math.max(8, level * 14 + 8)}px`,
+            backgroundColor: activeWork ? `${activeWork.avatarColor}15` : undefined,
+            borderLeft: activeWork ? `2px solid ${activeWork.avatarColor}` : '2px solid transparent',
+          }}
+          className={`group flex items-center justify-between py-1 px-2 rounded-lg text-xs cursor-pointer transition-all duration-300 ${
+            activeWork
+              ? 'text-[#ececec]'
+              : 'hover:bg-[#262626] text-[#b4b4b4] hover:text-[#ececec]'
+          }`}
           onClick={() => {
             if (node.is_dir) {
               toggleFolder(node.relative_path);
@@ -245,6 +259,32 @@ export const WorkspaceFileTree: React.FC = () => {
               </form>
             ) : (
               <span className="truncate text-xs font-sans select-none">{node.name}</span>
+            )}
+
+            {/* Badge Indikator Agen Sedang Bekerja */}
+            {activeWork && (
+              <div
+                className="flex items-center gap-1 shrink-0 ml-1.5"
+                title={`${activeWork.agentName} (${activeWork.agentRole}) sedang bekerja di berkas ini`}
+              >
+                <div
+                  className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white shadow-sm ring-2 ring-offset-1 ring-offset-[#212121] animate-pulse"
+                  style={{
+                    backgroundColor: activeWork.avatarColor,
+                    boxShadow: `0 0 8px ${activeWork.avatarColor}80`,
+                  }}
+                >
+                  {activeWork.agentName.charAt(0).toUpperCase()}
+                </div>
+              </div>
+            )}
+
+            {/* Indikator folder memuat berkas aktif agen */}
+            {isChildWorking && !isExpanded && (
+              <div
+                className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0 ml-1"
+                title="Ada agen yang sedang bekerja di dalam sub-folder ini"
+              />
             )}
           </div>
 

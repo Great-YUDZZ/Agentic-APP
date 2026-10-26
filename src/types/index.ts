@@ -420,3 +420,21 @@ export interface TextSearchMatch {
   match_end: number;
 }
 
+export interface ActiveAgentWorkFile {
+  filePath: string;
+  agentId: string;
+  agentName: string;
+  agentRole: string;
+  avatarColor: string;
+  status: 'working' | 'completed';
+  updatedAt: number;
+}
+
+export interface PendingTypingAnimation {
+  filePath: string;
+  fullContent: string;
+  agentName: string;
+  avatarColor: string;
+  timestamp: number;
+}
+

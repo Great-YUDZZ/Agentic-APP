@@ -38,6 +38,8 @@ import {
   FileNode,
   CodeChunkMatch,
   TextSearchMatch,
+  ActiveAgentWorkFile,
+  PendingTypingAnimation,
   OpenEditorFile,
 } from '../types';
 import { parseRobustJson, getChatEndpoint, getModelsEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../utils/api';
@@ -338,6 +340,13 @@ interface AppStore {
   setQuickOpenModalOpen: (open: boolean) => void;
   isGlobalSearchModalOpen: boolean;
   setGlobalSearchModalOpen: (open: boolean) => void;
+
+  // Active Agent Work Locations & Typewriter Animations
+  activeAgentWorkFiles: Record<string, ActiveAgentWorkFile>;
+  setActiveAgentWorkFile: (filePath: string, work: ActiveAgentWorkFile | null) => void;
+  pendingTypingAnimations: Record<string, PendingTypingAnimation>;
+  registerPendingTypingAnimation: (anim: PendingTypingAnimation) => void;
+  consumePendingTypingAnimation: (filePath: string) => PendingTypingAnimation | null;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -1567,6 +1576,19 @@ ATURAN KOMUNIKASI & EKSEKUSI TOOL:
             continue;
           }
 
+          const activeWorkPath = toolParams?.path || toolParams?.relativePath || toolParams?.file_path;
+          if (activeWorkPath && (toolName === 'write_file' || toolName === 'create_workspace_file' || toolName === 'read_file')) {
+            get().setActiveAgentWorkFile(activeWorkPath, {
+              filePath: activeWorkPath,
+              agentId: currentAgent.id,
+              agentName: currentAgent.name,
+              agentRole: currentAgent.role,
+              avatarColor: currentAgent.avatar_color,
+              status: 'working',
+              updatedAt: Date.now(),
+            });
+          }
+
           if ((window as any).__TAURI_INTERNALS__) {
             try {
               const { invoke } = await import('@tauri-apps/api/core');
@@ -1584,7 +1606,26 @@ ATURAN KOMUNIKASI & EKSEKUSI TOOL:
               stepOutput = toolRes?.output || (stepSuccess ? 'Aksi selesai tanpa output.' : 'Eksekusi gagal.');
 
               if (toolName === 'write_file' && stepSuccess && toolParams.path) {
+                // Daftarkan animasi ketikan untuk berkas ini
+                get().registerPendingTypingAnimation({
+                  filePath: toolParams.path,
+                  fullContent: toolParams.content || '',
+                  agentName: currentAgent.name,
+                  avatarColor: currentAgent.avatar_color,
+                  timestamp: Date.now(),
+                });
+
+                // Perbarui jika sudah terbuka di editor
                 set((s) => ({
+                  openEditorFiles: s.openEditorFiles.map((f) =>
+                    f.path === toolParams.path
+                      ? {
+                          ...f,
+                          originalContent: toolParams.content || '',
+                          isDirty: false,
+                        }
+                      : f
+                  ),
                   codeReviewItems: [
                     ...s.codeReviewItems.filter((i) => i.filename !== toolParams.path),
                     {
@@ -1611,6 +1652,21 @@ ATURAN KOMUNIKASI & EKSEKUSI TOOL:
             await new Promise((r) => setTimeout(r, 600));
             stepSuccess = true;
             stepOutput = `[Web Preview] Tool ${toolName} berhasil disimulasikan.`;
+            if (toolName === 'write_file' && toolParams.path) {
+              get().registerPendingTypingAnimation({
+                filePath: toolParams.path,
+                fullContent: toolParams.content || '',
+                agentName: currentAgent.name,
+                avatarColor: currentAgent.avatar_color,
+                timestamp: Date.now(),
+              });
+            }
+          }
+
+          if (activeWorkPath) {
+            setTimeout(() => {
+              get().setActiveAgentWorkFile(activeWorkPath, null);
+            }, 2500);
           }
 
           const elapsedMs = Date.now() - startTime;
@@ -3376,4 +3432,41 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
   setQuickOpenModalOpen: (open: boolean) => set({ isQuickOpenModalOpen: open }),
   isGlobalSearchModalOpen: false,
   setGlobalSearchModalOpen: (open: boolean) => set({ isGlobalSearchModalOpen: open }),
+
+  // Active Agent Work Locations & Typewriter Animations
+  activeAgentWorkFiles: {},
+  setActiveAgentWorkFile: (filePath: string, work: ActiveAgentWorkFile | null) => {
+    set((s) => {
+      const copy = { ...s.activeAgentWorkFiles };
+      if (!work) {
+        delete copy[filePath];
+      } else {
+        copy[filePath] = work;
+      }
+      return { activeAgentWorkFiles: copy };
+    });
+  },
+
+  pendingTypingAnimations: {},
+  registerPendingTypingAnimation: (anim: PendingTypingAnimation) => {
+    set((s) => ({
+      pendingTypingAnimations: {
+        ...s.pendingTypingAnimations,
+        [anim.filePath]: anim,
+      },
+    }));
+  },
+
+  consumePendingTypingAnimation: (filePath: string) => {
+    const { pendingTypingAnimations } = get();
+    const anim = pendingTypingAnimations[filePath] || null;
+    if (anim) {
+      set((s) => {
+        const copy = { ...s.pendingTypingAnimations };
+        delete copy[filePath];
+        return { pendingTypingAnimations: copy };
+      });
+    }
+    return anim;
+  },
 }));

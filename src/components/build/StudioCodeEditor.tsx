@@ -187,12 +187,23 @@ export const StudioCodeEditor: React.FC = () => {
     pickAndSetWorkspaceRoot,
     setQuickOpenModalOpen,
     setGlobalSearchModalOpen,
+    pendingTypingAnimations,
+    consumePendingTypingAnimation,
   } = useStore();
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLPreElement>(null);
   const matchOverlayRef = useRef<HTMLDivElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
+
+  // Typewriter Animation State
+  const [typewriterState, setTypewriterState] = useState<{
+    filePath: string;
+    fullText: string;
+    currentLength: number;
+    agentName: string;
+    avatarColor: string;
+  } | null>(null);
 
   // State Find & Replace
   const [isFindOpen, setIsFindOpen] = useState(false);
@@ -204,6 +215,49 @@ export const StudioCodeEditor: React.FC = () => {
   const [activeMatchIndex, setActiveMatchIndex] = useState(0);
 
   const activeFile = openEditorFiles.find((f) => f.path === activeEditorFilePath);
+
+  // Pantau antrean animasi ketikan untuk berkas aktif
+  useEffect(() => {
+    if (!activeFile) return;
+    if (pendingTypingAnimations && pendingTypingAnimations[activeFile.path]) {
+      const anim = consumePendingTypingAnimation(activeFile.path);
+      if (anim) {
+        setTypewriterState({
+          filePath: anim.filePath,
+          fullText: anim.fullContent,
+          currentLength: 0,
+          agentName: anim.agentName,
+          avatarColor: anim.avatarColor,
+        });
+      }
+    }
+  }, [activeFile?.path, pendingTypingAnimations, consumePendingTypingAnimation]);
+
+  // Loop pengetikan cepat (huruf per huruf / kata per kata cepat, non-skippable)
+  useEffect(() => {
+    if (!typewriterState) return;
+
+    const { fullText, currentLength, filePath } = typewriterState;
+    if (currentLength >= fullText.length) {
+      updateEditorFileContent(filePath, fullText);
+      setTypewriterState(null);
+      return;
+    }
+
+    const stepSize = Math.max(4, Math.ceil(fullText.length / 100));
+    const timer = setTimeout(() => {
+      const nextLength = Math.min(fullText.length, currentLength + stepSize);
+      setTypewriterState((prev) =>
+        prev ? { ...prev, currentLength: nextLength } : null
+      );
+
+      if (textareaRef.current) {
+        textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
+      }
+    }, 18);
+
+    return () => clearTimeout(timer);
+  }, [typewriterState, updateEditorFileContent]);
 
   // Keyboard shortcuts: Ctrl+S (Simpan), Ctrl+F (Cari), Ctrl+H (Ganti), Esc (Tutup)
   useEffect(() => {
@@ -406,28 +460,33 @@ export const StudioCodeEditor: React.FC = () => {
     [activeFile?.extension]
   );
 
+  const displayContent =
+    typewriterState && typewriterState.filePath === activeFile?.path
+      ? typewriterState.fullText.slice(0, typewriterState.currentLength)
+      : activeFile?.content || '';
+
   const highlightedHtml = useMemo(() => {
     if (!activeFile) return '';
     if (!grammar) {
       return (
-        activeFile.content
+        displayContent
           .replace(/&/g, '&amp;')
           .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;') + (activeFile.content.endsWith('\n') ? ' ' : '')
+          .replace(/>/g, '&gt;') + (displayContent.endsWith('\n') ? ' ' : '')
       );
     }
     try {
-      const raw = Prism.highlight(activeFile.content, grammar, targetLang);
-      return raw + (activeFile.content.endsWith('\n') ? ' ' : '');
+      const raw = Prism.highlight(displayContent, grammar, targetLang);
+      return raw + (displayContent.endsWith('\n') ? ' ' : '');
     } catch {
       return (
-        activeFile.content
+        displayContent
           .replace(/&/g, '&amp;')
           .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;') + (activeFile.content.endsWith('\n') ? ' ' : '')
+          .replace(/>/g, '&gt;') + (displayContent.endsWith('\n') ? ' ' : '')
       );
     }
-  }, [activeFile?.content, grammar, targetLang]);
+  }, [activeFile, displayContent, grammar, targetLang]);
 
   if (!activeFile || openEditorFiles.length === 0) {
     return (
@@ -450,7 +509,7 @@ export const StudioCodeEditor: React.FC = () => {
     );
   }
 
-  const lines = activeFile.content.split('\n');
+  const lines = displayContent.split('\n');
   const lineCount = lines.length;
 
   const gutterWidth = lineCount > 9999 ? 'w-16' : lineCount > 999 ? 'w-14' : 'w-12';
@@ -678,8 +737,13 @@ export const StudioCodeEditor: React.FC = () => {
           {/* Interactive Textarea Input (On Top) */}
           <textarea
             ref={textareaRef}
-            value={activeFile.content}
-            onChange={(e) => updateEditorFileContent(activeFile.path, e.target.value)}
+            value={displayContent}
+            readOnly={Boolean(typewriterState)}
+            onChange={(e) => {
+              if (!typewriterState) {
+                updateEditorFileContent(activeFile.path, e.target.value);
+              }
+            }}
             onScroll={handleScroll}
             onKeyDown={handleKeyDown}
             spellCheck={false}
@@ -692,6 +756,28 @@ export const StudioCodeEditor: React.FC = () => {
               caretColor: '#ffffff',
             }}
           />
+
+          {/* Floating Typewriter Banner */}
+          {typewriterState && (
+            <div className="absolute top-3 right-6 z-40 flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-[#282828] border border-[#383838] shadow-2xl backdrop-blur-sm animate-in fade-in duration-200 select-none">
+              <div className="relative flex items-center justify-center">
+                <span
+                  className="w-2.5 h-2.5 rounded-full animate-ping opacity-75"
+                  style={{ backgroundColor: typewriterState.avatarColor }}
+                />
+                <span
+                  className="w-2 h-2 rounded-full absolute"
+                  style={{ backgroundColor: typewriterState.avatarColor }}
+                />
+              </div>
+              <span className="text-xs text-[#ececec] font-medium">
+                {typewriterState.agentName} sedang mengetik kode...
+              </span>
+              <span className="text-[11px] font-mono text-[#808080]">
+                {Math.round((typewriterState.currentLength / typewriterState.fullText.length) * 100)}%
+              </span>
+            </div>
+          )}
 
           {/* Floating Find & Replace Widget */}
           <EditorFindReplace
