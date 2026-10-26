@@ -184,6 +184,7 @@ export const StudioCodeEditor: React.FC = () => {
     updateEditorFileContent,
     saveActiveEditorFile,
     pickAndSetWorkspaceRoot,
+    setQuickOpenModalOpen,
   } = useStore();
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -547,8 +548,20 @@ export const StudioCodeEditor: React.FC = () => {
           })}
         </div>
 
-        {/* Action Buttons: Cari & Simpan */}
+        {/* Action Buttons: Buka Berkas, Cari & Simpan */}
         <div className="flex items-center gap-2 shrink-0 py-1.5 pr-2">
+          {/* Tombol Buka Berkas Cepat (Quick Open) */}
+          <button
+            type="button"
+            onClick={() => setQuickOpenModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs bg-[#252525] hover:bg-[#303030] text-[#909090] hover:text-[#ececec] border border-[#333333] transition-colors"
+            title="Buka berkas cepat (Ctrl + P)"
+          >
+            <FolderOpen className="w-3.5 h-3.5 text-[#888888]" />
+            <span className="hidden sm:inline">Buka Berkas</span>
+            <span className="text-[10px] text-[#555555] font-normal hidden md:inline">Ctrl+P</span>
+          </button>
+
           {/* Tombol Cari */}
           <button
             type="button"

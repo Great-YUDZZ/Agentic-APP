@@ -325,6 +325,12 @@ interface AppStore {
   setActiveEditorFile: (path: string) => void;
   updateEditorFileContent: (path: string, content: string) => void;
   saveActiveEditorFile: () => Promise<boolean>;
+
+  // Quick Open File & Global Search Modals
+  isQuickOpenModalOpen: boolean;
+  setQuickOpenModalOpen: (open: boolean) => void;
+  isGlobalSearchModalOpen: boolean;
+  setGlobalSearchModalOpen: (open: boolean) => void;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -3309,4 +3315,10 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
       return true;
     }
   },
+
+  // Quick Open File & Global Search Modals
+  isQuickOpenModalOpen: false,
+  setQuickOpenModalOpen: (open: boolean) => set({ isQuickOpenModalOpen: open }),
+  isGlobalSearchModalOpen: false,
+  setGlobalSearchModalOpen: (open: boolean) => set({ isGlobalSearchModalOpen: open }),
 }));
