@@ -30,6 +30,7 @@ pub struct AppState {
     pub pty_sessions: Arc<Mutex<HashMap<String, PtySession>>>,
     pub vault: Arc<crate::vault::VaultState>,
     pub mcp_manager: Arc<crate::engine::mcp::McpClientManager>,
+    pub terminal_orchestrator: Arc<crate::engine::terminal_orchestration::TerminalOrchestratorState>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -2577,6 +2578,159 @@ pub async fn git_clone(
     Ok(target.to_string_lossy().to_string())
 }
 
+// ==========================================
+// Terminal Agent Discovery & Orchestration
+// ==========================================
+
+#[tauri::command]
+pub async fn detect_installed_cli_agents() -> Result<Vec<crate::engine::agent_discovery::CliAgentMetadata>, String> {
+    tokio::task::spawn_blocking(|| {
+        crate::engine::agent_discovery::detect_all_cli_agents()
+    })
+    .await
+    .map_err(|e| format!("Task execution failed: {}", e))
+}
+
+#[tauri::command]
+pub async fn set_orchestrator_role(
+    state: State<'_, AppState>,
+    role_or_agent: String,
+) -> Result<(), String> {
+    state.terminal_orchestrator.set_orchestrator(&role_or_agent);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_orchestrator_role(
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    Ok(state.terminal_orchestrator.get_orchestrator())
+}
+
+#[tauri::command]
+pub async fn register_terminal_worker(
+    state: State<'_, AppState>,
+    worker_id: String,
+    agent_id: String,
+    tab_id: String,
+    role: String,
+    task_spec: String,
+) -> Result<crate::engine::terminal_orchestration::WorkerSession, String> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64;
+
+    let session = crate::engine::terminal_orchestration::WorkerSession {
+        worker_id,
+        agent_id,
+        tab_id,
+        role,
+        task_spec,
+        status: "idle".to_string(),
+        created_at: now,
+    };
+
+    state.terminal_orchestrator.register_worker(session.clone());
+    Ok(session)
+}
+
+#[tauri::command]
+pub async fn update_terminal_worker_status(
+    state: State<'_, AppState>,
+    worker_id: String,
+    status: String,
+) -> Result<bool, String> {
+    Ok(state.terminal_orchestrator.update_worker_status(&worker_id, &status))
+}
+
+#[tauri::command]
+pub async fn stop_terminal_worker(
+    state: State<'_, AppState>,
+    worker_id: String,
+    tab_id: Option<String>,
+) -> Result<(), String> {
+    if let Some(w) = state.terminal_orchestrator.remove_worker(&worker_id) {
+        let target_tab = tab_id.unwrap_or(w.tab_id);
+        let _ = close_terminal_pty(state, target_tab).await;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_all_terminal_workers(
+    state: State<'_, AppState>,
+) -> Result<Vec<crate::engine::terminal_orchestration::WorkerSession>, String> {
+    Ok(state.terminal_orchestrator.get_all_workers())
+}
+
+#[tauri::command]
+pub async fn emergency_stop_all_workers(
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state.terminal_orchestrator.clear_all_workers();
+
+    let mut pty_lock = state.pty_sessions.lock().unwrap();
+    pty_lock.clear();
+
+    let mut proc_lock = state.active_terminal_processes.lock().unwrap();
+    for (_, pid) in proc_lock.iter() {
+        #[cfg(unix)]
+        {
+            let _ = std::process::Command::new("kill")
+                .arg("-KILL")
+                .arg(pid.to_string())
+                .output();
+        }
+        #[cfg(windows)]
+        {
+            let _ = std::process::Command::new("taskkill")
+                .args(["/F", "/PID", &pid.to_string()])
+                .output();
+        }
+    }
+    proc_lock.clear();
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn send_inter_agent_message(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    run_id: String,
+    sender: String,
+    recipient: String,
+    content: String,
+) -> Result<crate::engine::terminal_orchestration::InterAgentMessage, String> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64;
+
+    let msg = crate::engine::terminal_orchestration::InterAgentMessage {
+        id: uuid::Uuid::new_v4().to_string(),
+        run_id,
+        sender,
+        recipient,
+        content,
+        timestamp: now,
+    };
+
+    state.terminal_orchestrator.send_message(msg.clone());
+    let _ = app.emit("inter-agent-message", &msg);
+    Ok(msg)
+}
+
+#[tauri::command]
+pub async fn get_inter_agent_messages(
+    state: State<'_, AppState>,
+    run_id: Option<String>,
+    recipient: Option<String>,
+) -> Result<Vec<crate::engine::terminal_orchestration::InterAgentMessage>, String> {
+    Ok(state.terminal_orchestrator.get_messages(run_id.as_deref(), recipient.as_deref()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2705,6 +2859,63 @@ mod tests {
         assert_eq!(folder_node.children.as_ref().unwrap().len(), 1);
 
         let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_cli_agent_discovery() {
+        let agents = crate::engine::agent_discovery::detect_all_cli_agents();
+        assert!(!agents.is_empty(), "Known agent list should not be empty");
+
+        // Verify known IDs exist in the manifest
+        let ids: Vec<&str> = agents.iter().map(|a| a.id.as_str()).collect();
+        assert!(ids.contains(&"claude"));
+        assert!(ids.contains(&"agy"));
+        assert!(ids.contains(&"opencode"));
+        assert!(ids.contains(&"gemini"));
+    }
+
+    #[test]
+    fn test_terminal_orchestration_state() {
+        let state = crate::engine::terminal_orchestration::TerminalOrchestratorState::new();
+        assert_eq!(state.get_orchestrator(), "api");
+
+        state.set_orchestrator("claude");
+        assert_eq!(state.get_orchestrator(), "claude");
+
+        let worker = crate::engine::terminal_orchestration::WorkerSession {
+            worker_id: "w-1".to_string(),
+            agent_id: "agy".to_string(),
+            tab_id: "tab-test".to_string(),
+            role: "Coder".to_string(),
+            task_spec: "Implement Rust tests".to_string(),
+            status: "idle".to_string(),
+            created_at: 1000,
+        };
+
+        state.register_worker(worker);
+        let workers = state.get_all_workers();
+        assert_eq!(workers.len(), 1);
+        assert_eq!(workers[0].agent_id, "agy");
+
+        let updated = state.update_worker_status("w-1", "working");
+        assert!(updated);
+
+        let msg = crate::engine::terminal_orchestration::InterAgentMessage {
+            id: "msg-1".to_string(),
+            run_id: "run-123".to_string(),
+            sender: "claude".to_string(),
+            recipient: "agy".to_string(),
+            content: "Please write unit tests".to_string(),
+            timestamp: 2000,
+        };
+
+        state.send_message(msg);
+        let messages = state.get_messages(Some("run-123"), Some("agy"));
+        assert_eq!(messages.len(), 1);
+        assert_eq!(messages[0].sender, "claude");
+
+        state.clear_all_workers();
+        assert!(state.get_all_workers().is_empty());
     }
 }
 

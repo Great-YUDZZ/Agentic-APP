@@ -41,6 +41,10 @@ import {
   ActiveAgentWorkFile,
   PendingTypingAnimation,
   OpenEditorFile,
+  CliAgentMetadata,
+  OrchestratorSelection,
+  TerminalWorkerSession,
+  InterAgentMessage,
 } from '../types';
 import { parseRobustJson, getChatEndpoint, getModelsEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../utils/api';
 import { extractCodeReviewItems } from '../utils/codeExtractor';
@@ -347,6 +351,22 @@ interface AppStore {
   pendingTypingAnimations: Record<string, PendingTypingAnimation>;
   registerPendingTypingAnimation: (anim: PendingTypingAnimation) => void;
   consumePendingTypingAnimation: (filePath: string) => PendingTypingAnimation | null;
+
+  // Terminal Agent Discovery & Multi-Agent Orchestration
+  installedCliAgents: CliAgentMetadata[];
+  isDetectingCliAgents: boolean;
+  orchestratorConfig: OrchestratorSelection;
+  activeTerminalWorkers: TerminalWorkerSession[];
+  interAgentMessages: InterAgentMessage[];
+  multiTerminalSplit: 'tabs' | 'split-horizontal' | 'split-vertical';
+  isAgentRosterModalOpen: boolean;
+  setOrchestratorConfig: (config: OrchestratorSelection) => void;
+  setIsAgentRosterModalOpen: (open: boolean) => void;
+  setMultiTerminalSplit: (split: 'tabs' | 'split-horizontal' | 'split-vertical') => void;
+  refreshInstalledCliAgents: () => Promise<void>;
+  spawnTerminalWorker: (agentId: string, role: string, taskSpec?: string) => Promise<string | null>;
+  terminateTerminalWorker: (workerId: string) => Promise<void>;
+  sendInterAgentMessage: (recipient: string, content: string, runId?: string) => Promise<void>;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -3487,5 +3507,238 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
       });
     }
     return anim;
+  },
+
+  // Terminal Agent Discovery & Multi-Agent Orchestration
+  installedCliAgents: [],
+  isDetectingCliAgents: false,
+  orchestratorConfig: { type: 'api', modelId: 'gemini-2.5-flash' },
+  activeTerminalWorkers: [],
+  interAgentMessages: [],
+  multiTerminalSplit: 'tabs',
+  isAgentRosterModalOpen: false,
+
+  setOrchestratorConfig: (config: OrchestratorSelection) => {
+    set({ orchestratorConfig: config });
+    if ((window as any).__TAURI_INTERNALS__) {
+      const roleStr = config.type === 'terminal' ? (config.agentId || 'claude') : 'api';
+      import('@tauri-apps/api/core').then(({ invoke }) => {
+        invoke('set_orchestrator_role', { roleOrAgent: roleStr }).catch(() => {});
+      });
+    }
+  },
+
+  setIsAgentRosterModalOpen: (open: boolean) => set({ isAgentRosterModalOpen: open }),
+
+  setMultiTerminalSplit: (split: 'tabs' | 'split-horizontal' | 'split-vertical') =>
+    set({ multiTerminalSplit: split }),
+
+  refreshInstalledCliAgents: async () => {
+    set({ isDetectingCliAgents: true });
+    try {
+      if ((window as any).__TAURI_INTERNALS__) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const agents = await invoke<CliAgentMetadata[]>('detect_installed_cli_agents');
+        set({ installedCliAgents: agents });
+      } else {
+        set({
+          installedCliAgents: [
+            {
+              id: 'claude',
+              name: 'Claude Code',
+              binary_name: 'claude',
+              path: '/home/yudz/.local/bin/claude',
+              version: '2.1.311',
+              is_installed: true,
+              default_args: [],
+              custom_env: {},
+              supports_mcp: true,
+              is_custom: false,
+            },
+            {
+              id: 'agy',
+              name: 'Google Antigravity',
+              binary_name: 'agy',
+              path: '/home/yudz/.local/bin/agy',
+              version: '1.4.8',
+              is_installed: true,
+              default_args: [],
+              custom_env: {},
+              supports_mcp: true,
+              is_custom: false,
+            },
+            {
+              id: 'opencode',
+              name: 'OpenCode',
+              binary_name: 'opencode',
+              path: '/home/yudz/.opencode/bin/opencode',
+              version: '1.18.35',
+              is_installed: true,
+              default_args: [],
+              custom_env: {},
+              supports_mcp: true,
+              is_custom: false,
+            },
+            {
+              id: 'gemini',
+              name: 'Gemini CLI',
+              binary_name: 'gemini',
+              path: '/home/yudz/.nvm/versions/node/v22.23.2/bin/gemini',
+              version: '0.63.0',
+              is_installed: true,
+              default_args: [],
+              custom_env: {},
+              supports_mcp: true,
+              is_custom: false,
+            },
+          ],
+        });
+      }
+    } catch (err) {
+      console.error('Failed to detect CLI agents:', err);
+    } finally {
+      set({ isDetectingCliAgents: false });
+    }
+  },
+
+  spawnTerminalWorker: async (agentId: string, role: string, taskSpec?: string) => {
+    const { installedCliAgents, addToast } = get();
+    const agent = installedCliAgents.find((a) => a.id === agentId);
+    const agentName = agent?.name || agentId;
+    const workerId = `worker-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const tabId = `tab-${workerId}`;
+    const initialTitle = `${agentName} [${role}]`;
+
+    const newTab: TerminalTab = {
+      id: tabId,
+      title: initialTitle,
+      cwd: get().workspaceProjectRoot || '',
+      logs: [],
+    };
+
+    set((s) => ({
+      terminalTabs: [...s.terminalTabs, newTab],
+      activeTerminalTabId: tabId,
+      isTerminalOpen: true,
+    }));
+
+    const workerSession: TerminalWorkerSession = {
+      worker_id: workerId,
+      agent_id: agentId,
+      tab_id: tabId,
+      role,
+      task_spec: taskSpec || 'Autonomous worker task',
+      status: 'working',
+      created_at: Date.now(),
+    };
+
+    set((s) => ({
+      activeTerminalWorkers: [...s.activeTerminalWorkers, workerSession],
+    }));
+
+    if ((window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('register_terminal_worker', {
+          workerId,
+          agentId,
+          tabId,
+          role,
+          taskSpec: taskSpec || '',
+        });
+
+        await invoke('init_terminal_pty', {
+          tabId,
+          cols: 80,
+          rows: 24,
+        });
+
+        const launchCmd = agent?.path || agent?.binary_name || agentId;
+        const initialCommand = taskSpec ? `${launchCmd} "${taskSpec.replace(/"/g, '\\"')}"\n` : `${launchCmd}\n`;
+        await invoke('terminal_pty_write', {
+          tabId,
+          data: initialCommand,
+        });
+
+        addToast('success', `Agen pekerja '${agentName}' berhasil dimulai pada terminal.`);
+        return workerId;
+      } catch (err: any) {
+        addToast('error', `Gagal menjalankan agen '${agentName}': ${err}`);
+        set((s) => ({
+          activeTerminalWorkers: s.activeTerminalWorkers.map((w) =>
+            w.worker_id === workerId ? { ...w, status: 'error' } : w
+          ),
+        }));
+        return null;
+      }
+    } else {
+      addToast('info', `Simulasi: Pekerja terminal '${agentName}' [${role}] dimulai.`);
+      return workerId;
+    }
+  },
+
+  terminateTerminalWorker: async (workerId: string) => {
+    const { activeTerminalWorkers, addToast } = get();
+    const worker = activeTerminalWorkers.find((w) => w.worker_id === workerId);
+    if (!worker) return;
+
+    if ((window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('stop_terminal_worker', {
+          workerId,
+          tabId: worker.tab_id,
+        });
+      } catch (err) {
+        console.error('Error stopping worker:', err);
+      }
+    }
+
+    const remainingTabs = get().terminalTabs.filter((t) => t.id !== worker.tab_id);
+    const nextTabId =
+      get().activeTerminalTabId === worker.tab_id
+        ? (remainingTabs[0]?.id || '')
+        : get().activeTerminalTabId;
+
+    set((s) => ({
+      activeTerminalWorkers: s.activeTerminalWorkers.filter((w) => w.worker_id !== workerId),
+      terminalTabs: remainingTabs,
+      activeTerminalTabId: nextTabId,
+    }));
+
+    addToast('info', `Pekerja '${worker.agent_id}' telah dihentikan.`);
+  },
+
+  sendInterAgentMessage: async (recipient: string, content: string, runId?: string) => {
+    const { addToast } = get();
+    const rId = runId || 'run-default';
+    const msg: InterAgentMessage = {
+      id: `msg-${Date.now()}`,
+      run_id: rId,
+      sender: 'orchestrator',
+      recipient,
+      content,
+      timestamp: Date.now(),
+    };
+
+    set((s) => ({
+      interAgentMessages: [...s.interAgentMessages, msg],
+    }));
+
+    if ((window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('send_inter_agent_message', {
+          runId: rId,
+          sender: 'orchestrator',
+          recipient,
+          content,
+        });
+      } catch (err) {
+        console.error('Error sending inter-agent message:', err);
+      }
+    }
+
+    addToast('success', `Pesan diteruskan ke agen '${recipient}'.`);
   },
 }));

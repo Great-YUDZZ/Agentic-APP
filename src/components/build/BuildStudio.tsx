@@ -5,6 +5,8 @@ import { TaskKanban } from './TaskKanban';
 import { DiffViewer } from './DiffViewer';
 import { VisualGitManager } from './VisualGitManager';
 import { StudioCodeEditor } from './StudioCodeEditor';
+import { MultiTerminalPane } from '../terminal/MultiTerminalPane';
+import { AgentRosterModal } from './AgentRosterModal';
 import { useStore } from '../../store/useStore';
 
 export const BuildStudio: React.FC = () => {
@@ -15,9 +17,11 @@ export const BuildStudio: React.FC = () => {
       {activeStudioTab === 'discussion' && <MultiAgentDiscussion />}
       {activeStudioTab === 'editor' && <StudioCodeEditor />}
       {activeStudioTab === 'hierarchy' && <AgentHierarchyTree />}
+      {activeStudioTab === 'terminals' && <MultiTerminalPane />}
       {activeStudioTab === 'kanban' && <TaskKanban />}
       {activeStudioTab === 'diff' && <DiffViewer />}
       {activeStudioTab === 'git' && <VisualGitManager />}
+      <AgentRosterModal />
     </div>
   );
 };

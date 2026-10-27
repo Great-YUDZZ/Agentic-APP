@@ -31,6 +31,7 @@ const STUDIO_TABS: { id: StudioTab; label: string; icon: React.ElementType }[] =
   { id: 'discussion', label: 'Diskusi', icon: Users },
   { id: 'editor', label: 'Editor', icon: Code2 },
   { id: 'hierarchy', label: 'Hierarki', icon: Layers },
+  { id: 'terminals', label: 'Terminal Agen', icon: Terminal },
   { id: 'kanban', label: 'Kanban', icon: CheckSquare },
   { id: 'diff', label: 'Diff', icon: FileDiff },
   { id: 'git', label: 'Git Control', icon: GitBranch },
@@ -63,6 +64,7 @@ export const TitleBar: React.FC = () => {
     isSidecarOpen,
     toggleSidecar,
     artifacts,
+    setIsAgentRosterModalOpen,
   } = useStore();
 
   const [isStudioMenuOpen, setIsStudioMenuOpen] = useState(false);
@@ -221,6 +223,18 @@ export const TitleBar: React.FC = () => {
             <span className="hidden sm:inline">
               {currentMode === 'build' ? 'Ekspor Laporan' : 'Ekspor Chat'}
             </span>
+          </button>
+        )}
+
+        {!isVaultPageOpen && currentMode === 'build' && (
+          <button
+            type="button"
+            onClick={() => setIsAgentRosterModalOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#212121] hover:bg-[#282828] border border-[#303030] text-xs font-medium text-[#ececec] transition-colors"
+            title="Buka Roster dan Manajemen Agen Terminal"
+          >
+            <Bot className="w-3.5 h-3.5 text-[#ececec]" />
+            <span className="hidden sm:inline">Roster Agen</span>
           </button>
         )}
 

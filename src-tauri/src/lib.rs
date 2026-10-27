@@ -41,6 +41,7 @@ pub fn run() {
         pty_sessions: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
         vault: vault.clone(),
         mcp_manager: mcp_manager.clone(),
+        terminal_orchestrator: Arc::new(engine::terminal_orchestration::TerminalOrchestratorState::new()),
     };
 
     let v_state = vault.clone();
@@ -182,6 +183,16 @@ pub fn run() {
             ipc::reveal_in_file_manager,
             ipc::query_codebase_context,
             ipc::search_workspace_text,
+            ipc::detect_installed_cli_agents,
+            ipc::set_orchestrator_role,
+            ipc::get_orchestrator_role,
+            ipc::register_terminal_worker,
+            ipc::update_terminal_worker_status,
+            ipc::stop_terminal_worker,
+            ipc::get_all_terminal_workers,
+            ipc::emergency_stop_all_workers,
+            ipc::send_inter_agent_message,
+            ipc::get_inter_agent_messages,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

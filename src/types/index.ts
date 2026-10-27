@@ -1,5 +1,5 @@
 export type AppMode = 'chatbot' | 'agent' | 'build';
-export type StudioTab = 'discussion' | 'editor' | 'hierarchy' | 'kanban' | 'diff' | 'git';
+export type StudioTab = 'discussion' | 'editor' | 'hierarchy' | 'kanban' | 'diff' | 'git' | 'terminals';
 
 export interface ApiKeyRecord {
   provider: string; // 'custom', 'custom_<id>', 'gemini', 'openai', 'claude', 'deepseek', 'ollama'
@@ -435,6 +435,46 @@ export interface PendingTypingAnimation {
   fullContent: string;
   agentName: string;
   avatarColor: string;
+  timestamp: number;
+}
+
+export interface CliAgentMetadata {
+  id: string;
+  name: string;
+  binary_name: string;
+  path: string | null;
+  version: string | null;
+  is_installed: boolean;
+  default_args: string[];
+  custom_env: Record<string, string>;
+  supports_mcp: boolean;
+  is_custom: boolean;
+}
+
+export type OrchestratorType = 'api' | 'terminal';
+
+export interface OrchestratorSelection {
+  type: OrchestratorType;
+  modelId?: string;
+  agentId?: string;
+}
+
+export interface TerminalWorkerSession {
+  worker_id: string;
+  agent_id: string;
+  tab_id: string;
+  role: string;
+  task_spec: string;
+  status: 'idle' | 'working' | 'waiting_approval' | 'done' | 'error';
+  created_at: number;
+}
+
+export interface InterAgentMessage {
+  id: string;
+  run_id: string;
+  sender: string;
+  recipient: string;
+  content: string;
   timestamp: number;
 }
 
