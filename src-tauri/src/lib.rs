@@ -11,6 +11,7 @@ use engine::tools::ToolRunner;
 use ipc::AppState;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tauri::Emitter;
 use vault::VaultState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -33,6 +34,10 @@ pub fn run() {
     let vault = Arc::new(VaultState::new(vault_dir.clone()));
     vault.set_root(vault_dir, None);
 
+    let hook_server = tauri::async_runtime::block_on(async {
+        engine::hook_server::AgentHookServer::start().await
+    }).expect("Failed to initialize loopback AgentHookServer");
+
     let app_state = AppState {
         db,
         orchestrator,
@@ -42,10 +47,12 @@ pub fn run() {
         vault: vault.clone(),
         mcp_manager: mcp_manager.clone(),
         terminal_orchestrator: Arc::new(engine::terminal_orchestration::TerminalOrchestratorState::new()),
+        hook_server: hook_server.clone(),
     };
 
     let v_state = vault.clone();
     let mcp_runner = mcp_manager.clone();
+    let hook_server_events = hook_server.clone();
 
     tauri::Builder::<tauri::Wry>::default()
         .plugin(tauri_plugin_opener::init())
@@ -89,6 +96,15 @@ pub fn run() {
             // Hubungkan server-server MCP yang aktif secara asinkron di background
             tauri::async_runtime::spawn(async move {
                 mcp_runner.auto_connect_all().await;
+            });
+
+            // Teruskan telemetri loopback hook server agen CLI ke frontend
+            let app_hook_handle = app.handle().clone();
+            let mut hook_rx = hook_server_events.event_sender.subscribe();
+            tauri::async_runtime::spawn(async move {
+                while let Ok(payload) = hook_rx.recv().await {
+                    let _ = app_hook_handle.emit("agent-telemetry-event", &payload);
+                }
             });
 
             Ok(())
@@ -193,6 +209,11 @@ pub fn run() {
             ipc::emergency_stop_all_workers,
             ipc::send_inter_agent_message,
             ipc::get_inter_agent_messages,
+            ipc::create_task_worktree,
+            ipc::list_task_worktrees,
+            ipc::remove_task_worktree,
+            ipc::merge_task_worktree,
+            ipc::get_hook_server_coords,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

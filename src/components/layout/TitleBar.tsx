@@ -15,6 +15,7 @@ import {
   GitBranch,
   PanelRight,
   Code2,
+  FolderGit2,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { AppMode, StudioTab } from '../../types';
@@ -32,6 +33,7 @@ const STUDIO_TABS: { id: StudioTab; label: string; icon: React.ElementType }[] =
   { id: 'editor', label: 'Editor', icon: Code2 },
   { id: 'hierarchy', label: 'Hierarki', icon: Layers },
   { id: 'terminals', label: 'Terminal Agen', icon: Terminal },
+  { id: 'worktrees', label: 'Worktrees', icon: FolderGit2 },
   { id: 'kanban', label: 'Kanban', icon: CheckSquare },
   { id: 'diff', label: 'Diff', icon: FileDiff },
   { id: 'git', label: 'Git Control', icon: GitBranch },

@@ -45,6 +45,9 @@ import {
   OrchestratorSelection,
   TerminalWorkerSession,
   InterAgentMessage,
+  WorktreeSession,
+  AgentTelemetryPayload,
+  HookServerCoords,
 } from '../types';
 import { parseRobustJson, getChatEndpoint, getModelsEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../utils/api';
 import { extractCodeReviewItems } from '../utils/codeExtractor';
@@ -367,6 +370,18 @@ interface AppStore {
   spawnTerminalWorker: (agentId: string, role: string, taskSpec?: string) => Promise<string | null>;
   terminateTerminalWorker: (workerId: string) => Promise<void>;
   sendInterAgentMessage: (recipient: string, content: string, runId?: string) => Promise<void>;
+
+  // Git Worktrees & Hook Telemetry
+  worktrees: WorktreeSession[];
+  activeWorktreeId: string | null;
+  hookCoords: HookServerCoords | null;
+  setActiveWorktreeId: (id: string | null) => void;
+  refreshWorktrees: () => Promise<void>;
+  createWorktreeForTask: (taskId: string, taskTitle: string, branchName: string, agentName: string) => Promise<WorktreeSession | null>;
+  removeWorktree: (worktreePath: string) => Promise<void>;
+  mergeWorktree: (branchName: string) => Promise<boolean>;
+  openTerminalForWorktree: (worktree: WorktreeSession) => Promise<string | null>;
+  initHookTelemetryListener: () => void;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -3518,6 +3533,12 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
   multiTerminalSplit: 'tabs',
   isAgentRosterModalOpen: false,
 
+  // Git Worktrees & Hook Telemetry Initial State
+  worktrees: [],
+  activeWorktreeId: null,
+  hookCoords: null,
+  setActiveWorktreeId: (id) => set({ activeWorktreeId: id }),
+
   setOrchestratorConfig: (config: OrchestratorSelection) => {
     set({ orchestratorConfig: config });
     if ((window as any).__TAURI_INTERNALS__) {
@@ -3740,5 +3761,155 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
     }
 
     addToast('success', `Pesan diteruskan ke agen '${recipient}'.`);
+  },
+
+  refreshWorktrees: async () => {
+    if ((window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const list: WorktreeSession[] = await invoke('list_task_worktrees');
+        set({ worktrees: list });
+      } catch (err) {
+        console.error('Gagal mengambil daftar git worktrees:', err);
+      }
+    }
+  },
+
+  createWorktreeForTask: async (taskId: string, taskTitle: string, branchName: string, agentName: string) => {
+    const { addToast, refreshWorktrees } = get();
+    if ((window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const wt: WorktreeSession = await invoke('create_task_worktree', {
+          taskId,
+          taskTitle,
+          branchName,
+          assignedAgent: agentName,
+        });
+        await refreshWorktrees();
+        set({ activeWorktreeId: wt.id });
+        addToast('success', `Git worktree '${wt.branch_name}' berhasil dibuat di ${wt.path}.`);
+        return wt;
+      } catch (err: any) {
+        addToast('error', `Gagal membuat git worktree: ${err}`);
+        return null;
+      }
+    }
+    return null;
+  },
+
+  removeWorktree: async (worktreePath: string) => {
+    const { addToast, refreshWorktrees } = get();
+    if ((window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('remove_task_worktree', {
+          worktreePath,
+          force: true,
+        });
+        await refreshWorktrees();
+        addToast('info', 'Git worktree berhasil dihapus dan dibersihkan.');
+      } catch (err: any) {
+        addToast('error', `Gagal menghapus git worktree: ${err}`);
+      }
+    }
+  },
+
+  mergeWorktree: async (branchName: string) => {
+    const { addToast, refreshWorktrees } = get();
+    if ((window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('merge_task_worktree', {
+          branchName,
+        });
+        await refreshWorktrees();
+        addToast('success', `Berhasil menggabungkan cabang '${branchName}' ke repositori utama.`);
+        return true;
+      } catch (err: any) {
+        addToast('error', `Gagal merge cabang '${branchName}': ${err}`);
+        return false;
+      }
+    }
+    return false;
+  },
+
+  openTerminalForWorktree: async (worktree: WorktreeSession) => {
+    const { addToast, setActiveStudioTab } = get();
+    const tabId = `tab-wt-${Date.now()}`;
+    const newTab: TerminalTab = {
+      id: tabId,
+      title: `WT: ${worktree.task_id} (${worktree.assigned_agent})`,
+      cwd: worktree.path,
+      logs: [],
+    };
+
+    set((s) => ({
+      terminalTabs: [...s.terminalTabs, newTab],
+      activeTerminalTabId: tabId,
+    }));
+
+    if ((window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('init_terminal_pty', {
+          tabId,
+          cols: 80,
+          rows: 24,
+          cwd: worktree.path,
+        });
+        addToast('success', `Terminal dibuka pada direktori worktree '${worktree.task_id}'.`);
+      } catch (err: any) {
+        addToast('error', `Gagal membuka terminal worktree: ${err}`);
+      }
+    }
+
+    setActiveStudioTab('terminals');
+    return tabId;
+  },
+
+  initHookTelemetryListener: () => {
+    if (!(window as any).__TAURI_INTERNALS__) return;
+    const { addToast } = get();
+
+    import('@tauri-apps/api/core').then(({ invoke }) => {
+      invoke('get_hook_server_coords')
+        .then((coords: any) => {
+          set({ hookCoords: coords });
+        })
+        .catch((err) => console.error('Failed to get hook server coords:', err));
+    });
+
+    import('@tauri-apps/api/event').then(({ listen }) => {
+      listen<AgentTelemetryPayload>('agent-telemetry-event', (event) => {
+        const payload = event.payload;
+        if (!payload) return;
+
+        // Perbarui status pekerja terminal jika pane_key cocok
+        if (payload.pane_key) {
+          const tabId = payload.pane_key;
+          let newStatus: 'idle' | 'working' | 'waiting_approval' | 'done' | 'error' | null = null;
+          if (payload.hook_event_name === 'tool.call') {
+            newStatus = 'working';
+            const toolName = payload.payload?.tool || payload.payload?.tool_name || 'Tool';
+            addToast('info', `[${payload.agent_name}] Menjalankan alat: ${toolName}`);
+          } else if (payload.hook_event_name === 'PermissionRequest') {
+            newStatus = 'waiting_approval';
+            addToast('warning', `[${payload.agent_name}] Meminta izin eksekusi perintah.`);
+          } else if (payload.hook_event_name === 'done' || payload.hook_event_name === 'Stop') {
+            newStatus = 'done';
+            addToast('success', `[${payload.agent_name}] Tugas selesai.`);
+          }
+
+          if (newStatus) {
+            set((s) => ({
+              activeTerminalWorkers: s.activeTerminalWorkers.map((w) =>
+                w.tab_id === tabId ? { ...w, status: newStatus! } : w
+              ),
+            }));
+          }
+        }
+      });
+    });
   },
 }));

@@ -1,5 +1,5 @@
 export type AppMode = 'chatbot' | 'agent' | 'build';
-export type StudioTab = 'discussion' | 'editor' | 'hierarchy' | 'kanban' | 'diff' | 'git' | 'terminals';
+export type StudioTab = 'discussion' | 'editor' | 'hierarchy' | 'kanban' | 'diff' | 'git' | 'terminals' | 'worktrees';
 
 export interface ApiKeyRecord {
   provider: string; // 'custom', 'custom_<id>', 'gemini', 'openai', 'claude', 'deepseek', 'ollama'
@@ -476,5 +476,30 @@ export interface InterAgentMessage {
   recipient: string;
   content: string;
   timestamp: number;
+}
+
+export interface WorktreeSession {
+  id: string;
+  task_id: string;
+  task_title: string;
+  branch_name: string;
+  path: string;
+  assigned_agent: string;
+  status: 'active' | 'merging' | 'merged' | 'closed';
+  created_at: number;
+}
+
+export interface AgentTelemetryPayload {
+  pane_key?: string;
+  worktree_id?: string;
+  agent_name: string;
+  hook_event_name: string;
+  payload: any;
+  timestamp: number;
+}
+
+export interface HookServerCoords {
+  port: number;
+  token: string;
 }
 

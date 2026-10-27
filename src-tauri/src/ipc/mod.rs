@@ -31,6 +31,7 @@ pub struct AppState {
     pub vault: Arc<crate::vault::VaultState>,
     pub mcp_manager: Arc<crate::engine::mcp::McpClientManager>,
     pub terminal_orchestrator: Arc<crate::engine::terminal_orchestration::TerminalOrchestratorState>,
+    pub hook_server: Arc<crate::engine::hook_server::AgentHookServer>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -1340,8 +1341,12 @@ pub async fn init_terminal_pty(
     tab_id: String,
     rows: u16,
     cols: u16,
+    cwd: Option<String>,
 ) -> Result<(), String> {
-    let ws = state.tool_runner.workspace_root();
+    let ws = match &cwd {
+        Some(custom_dir) if !custom_dir.trim().is_empty() => std::path::PathBuf::from(custom_dir),
+        _ => state.tool_runner.workspace_root(),
+    };
     let pty_system = native_pty_system();
 
     let pty_pair = pty_system
@@ -1360,9 +1365,15 @@ pub async fn init_terminal_pty(
     };
 
     let mut cmd = CommandBuilder::new(default_shell.clone());
-    cmd.cwd(ws);
+    cmd.cwd(&ws);
     cmd.env("TERM", "xterm-256color");
     cmd.env("COLORTERM", "truecolor");
+    cmd.env("AGENTIC_HOOK_PORT", state.hook_server.port.to_string());
+    cmd.env("AGENTIC_HOOK_TOKEN", &state.hook_server.token);
+    cmd.env("AGENTIC_PANE_KEY", &tab_id);
+    cmd.env("ORCA_AGENT_HOOK_PORT", state.hook_server.port.to_string());
+    cmd.env("ORCA_AGENT_HOOK_TOKEN", &state.hook_server.token);
+    cmd.env("ORCA_PANE_KEY", &tab_id);
     if !cfg!(windows) && default_shell.ends_with("bash") {
         cmd.arg("-i");
     }
@@ -2729,6 +2740,62 @@ pub async fn get_inter_agent_messages(
     recipient: Option<String>,
 ) -> Result<Vec<crate::engine::terminal_orchestration::InterAgentMessage>, String> {
     Ok(state.terminal_orchestrator.get_messages(run_id.as_deref(), recipient.as_deref()))
+}
+
+#[tauri::command]
+pub async fn create_task_worktree(
+    state: State<'_, AppState>,
+    task_id: String,
+    task_title: String,
+    branch_name: String,
+    assigned_agent: String,
+) -> Result<crate::engine::worktree::WorktreeSessionInfo, String> {
+    let repo_root = state.tool_runner.workspace_root();
+    crate::engine::worktree::WorktreeManager::create_worktree(
+        &repo_root,
+        &task_id,
+        &task_title,
+        &branch_name,
+        &assigned_agent,
+    )
+}
+
+#[tauri::command]
+pub async fn list_task_worktrees(
+    state: State<'_, AppState>,
+) -> Result<Vec<crate::engine::worktree::WorktreeSessionInfo>, String> {
+    let repo_root = state.tool_runner.workspace_root();
+    crate::engine::worktree::WorktreeManager::list_worktrees(&repo_root)
+}
+
+#[tauri::command]
+pub async fn remove_task_worktree(
+    state: State<'_, AppState>,
+    worktree_path: String,
+    force: Option<bool>,
+) -> Result<(), String> {
+    let repo_root = state.tool_runner.workspace_root();
+    let wt_path = std::path::Path::new(&worktree_path);
+    crate::engine::worktree::WorktreeManager::remove_worktree(&repo_root, wt_path, force.unwrap_or(true))
+}
+
+#[tauri::command]
+pub async fn merge_task_worktree(
+    state: State<'_, AppState>,
+    branch_name: String,
+) -> Result<String, String> {
+    let repo_root = state.tool_runner.workspace_root();
+    crate::engine::worktree::WorktreeManager::merge_worktree_branch(&repo_root, &branch_name)
+}
+
+#[tauri::command]
+pub async fn get_hook_server_coords(
+    state: State<'_, AppState>,
+) -> Result<crate::engine::hook_server::HookServerCoords, String> {
+    Ok(crate::engine::hook_server::HookServerCoords {
+        port: state.hook_server.port,
+        token: state.hook_server.token.clone(),
+    })
 }
 
 #[cfg(test)]

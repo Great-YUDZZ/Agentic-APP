@@ -37,6 +37,8 @@ export const App: React.FC = () => {
     toggleSidecar,
     setQuickOpenModalOpen,
     setGlobalSearchModalOpen,
+    refreshWorktrees,
+    initHookTelemetryListener,
   } = useStore();
 
   React.useEffect(() => {
@@ -75,7 +77,9 @@ export const App: React.FC = () => {
     loadSessionsFromDb();
     fetchMcpServers();
     fetchMcpTools();
-  }, [loadApiKeysFromDb, loadSessionsFromDb, fetchMcpServers, fetchMcpTools]);
+    refreshWorktrees();
+    initHookTelemetryListener();
+  }, [loadApiKeysFromDb, loadSessionsFromDb, fetchMcpServers, fetchMcpTools, refreshWorktrees, initHookTelemetryListener]);
 
   return (
     <ErrorBoundary fallbackTitle="Agentic Native Hub Workspace Error">

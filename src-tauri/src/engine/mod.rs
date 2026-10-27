@@ -6,3 +6,5 @@ pub mod git;
 pub mod codebase_rag;
 pub mod agent_discovery;
 pub mod terminal_orchestration;
+pub mod worktree;
+pub mod hook_server;

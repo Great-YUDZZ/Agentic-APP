@@ -6,6 +6,7 @@ import { DiffViewer } from './DiffViewer';
 import { VisualGitManager } from './VisualGitManager';
 import { StudioCodeEditor } from './StudioCodeEditor';
 import { MultiTerminalPane } from '../terminal/MultiTerminalPane';
+import { WorktreePanel } from './WorktreePanel';
 import { AgentRosterModal } from './AgentRosterModal';
 import { useStore } from '../../store/useStore';
 
@@ -18,6 +19,7 @@ export const BuildStudio: React.FC = () => {
       {activeStudioTab === 'editor' && <StudioCodeEditor />}
       {activeStudioTab === 'hierarchy' && <AgentHierarchyTree />}
       {activeStudioTab === 'terminals' && <MultiTerminalPane />}
+      {activeStudioTab === 'worktrees' && <WorktreePanel />}
       {activeStudioTab === 'kanban' && <TaskKanban />}
       {activeStudioTab === 'diff' && <DiffViewer />}
       {activeStudioTab === 'git' && <VisualGitManager />}
