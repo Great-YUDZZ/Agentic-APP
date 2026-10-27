@@ -17,6 +17,8 @@ release/
 # Tauri / Rust build
 src-tauri/target/
 src-tauri/gen/
+src-tauri/.cargo/
+.cargo/
 
 # Environment and sensitive data
 .env
