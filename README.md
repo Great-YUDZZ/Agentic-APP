@@ -18,7 +18,7 @@
 
 ## Unduh dan Rilis Siap Pakai (v0.1.0)
 
-Paket instalasi dan berkas binari mandiri untuk Linux, Windows, dan macOS tersedia secara langsung pada rilis resmi. Anda dapat mengunduh berkas yang sesuai dengan sistem operasi yang digunakan:
+Paket instalasi dan berkas binari mandiri untuk Linux dan Windows tersedia secara langsung pada rilis resmi. Anda dapat mengunduh berkas yang sesuai dengan sistem operasi yang digunakan:
 
 | Sistem Operasi | Tipe Berkas | Deskripsi | Tautan Unduh |
 | :--- | :--- | :--- | :--- |
