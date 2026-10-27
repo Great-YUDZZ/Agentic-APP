@@ -503,3 +503,23 @@ export interface HookServerCoords {
   token: string;
 }
 
+export type SplitDirection = 'horizontal' | 'vertical';
+
+export interface TerminalPaneNode {
+  id: string;
+  tabs: string[];
+  activeTabId: string;
+}
+
+export interface SplitContainerNode {
+  id: string;
+  direction: SplitDirection;
+  ratio: number;
+  first: TilingNode;
+  second: TilingNode;
+}
+
+export type TilingNode =
+  | { type: 'pane'; data: TerminalPaneNode }
+  | { type: 'split'; data: SplitContainerNode };
+

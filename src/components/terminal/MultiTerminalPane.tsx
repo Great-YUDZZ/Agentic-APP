@@ -1,209 +1,156 @@
-import React from 'react';
-import { Columns, Rows, Square, X, Plus, Terminal as TerminalIcon, Sparkles } from 'lucide-react';
+import React, { useEffect } from 'react';
+import {
+  Columns,
+  Rows,
+  Square,
+  LayoutGrid,
+  Radio,
+  PanelRight,
+  Terminal,
+  RefreshCw,
+} from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import { XtermView } from './XtermView';
+import { TilingRenderer } from './TilingRenderer';
+import { TerminalInspectorPanel } from './TerminalInspectorPanel';
+import { TerminalPaneNode } from '../../types';
 
 export const MultiTerminalPane: React.FC = () => {
   const {
-    terminalTabs,
-    activeTerminalTabId,
-    setActiveTerminalTabId,
-    closeTerminalTab,
-    multiTerminalSplit,
-    setMultiTerminalSplit,
-    setIsAgentRosterModalOpen,
+    tilingLayout,
+    maximizedPaneId,
+    isTerminalInspectorOpen,
+    setIsTerminalInspectorOpen,
+    ensureTilingInitialized,
+    applyPresetLayout,
+    refreshInstalledCliAgents,
+    hookCoords,
     activeTerminalWorkers,
-    terminateTerminalWorker,
   } = useStore();
 
-  if (terminalTabs.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full p-8 text-center bg-[#181818] rounded-xl border border-[#262626]">
-        <div className="p-3 rounded-2xl bg-[#222222] border border-[#333333] mb-3 text-[#ececec]">
-          <TerminalIcon className="w-6 h-6" />
-        </div>
-        <h3 className="text-sm font-semibold text-[#ececec] mb-1">
-          Tidak Ada Terminal Agen Aktif
-        </h3>
-        <p className="text-xs text-[#8e8e8e] max-w-sm mb-4">
-          Jalankan agen terminal seperti Claude Code, Antigravity, OpenCode, atau Gemini CLI untuk memulai orkestrasi tugas bersama.
-        </p>
-        <button
-          onClick={() => setIsAgentRosterModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg bg-[#ececec] text-[#171717] hover:bg-[#ffffff] transition-colors"
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          Buka Roster & Jalankan Agen
-        </button>
-      </div>
-    );
-  }
+  useEffect(() => {
+    ensureTilingInitialized();
+    refreshInstalledCliAgents();
+  }, [ensureTilingInitialized, refreshInstalledCliAgents]);
 
-  // Determine tabs to show based on split layout
-  const primaryTab = terminalTabs.find((t) => t.id === activeTerminalTabId) || terminalTabs[0];
-  const secondaryTab = terminalTabs.find((t) => t.id !== primaryTab.id) || terminalTabs[0];
-
-  const getWorkerForTab = (tabId: string) => {
-    return activeTerminalWorkers.find((w) => w.tab_id === tabId);
+  // Find maximized pane if any
+  const findMaximizedPane = (node: any, targetId: string): TerminalPaneNode | null => {
+    if (!node) return null;
+    if (node.type === 'pane') {
+      return node.data.id === targetId ? node.data : null;
+    }
+    return findMaximizedPane(node.data.first, targetId) || findMaximizedPane(node.data.second, targetId);
   };
 
+  const maximizedPane = maximizedPaneId && tilingLayout
+    ? findMaximizedPane(tilingLayout, maximizedPaneId)
+    : null;
+
   return (
-    <div className="flex flex-col h-full bg-[#141414] rounded-xl border border-[#2a2a2a] overflow-hidden">
+    <div className="flex-1 flex flex-col h-full bg-[#1a1a1a] text-[#ececec] overflow-hidden select-none">
       {/* Top Controls Bar */}
-      <div className="flex items-center justify-between px-3 py-2 bg-[#1b1b1b] border-b border-[#282828]">
-        {/* Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto max-w-[65%] scrollbar-none">
-          {terminalTabs.map((tab) => {
-            const worker = getWorkerForTab(tab.id);
-            const isActive = tab.id === activeTerminalTabId;
+      <div className="h-11 px-4 bg-[#212121] border-b border-[#2e2e2e] flex items-center justify-between flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-[#2a2a2a] border border-[#383838] flex items-center justify-center text-[#ececec]">
+              <Terminal className="w-3.5 h-3.5" />
+            </div>
+            <span className="text-xs font-semibold text-[#ececec]">Orca Tiling Terminal Studio</span>
+          </div>
 
-            return (
-              <div
-                key={tab.id}
-                onClick={() => setActiveTerminalTabId(tab.id)}
-                className={`group flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg cursor-pointer border transition-all ${
-                  isActive
-                    ? 'bg-[#262626] border-[#404040] text-[#ececec]'
-                    : 'bg-[#181818] border-transparent text-[#8e8e8e] hover:text-[#b4b4b4] hover:bg-[#202020]'
-                }`}
-              >
-                <div
-                  className={`w-2 h-2 rounded-full ${
-                    worker?.status === 'working'
-                      ? 'bg-[#22c55e] animate-pulse'
-                      : worker?.status === 'waiting_approval'
-                      ? 'bg-[#f59e0b]'
-                      : 'bg-[#707070]'
-                  }`}
-                />
-                <span className="truncate max-w-[120px] font-medium">{tab.title}</span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (worker) {
-                      terminateTerminalWorker(worker.worker_id);
-                    } else {
-                      closeTerminalTab(tab.id);
-                    }
-                  }}
-                  className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[#333333] text-[#8e8e8e] hover:text-[#ececec] transition-opacity"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            );
-          })}
+          <div className="h-4 w-[1px] bg-[#333333]" />
 
-          <button
-            onClick={() => setIsAgentRosterModalOpen(true)}
-            title="Tambah Agen Terminal Baru"
-            className="p-1.5 rounded-lg bg-[#1f1f1f] hover:bg-[#282828] text-[#8e8e8e] hover:text-[#ececec] border border-[#2e2e2e] transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-          </button>
+          {/* Quick Layout Presets */}
+          <div className="flex items-center gap-1 bg-[#1a1a1a] p-0.5 rounded-lg border border-[#2e2e2e]">
+            <button
+              onClick={() => applyPresetLayout('single')}
+              title="Tata Letak Tunggal (1 Panel)"
+              className="p-1 rounded hover:bg-[#282828] text-[#8e8e8e] hover:text-[#ececec] transition-colors"
+            >
+              <Square className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => applyPresetLayout('split-horizontal')}
+              title="Split 2 Kolom (Berdampingan)"
+              className="p-1 rounded hover:bg-[#282828] text-[#8e8e8e] hover:text-[#ececec] transition-colors"
+            >
+              <Columns className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => applyPresetLayout('split-vertical')}
+              title="Split 2 Baris (Bertumpuk)"
+              className="p-1 rounded hover:bg-[#282828] text-[#8e8e8e] hover:text-[#ececec] transition-colors"
+            >
+              <Rows className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => applyPresetLayout('grid-2x2')}
+              title="Grid 2x2 (4 Terminal Paralel ala Orca)"
+              className="p-1 rounded hover:bg-[#282828] text-[#10a37f] hover:text-white transition-colors"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
 
-        {/* Layout Split Toggles */}
-        <div className="flex items-center gap-1 bg-[#181818] p-1 rounded-lg border border-[#282828]">
+        {/* Right Info & Inspector Toggle */}
+        <div className="flex items-center gap-3">
+          {hookCoords ? (
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#1e1e1e] border border-[#333333] text-[11px] text-[#a0a0a0]">
+              <span className="w-2 h-2 rounded-full bg-[#10a37f] animate-pulse" />
+              <span>Hook: 127.0.0.1:{hookCoords.port}</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#1e1e1e] border border-[#333333] text-[11px] text-[#707070]">
+              <Radio className="w-3 h-3 text-[#707070]" />
+              <span>Hook Loopback</span>
+            </div>
+          )}
+
+          <div className="flex items-center gap-1.5 text-xs text-[#8e8e8e]">
+            <span className="px-2 py-0.5 rounded bg-[#252525] border border-[#303030] text-[#ececec] text-[11px]">
+              {activeTerminalWorkers.length} Agen Aktif
+            </span>
+          </div>
+
           <button
-            onClick={() => setMultiTerminalSplit('tabs')}
-            title="Tampilan Tab Tunggal"
-            className={`p-1.5 rounded-md transition-colors ${
-              multiTerminalSplit === 'tabs'
-                ? 'bg-[#2a2a2a] text-[#ececec]'
-                : 'text-[#8e8e8e] hover:text-[#ececec]'
+            onClick={() => setIsTerminalInspectorOpen(!isTerminalInspectorOpen)}
+            className={`p-1.5 rounded-lg border transition-colors ${
+              isTerminalInspectorOpen
+                ? 'bg-[#2a2a2a] border-[#404040] text-[#10a37f]'
+                : 'bg-[#212121] border-[#333333] text-[#8e8e8e] hover:text-[#ececec]'
             }`}
+            title="Toggle Panel Samping Agen"
           >
-            <Square className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => setMultiTerminalSplit('split-horizontal')}
-            title="Split Berdampingan (Horizontal)"
-            className={`p-1.5 rounded-md transition-colors ${
-              multiTerminalSplit === 'split-horizontal'
-                ? 'bg-[#2a2a2a] text-[#ececec]'
-                : 'text-[#8e8e8e] hover:text-[#ececec]'
-            }`}
-          >
-            <Columns className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => setMultiTerminalSplit('split-vertical')}
-            title="Split Bertumpuk (Vertikal)"
-            className={`p-1.5 rounded-md transition-colors ${
-              multiTerminalSplit === 'split-vertical'
-                ? 'bg-[#2a2a2a] text-[#ececec]'
-                : 'text-[#8e8e8e] hover:text-[#ececec]'
-            }`}
-          >
-            <Rows className="w-3.5 h-3.5" />
+            <PanelRight className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* Pane Display */}
-      <div className="flex-1 min-h-0 relative">
-        {multiTerminalSplit === 'tabs' && (
-          <div className="w-full h-full">
-            {terminalTabs.map((tab) => (
-              <div
-                key={tab.id}
-                className={`w-full h-full ${tab.id === activeTerminalTabId ? 'block' : 'hidden'}`}
-              >
-                <XtermView tabId={tab.id} isActive={tab.id === activeTerminalTabId} />
-              </div>
-            ))}
-          </div>
-        )}
-
-        {multiTerminalSplit === 'split-horizontal' && (
-          <div className="grid grid-cols-2 h-full divide-x divide-[#282828]">
-            <div className="flex flex-col h-full min-h-0">
-              <div className="px-3 py-1 bg-[#181818] border-b border-[#262626] text-[11px] font-mono text-[#8e8e8e] flex items-center justify-between">
-                <span>{primaryTab?.title || 'Terminal 1'}</span>
-                <span className="text-[10px] text-[#22c55e]">Active</span>
-              </div>
-              <div className="flex-1 min-h-0">
-                <XtermView tabId={primaryTab.id} isActive={true} />
-              </div>
+      {/* Main Studio Body: Tiling Canvas + Right Inspector */}
+      <div className="flex-1 flex overflow-hidden min-h-0 relative">
+        <div className="flex-1 p-2 overflow-hidden min-w-0 min-h-0 relative">
+          {maximizedPane ? (
+            /* Render Maximized Single Pane */
+            <div className="w-full h-full">
+              <TilingRenderer node={{ type: 'pane', data: maximizedPane }} />
             </div>
-
-            <div className="flex flex-col h-full min-h-0">
-              <div className="px-3 py-1 bg-[#181818] border-b border-[#262626] text-[11px] font-mono text-[#8e8e8e] flex items-center justify-between">
-                <span>{secondaryTab?.title || 'Terminal 2'}</span>
-                <span className="text-[10px] text-[#b4b4b4]">Secondary</span>
-              </div>
-              <div className="flex-1 min-h-0">
-                <XtermView tabId={secondaryTab.id} isActive={true} />
-              </div>
+          ) : tilingLayout ? (
+            /* Render Recursive Tiling Tree */
+            <TilingRenderer node={tilingLayout} />
+          ) : (
+            /* Fallback Loading */
+            <div className="w-full h-full flex items-center justify-center text-xs text-[#707070] gap-2">
+              <RefreshCw className="w-4 h-4 animate-spin text-[#10a37f]" />
+              <span>Menyiapkan Terminal Studio...</span>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
-        {multiTerminalSplit === 'split-vertical' && (
-          <div className="grid grid-rows-2 h-full divide-y divide-[#282828]">
-            <div className="flex flex-col h-full min-h-0">
-              <div className="px-3 py-1 bg-[#181818] border-b border-[#262626] text-[11px] font-mono text-[#8e8e8e] flex items-center justify-between">
-                <span>{primaryTab?.title || 'Terminal 1'}</span>
-                <span className="text-[10px] text-[#22c55e]">Active</span>
-              </div>
-              <div className="flex-1 min-h-0">
-                <XtermView tabId={primaryTab.id} isActive={true} />
-              </div>
-            </div>
-
-            <div className="flex flex-col h-full min-h-0">
-              <div className="px-3 py-1 bg-[#181818] border-b border-[#262626] text-[11px] font-mono text-[#8e8e8e] flex items-center justify-between">
-                <span>{secondaryTab?.title || 'Terminal 2'}</span>
-                <span className="text-[10px] text-[#b4b4b4]">Secondary</span>
-              </div>
-              <div className="flex-1 min-h-0">
-                <XtermView tabId={secondaryTab.id} isActive={true} />
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Collapsible Right Inspector Panel */}
+        {isTerminalInspectorOpen && <TerminalInspectorPanel />}
       </div>
     </div>
   );
 };
+
+export default MultiTerminalPane;

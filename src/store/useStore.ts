@@ -48,6 +48,9 @@ import {
   WorktreeSession,
   AgentTelemetryPayload,
   HookServerCoords,
+  SplitDirection,
+  TerminalPaneNode,
+  TilingNode,
 } from '../types';
 import { parseRobustJson, getChatEndpoint, getModelsEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../utils/api';
 import { extractCodeReviewItems } from '../utils/codeExtractor';
@@ -382,6 +385,24 @@ interface AppStore {
   mergeWorktree: (branchName: string) => Promise<boolean>;
   openTerminalForWorktree: (worktree: WorktreeSession) => Promise<string | null>;
   initHookTelemetryListener: () => void;
+
+  // Orca-Style Multi-Pane Tiling State & Actions
+  tilingLayout: TilingNode | null;
+  maximizedPaneId: string | null;
+  isTerminalInspectorOpen: boolean;
+  setTilingLayout: (layout: TilingNode | null) => void;
+  setMaximizedPaneId: (paneId: string | null) => void;
+  setIsTerminalInspectorOpen: (open: boolean) => void;
+  splitPane: (paneId: string, direction: SplitDirection, newTabId?: string) => Promise<string>;
+  closePane: (paneId: string) => void;
+  updateSplitRatio: (containerId: string, ratio: number) => void;
+  toggleMaximizePane: (paneId: string) => void;
+  spawnAgentInPane: (paneId: string, agentId: string, customCwd?: string) => Promise<string | null>;
+  addTabToPane: (paneId: string, title?: string, cwd?: string) => Promise<string>;
+  setActiveTabInPane: (paneId: string, tabId: string) => void;
+  closeTabInPane: (paneId: string, tabId: string) => void;
+  applyPresetLayout: (preset: 'single' | 'split-horizontal' | 'split-vertical' | 'grid-2x2') => Promise<void>;
+  ensureTilingInitialized: () => Promise<void>;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -3539,6 +3560,14 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
   hookCoords: null,
   setActiveWorktreeId: (id) => set({ activeWorktreeId: id }),
 
+  // Orca Tiling Studio Initial State
+  tilingLayout: null,
+  maximizedPaneId: null,
+  isTerminalInspectorOpen: true,
+  setTilingLayout: (layout) => set({ tilingLayout: layout }),
+  setMaximizedPaneId: (paneId) => set({ maximizedPaneId: paneId }),
+  setIsTerminalInspectorOpen: (open) => set({ isTerminalInspectorOpen: open }),
+
   setOrchestratorConfig: (config: OrchestratorSelection) => {
     set({ orchestratorConfig: config });
     if ((window as any).__TAURI_INTERNALS__) {
@@ -3912,4 +3941,479 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
       });
     });
   },
+
+  // Orca-Style Multi-Pane Tiling Studio Actions
+  ensureTilingInitialized: async () => {
+    const { tilingLayout, terminalTabs } = get();
+    if (tilingLayout) return;
+
+    let initialTabId = terminalTabs[0]?.id;
+    if (!initialTabId) {
+      initialTabId = `tab-terminal-${Date.now()}`;
+      const defaultTab: TerminalTab = {
+        id: initialTabId,
+        title: 'Terminal 1',
+        cwd: '',
+        logs: [],
+      };
+      set({ terminalTabs: [defaultTab], activeTerminalTabId: initialTabId });
+
+      if ((window as any).__TAURI_INTERNALS__) {
+        try {
+          const { invoke } = await import('@tauri-apps/api/core');
+          await invoke('init_terminal_pty', {
+            tabId: initialTabId,
+            cols: 80,
+            rows: 24,
+          });
+        } catch (e) {
+          console.error('Failed to init terminal PTY for default pane:', e);
+        }
+      }
+    }
+
+    const rootPane: TilingNode = {
+      type: 'pane',
+      data: {
+        id: 'pane-root',
+        tabs: [initialTabId],
+        activeTabId: initialTabId,
+      },
+    };
+    set({ tilingLayout: rootPane });
+  },
+
+  addTabToPane: async (paneId: string, title?: string, cwd?: string) => {
+    const { tilingLayout } = get();
+    const tabId = `tab-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const newTab: TerminalTab = {
+      id: tabId,
+      title: title || `Terminal ${get().terminalTabs.length + 1}`,
+      cwd: cwd || '',
+      logs: [],
+    };
+
+    set((s) => ({
+      terminalTabs: [...s.terminalTabs, newTab],
+      activeTerminalTabId: tabId,
+    }));
+
+    if ((window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('init_terminal_pty', {
+          tabId,
+          cols: 80,
+          rows: 24,
+          cwd: cwd || undefined,
+        });
+      } catch (err) {
+        console.error('Error init terminal PTY:', err);
+      }
+    }
+
+    if (tilingLayout) {
+      const updated = updatePaneDataInTilingTree(tilingLayout, paneId, (p) => ({
+        ...p,
+        tabs: [...p.tabs, tabId],
+        activeTabId: tabId,
+      }));
+      set({ tilingLayout: updated });
+    }
+
+    return tabId;
+  },
+
+  spawnAgentInPane: async (paneId: string, agentId: string, customCwd?: string) => {
+    const { installedCliAgents, addToast, tilingLayout } = get();
+    const agent = installedCliAgents.find((a) => a.id === agentId);
+    const agentName = agent?.name || agentId;
+    const tabId = `tab-agent-${Date.now()}`;
+    const workerId = `worker-${Date.now()}`;
+
+    const newTab: TerminalTab = {
+      id: tabId,
+      title: agentName,
+      cwd: customCwd || '',
+      logs: [],
+    };
+
+    const workerSession: TerminalWorkerSession = {
+      worker_id: workerId,
+      agent_id: agentId,
+      tab_id: tabId,
+      role: 'Agent Worker',
+      task_spec: '',
+      status: 'idle',
+      created_at: Date.now(),
+    };
+
+    set((s) => ({
+      terminalTabs: [...s.terminalTabs, newTab],
+      activeTerminalTabId: tabId,
+      activeTerminalWorkers: [...s.activeTerminalWorkers, workerSession],
+    }));
+
+    if (tilingLayout) {
+      const updated = updatePaneDataInTilingTree(tilingLayout, paneId, (p) => ({
+        ...p,
+        tabs: [...p.tabs, tabId],
+        activeTabId: tabId,
+      }));
+      set({ tilingLayout: updated });
+    }
+
+    if ((window as any).__TAURI_INTERNALS__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('register_terminal_worker', {
+          workerId,
+          agentId,
+          tabId,
+          role: 'Agent Worker',
+          taskSpec: '',
+        });
+
+        await invoke('init_terminal_pty', {
+          tabId,
+          cols: 80,
+          rows: 24,
+          cwd: customCwd || undefined,
+        });
+
+        const launchCmd = agent?.path || agent?.binary_name || agentId;
+        await invoke('terminal_pty_write', {
+          tabId,
+          data: `${launchCmd}\n`,
+        });
+
+        addToast('success', `Agen '${agentName}' dijalankan interaktif di terminal.`);
+        return workerId;
+      } catch (err: any) {
+        addToast('error', `Gagal menjalankan agen '${agentName}': ${err}`);
+        return null;
+      }
+    }
+
+    return workerId;
+  },
+
+  splitPane: async (paneId: string, direction: SplitDirection, newTabId?: string) => {
+    const { tilingLayout } = get();
+    if (!tilingLayout) return '';
+
+    const targetPane = findPaneInTilingTree(tilingLayout, paneId);
+    if (!targetPane) return '';
+
+    const newPaneId = `pane-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    let assignedTabId = newTabId;
+
+    if (!assignedTabId) {
+      assignedTabId = `tab-${Date.now()}`;
+      const newTab: TerminalTab = {
+        id: assignedTabId,
+        title: `Terminal ${get().terminalTabs.length + 1}`,
+        cwd: '',
+        logs: [],
+      };
+      set((s) => ({
+        terminalTabs: [...s.terminalTabs, newTab],
+        activeTerminalTabId: assignedTabId,
+      }));
+
+      if ((window as any).__TAURI_INTERNALS__) {
+        try {
+          const { invoke } = await import('@tauri-apps/api/core');
+          await invoke('init_terminal_pty', {
+            tabId: assignedTabId,
+            cols: 80,
+            rows: 24,
+          });
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+
+    const newPaneNode: TilingNode = {
+      type: 'pane',
+      data: {
+        id: newPaneId,
+        tabs: [assignedTabId],
+        activeTabId: assignedTabId,
+      },
+    };
+
+    const currentPaneNode: TilingNode = {
+      type: 'pane',
+      data: { ...targetPane },
+    };
+
+    const splitContainer: TilingNode = {
+      type: 'split',
+      data: {
+        id: `split-${Date.now()}`,
+        direction,
+        ratio: 0.5,
+        first: currentPaneNode,
+        second: newPaneNode,
+      },
+    };
+
+    const updatedTree = replacePaneInTilingTree(tilingLayout, paneId, splitContainer);
+    set({ tilingLayout: updatedTree });
+    return newPaneId;
+  },
+
+  closePane: (paneId: string) => {
+    const { tilingLayout, maximizedPaneId, ensureTilingInitialized } = get();
+    if (!tilingLayout) return;
+
+    if (maximizedPaneId === paneId) {
+      set({ maximizedPaneId: null });
+    }
+
+    const updated = removePaneFromTilingTree(tilingLayout, paneId);
+    if (!updated) {
+      // Jika semua panel ditutup, reset ke single pane
+      set({ tilingLayout: null });
+      ensureTilingInitialized();
+    } else {
+      set({ tilingLayout: updated });
+    }
+  },
+
+  updateSplitRatio: (containerId: string, ratio: number) => {
+    const { tilingLayout } = get();
+    if (!tilingLayout) return;
+    const updated = updateRatioInTilingTree(tilingLayout, containerId, ratio);
+    set({ tilingLayout: updated });
+  },
+
+  toggleMaximizePane: (paneId: string) => {
+    set((s) => ({
+      maximizedPaneId: s.maximizedPaneId === paneId ? null : paneId,
+    }));
+  },
+
+  setActiveTabInPane: (paneId: string, tabId: string) => {
+    const { tilingLayout } = get();
+    set({ activeTerminalTabId: tabId });
+    if (!tilingLayout) return;
+    const updated = updatePaneDataInTilingTree(tilingLayout, paneId, (p) => ({
+      ...p,
+      activeTabId: tabId,
+    }));
+    set({ tilingLayout: updated });
+  },
+
+  closeTabInPane: (paneId: string, tabId: string) => {
+    const { tilingLayout, terminalTabs, closePane } = get();
+    const remainingTabs = terminalTabs.filter((t) => t.id !== tabId);
+    set({ terminalTabs: remainingTabs });
+
+    if (!tilingLayout) return;
+    const target = findPaneInTilingTree(tilingLayout, paneId);
+    if (!target) return;
+
+    const remainingPaneTabs = target.tabs.filter((id) => id !== tabId);
+    if (remainingPaneTabs.length === 0) {
+      closePane(paneId);
+    } else {
+      const nextActive = remainingPaneTabs[0];
+      const updated = updatePaneDataInTilingTree(tilingLayout, paneId, (p) => ({
+        ...p,
+        tabs: remainingPaneTabs,
+        activeTabId: nextActive,
+      }));
+      set({ tilingLayout: updated, activeTerminalTabId: nextActive });
+    }
+  },
+
+  applyPresetLayout: async (preset: 'single' | 'split-horizontal' | 'split-vertical' | 'grid-2x2') => {
+    const { addToast } = get();
+    const ensureTabs = async (count: number) => {
+      const currentTabs = [...get().terminalTabs];
+      while (currentTabs.length < count) {
+        const id = `tab-${Date.now()}-${currentTabs.length}`;
+        const newTab: TerminalTab = {
+          id,
+          title: `Terminal ${currentTabs.length + 1}`,
+          cwd: '',
+          logs: [],
+        };
+        currentTabs.push(newTab);
+        if ((window as any).__TAURI_INTERNALS__) {
+          try {
+            const { invoke } = await import('@tauri-apps/api/core');
+            await invoke('init_terminal_pty', { tabId: id, cols: 80, rows: 24 });
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      }
+      set({ terminalTabs: currentTabs });
+      return currentTabs;
+    };
+
+    if (preset === 'single') {
+      const tabs = await ensureTabs(1);
+      const root: TilingNode = {
+        type: 'pane',
+        data: { id: 'pane-single', tabs: [tabs[0].id], activeTabId: tabs[0].id },
+      };
+      set({ tilingLayout: root, maximizedPaneId: null });
+      addToast('info', 'Tata letak diatur ke Terminal Tunggal.');
+    } else if (preset === 'split-horizontal') {
+      const tabs = await ensureTabs(2);
+      const root: TilingNode = {
+        type: 'split',
+        data: {
+          id: `split-h-${Date.now()}`,
+          direction: 'horizontal',
+          ratio: 0.5,
+          first: { type: 'pane', data: { id: 'pane-left', tabs: [tabs[0].id], activeTabId: tabs[0].id } },
+          second: { type: 'pane', data: { id: 'pane-right', tabs: [tabs[1].id], activeTabId: tabs[1].id } },
+        },
+      };
+      set({ tilingLayout: root, maximizedPaneId: null });
+      addToast('info', 'Tata letak diatur ke Split 2 Kolom (Horizontal).');
+    } else if (preset === 'split-vertical') {
+      const tabs = await ensureTabs(2);
+      const root: TilingNode = {
+        type: 'split',
+        data: {
+          id: `split-v-${Date.now()}`,
+          direction: 'vertical',
+          ratio: 0.5,
+          first: { type: 'pane', data: { id: 'pane-top', tabs: [tabs[0].id], activeTabId: tabs[0].id } },
+          second: { type: 'pane', data: { id: 'pane-bottom', tabs: [tabs[1].id], activeTabId: tabs[1].id } },
+        },
+      };
+      set({ tilingLayout: root, maximizedPaneId: null });
+      addToast('info', 'Tata letak diatur ke Split 2 Baris (Vertikal).');
+    } else if (preset === 'grid-2x2') {
+      const tabs = await ensureTabs(4);
+      const root: TilingNode = {
+        type: 'split',
+        data: {
+          id: `split-v-root-${Date.now()}`,
+          direction: 'vertical',
+          ratio: 0.5,
+          first: {
+            type: 'split',
+            data: {
+              id: `split-h-top-${Date.now()}`,
+              direction: 'horizontal',
+              ratio: 0.5,
+              first: { type: 'pane', data: { id: 'pane-top-left', tabs: [tabs[0].id], activeTabId: tabs[0].id } },
+              second: { type: 'pane', data: { id: 'pane-top-right', tabs: [tabs[1].id], activeTabId: tabs[1].id } },
+            },
+          },
+          second: {
+            type: 'split',
+            data: {
+              id: `split-h-bottom-${Date.now()}`,
+              direction: 'horizontal',
+              ratio: 0.5,
+              first: { type: 'pane', data: { id: 'pane-bottom-left', tabs: [tabs[2].id], activeTabId: tabs[2].id } },
+              second: { type: 'pane', data: { id: 'pane-bottom-right', tabs: [tabs[3].id], activeTabId: tabs[3].id } },
+            },
+          },
+        },
+      };
+      set({ tilingLayout: root, maximizedPaneId: null });
+      addToast('success', 'Tata letak diatur ke Grid 2x2 (4 Terminal Aktif).');
+    }
+  },
 }));
+
+// Tiling Tree Pure Helper Functions
+function findPaneInTilingTree(node: TilingNode | null, paneId: string): TerminalPaneNode | null {
+  if (!node) return null;
+  if (node.type === 'pane') {
+    return node.data.id === paneId ? node.data : null;
+  }
+  return findPaneInTilingTree(node.data.first, paneId) || findPaneInTilingTree(node.data.second, paneId);
+}
+
+function replacePaneInTilingTree(
+  node: TilingNode,
+  targetPaneId: string,
+  replacement: TilingNode
+): TilingNode {
+  if (node.type === 'pane') {
+    return node.data.id === targetPaneId ? replacement : node;
+  }
+  return {
+    type: 'split',
+    data: {
+      ...node.data,
+      first: replacePaneInTilingTree(node.data.first, targetPaneId, replacement),
+      second: replacePaneInTilingTree(node.data.second, targetPaneId, replacement),
+    },
+  };
+}
+
+function removePaneFromTilingTree(node: TilingNode, targetPaneId: string): TilingNode | null {
+  if (node.type === 'pane') {
+    return node.data.id === targetPaneId ? null : node;
+  }
+
+  const newFirst = removePaneFromTilingTree(node.data.first, targetPaneId);
+  const newSecond = removePaneFromTilingTree(node.data.second, targetPaneId);
+
+  if (!newFirst && !newSecond) return null;
+  if (!newFirst) return newSecond;
+  if (!newSecond) return newFirst;
+
+  return {
+    type: 'split',
+    data: {
+      ...node.data,
+      first: newFirst,
+      second: newSecond,
+    },
+  };
+}
+
+function updateRatioInTilingTree(node: TilingNode, containerId: string, ratio: number): TilingNode {
+  if (node.type === 'pane') return node;
+  if (node.data.id === containerId) {
+    return {
+      type: 'split',
+      data: {
+        ...node.data,
+        ratio: Math.min(Math.max(ratio, 0.1), 0.9),
+      },
+    };
+  }
+  return {
+    type: 'split',
+    data: {
+      ...node.data,
+      first: updateRatioInTilingTree(node.data.first, containerId, ratio),
+      second: updateRatioInTilingTree(node.data.second, containerId, ratio),
+    },
+  };
+}
+
+function updatePaneDataInTilingTree(
+  node: TilingNode,
+  paneId: string,
+  updater: (pane: TerminalPaneNode) => TerminalPaneNode
+): TilingNode {
+  if (node.type === 'pane') {
+    return node.data.id === paneId
+      ? { type: 'pane', data: updater(node.data) }
+      : node;
+  }
+  return {
+    type: 'split',
+    data: {
+      ...node.data,
+      first: updatePaneDataInTilingTree(node.data.first, paneId, updater),
+      second: updatePaneDataInTilingTree(node.data.second, paneId, updater),
+    },
+  };
+}
