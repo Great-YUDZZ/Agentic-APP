@@ -22,8 +22,8 @@ Paket instalasi dan berkas binari mandiri untuk Linux, Windows, dan macOS tersed
 
 | Sistem Operasi | Tipe Berkas | Deskripsi | Tautan Unduh |
 | :--- | :--- | :--- | :--- |
-| **Linux (Debian/Ubuntu/Mint)** | `.deb` | Paket instalasi native berbasis Debian (4.8 MB) | [Unduh .deb](https://github.com/Great-YUDZZ/Agentic-APP/releases/download/v0.1.0/Agentic%20Native%20Hub_0.1.0_amd64.deb) |
-| **Linux (Universal Portable)** | `.AppImage` | Berkas mandiri tanpa perlu instalasi, langsung jalan (109 MB) | [Unduh .AppImage](https://github.com/Great-YUDZZ/Agentic-APP/releases/download/v0.1.0/Agentic%20Native%20Hub_0.1.0_amd64.AppImage) |
+| **Linux (Debian/Ubuntu/Mint)** | `.deb` | Paket instalasi native berbasis Debian (4.8 MB) | [Unduh .deb](https://github.com/Great-YUDZZ/Agentic-APP/releases/download/v0.1.0/Agentic.Native.Hub_0.1.0_amd64.deb) |
+| **Linux (Universal Portable)** | `.AppImage` | Berkas mandiri tanpa perlu instalasi, langsung jalan (109 MB) | [Unduh .AppImage](https://github.com/Great-YUDZZ/Agentic-APP/releases/download/v0.1.0/Agentic.Native.Hub_0.1.0_amd64.AppImage) |
 | **Linux (Binari Arsip)** | `.zip` | Arsip binari stripped dengan desktop launcher (4.7 MB) | [Unduh .zip](https://github.com/Great-YUDZZ/Agentic-APP/releases/download/v0.1.0/agentic-native-hub-v0.1.0-linux-x86_64.zip) |
 | **Windows (x64)** | `.exe` | Installer wizard mandiri berbasis NSIS | [Unduh .exe](https://github.com/Great-YUDZZ/Agentic-APP/releases/download/v0.1.0/Agentic-Native-Hub_0.1.0_x64-setup.exe) |
 | **Windows (x64)** | `.msi` | Paket instalasi Windows Installer MSI | [Unduh .msi](https://github.com/Great-YUDZZ/Agentic-APP/releases/download/v0.1.0/Agentic-Native-Hub_0.1.0_x64_en-US.msi) |
@@ -34,7 +34,7 @@ Paket instalasi dan berkas binari mandiri untuk Linux, Windows, dan macOS tersed
 #### 1. Linux Debian / Ubuntu / Mint (.deb)
 ```bash
 # Instal paket deb menggunakan dpkg
-sudo dpkg -i "Agentic Native Hub_0.1.0_amd64.deb"
+sudo dpkg -i Agentic.Native.Hub_0.1.0_amd64.deb
 
 # Jika ada dependensi sistem yang belum terpenuhi, perbaiki dengan perintah berikut:
 sudo apt-get install -f
@@ -43,10 +43,10 @@ sudo apt-get install -f
 #### 2. Linux AppImage (Portabel Universal)
 ```bash
 # Berikan izin eksekusi pada berkas AppImage
-chmod +x "Agentic Native Hub_0.1.0_amd64.AppImage"
+chmod +x Agentic.Native.Hub_0.1.0_amd64.AppImage
 
 # Jalankan aplikasi langsung
-./"Agentic Native Hub_0.1.0_amd64.AppImage"
+./Agentic.Native.Hub_0.1.0_amd64.AppImage
 ```
 
 #### 3. Linux Binari Zip
