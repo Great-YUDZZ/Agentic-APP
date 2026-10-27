@@ -23,6 +23,7 @@ export const AgentQuickLauncherPopover: React.FC<AgentQuickLauncherPopoverProps>
 }) => {
   const {
     installedCliAgents,
+    refreshInstalledCliAgents,
     spawnAgentInPane,
     addTabToPane,
     splitPane,
@@ -39,6 +40,12 @@ export const AgentQuickLauncherPopover: React.FC<AgentQuickLauncherPopoverProps>
     top: 60,
     left: 60,
   });
+
+  useEffect(() => {
+    if (installedCliAgents.length === 0) {
+      refreshInstalledCliAgents();
+    }
+  }, [installedCliAgents.length, refreshInstalledCliAgents]);
 
   useEffect(() => {
     if (triggerRect) {
@@ -77,18 +84,10 @@ export const AgentQuickLauncherPopover: React.FC<AgentQuickLauncherPopoverProps>
     };
   }, [onClose]);
 
-  // Fallback katalog jika pendeteksian awal masih berlangsung
-  const defaultAgentCatalog = [
-    { id: 'claude', name: 'Claude Code', binary_name: 'claude', description: 'Anthropic Agentic Coding Harness' },
-    { id: 'agy', name: 'Google Antigravity', binary_name: 'agy', description: 'Gemini DeepMind Agent Runtime' },
-    { id: 'opencode', name: 'OpenCode Interpreter', binary_name: 'opencode', description: 'Open Source AI Terminal Agent' },
-    { id: 'gemini', name: 'Gemini CLI', binary_name: 'gemini', description: 'Google Developer AI CLI' },
-    { id: 'aider', name: 'Aider CLI', binary_name: 'aider', description: 'AI Pair Programming in Terminal' },
-  ];
+  // Hanya sediakan agen yang benar-benar terinstal di perangkat pengguna
+  const installedOnlyAgents = installedCliAgents.filter((ag) => ag.is_installed);
 
-  const agentList = installedCliAgents.length > 0 ? installedCliAgents : defaultAgentCatalog;
-
-  const filteredAgents = agentList.filter((ag) =>
+  const filteredAgents = installedOnlyAgents.filter((ag) =>
     ag.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     ag.binary_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -268,11 +267,15 @@ export const AgentQuickLauncherPopover: React.FC<AgentQuickLauncherPopoverProps>
               </div>
           ))}
 
-          {filteredAgents.length === 0 && (
+          {installedOnlyAgents.length === 0 ? (
+            <div className="p-3 text-center text-xs text-[#707070]">
+              Tidak ada agen CLI yang terdeteksi di perangkat ini
+            </div>
+          ) : filteredAgents.length === 0 ? (
             <div className="p-3 text-center text-xs text-[#707070]">
               Tidak ada agen yang cocok dengan query '{searchQuery}'
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Worktree Isolation Toggle Footer */}

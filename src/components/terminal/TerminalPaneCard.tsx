@@ -7,9 +7,10 @@ import {
   Trash2,
   X,
   Plus,
+  GripVertical,
 } from 'lucide-react';
 import { TerminalPaneNode } from '../../types';
-import { useStore } from '../../store/useStore';
+import { useStore, countPanesInTilingTree } from '../../store/useStore';
 import { XtermView } from './XtermView';
 import { AgentQuickLauncherPopover } from './AgentQuickLauncherPopover';
 
@@ -19,9 +20,13 @@ interface TerminalPaneCardProps {
 
 export const TerminalPaneCard: React.FC<TerminalPaneCardProps> = ({ pane }) => {
   const {
+    tilingLayout,
     terminalTabs,
     activeTerminalWorkers,
     maximizedPaneId,
+    draggingPaneId,
+    setDraggingPaneId,
+    reparentPane,
     splitPane,
     closePane,
     toggleMaximizePane,
@@ -31,8 +36,14 @@ export const TerminalPaneCard: React.FC<TerminalPaneCardProps> = ({ pane }) => {
   } = useStore();
 
   const [isLauncherOpen, setIsLauncherOpen] = useState(false);
+  const [dropZone, setDropZone] = useState<'left' | 'right' | 'top' | 'bottom' | 'tab' | null>(null);
+
+  const cardRef = useRef<HTMLDivElement>(null);
   const addBtnRef = useRef<HTMLButtonElement>(null);
   const isMaximized = maximizedPaneId === pane.id;
+
+  const totalPanes = countPanesInTilingTree(tilingLayout);
+  const canDragSnap = totalPanes >= 2;
 
   const getWorkerForTab = (tabId: string) => {
     return activeTerminalWorkers.find((w) => w.tab_id === tabId);
@@ -52,12 +63,82 @@ export const TerminalPaneCard: React.FC<TerminalPaneCardProps> = ({ pane }) => {
     }
   };
 
+  // Drag Source Handlers
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData('text/plain', pane.id);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggingPaneId(pane.id);
+  };
+
+  const handleDragEnd = () => {
+    setDraggingPaneId(null);
+    setDropZone(null);
+  };
+
+  // Drop Target Handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (!cardRef.current || !draggingPaneId || draggingPaneId === pane.id) return;
+    e.dataTransfer.dropEffect = 'move';
+
+    const rect = cardRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+
+    if (x > 0.72) {
+      setDropZone('right');
+    } else if (x < 0.28) {
+      setDropZone('left');
+    } else if (y > 0.72) {
+      setDropZone('bottom');
+    } else if (y < 0.28) {
+      setDropZone('top');
+    } else {
+      setDropZone('tab');
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (!cardRef.current?.contains(e.relatedTarget as Node)) {
+      setDropZone(null);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const sourceId = e.dataTransfer.getData('text/plain') || draggingPaneId;
+    if (sourceId && sourceId !== pane.id && dropZone) {
+      reparentPane(sourceId, pane.id, dropZone);
+    }
+    setDraggingPaneId(null);
+    setDropZone(null);
+  };
+
   return (
-    <div className="flex flex-col h-full w-full bg-[#171717] border border-[#2e2e2e] rounded-lg overflow-hidden relative shadow-sm">
+    <div
+      ref={cardRef}
+      className="flex flex-col h-full w-full bg-[#171717] border border-[#2e2e2e] rounded-lg overflow-hidden relative shadow-sm"
+    >
       {/* Pane Header */}
-      <div className="h-9 bg-[#1f1f1f] border-b border-[#2e2e2e] px-2 flex items-center justify-between flex-shrink-0 select-none">
-        {/* Tabs Row */}
-        <div className="flex items-center gap-1 overflow-x-auto max-w-[65%] scrollbar-none py-1">
+      <div
+        draggable={canDragSnap}
+        onDragStart={canDragSnap ? handleDragStart : undefined}
+        onDragEnd={canDragSnap ? handleDragEnd : undefined}
+        className={`h-9 bg-[#1f1f1f] border-b border-[#2e2e2e] px-2 flex items-center justify-between flex-shrink-0 select-none ${
+          canDragSnap ? 'cursor-grab active:cursor-grabbing' : ''
+        }`}
+      >
+        {/* Left Drag Handle + Tabs */}
+        <div className="flex items-center gap-1 overflow-x-auto max-w-[70%] scrollbar-none py-1">
+          {canDragSnap && (
+            <div
+              className="p-1 rounded text-[#707070] hover:text-[#ececec] flex-shrink-0 mr-0.5"
+              title="Tarik untuk memindahkan atau men-split posisi terminal (Drag to Snap)"
+            >
+              <GripVertical className="w-3.5 h-3.5" />
+            </div>
+          )}
+
           {pane.tabs.map((tabId) => {
             const tab = terminalTabs.find((t) => t.id === tabId);
             const worker = getWorkerForTab(tabId);
@@ -67,7 +148,7 @@ export const TerminalPaneCard: React.FC<TerminalPaneCardProps> = ({ pane }) => {
               <div
                 key={tabId}
                 onClick={() => setActiveTabInPane(pane.id, tabId)}
-                className={`group flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs cursor-pointer border transition-colors ${
+                className={`group flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs cursor-pointer border transition-colors flex-shrink-0 ${
                   isActive
                     ? 'bg-[#2a2a2a] border-[#404040] text-[#ececec]'
                     : 'bg-[#1b1b1b] border-transparent text-[#8e8e8e] hover:text-[#b4b4b4] hover:bg-[#222222]'
@@ -177,6 +258,57 @@ export const TerminalPaneCard: React.FC<TerminalPaneCardProps> = ({ pane }) => {
           <XtermView tabId={pane.activeTabId} isActive={true} />
         )}
       </div>
+
+      {/* Transparent Drag-Over Event Catcher */}
+      {draggingPaneId !== null && draggingPaneId !== pane.id && (
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className="absolute inset-0 z-40 bg-transparent"
+        />
+      )}
+
+      {/* Visual Drop Zone Previews (Windows Snap Style) */}
+      {dropZone === 'right' && (
+        <div className="absolute top-0 right-0 w-1/2 h-full bg-[#10a37f]/15 border-2 border-dashed border-[#10a37f] rounded-r-lg z-50 pointer-events-none flex items-center justify-center animate-in fade-in duration-75">
+          <span className="text-xs font-semibold text-[#10a37f] bg-[#1a1a1a]/95 px-2.5 py-1 rounded border border-[#10a37f]/50 shadow-lg">
+            Split Kanan
+          </span>
+        </div>
+      )}
+
+      {dropZone === 'left' && (
+        <div className="absolute top-0 left-0 w-1/2 h-full bg-[#10a37f]/15 border-2 border-dashed border-[#10a37f] rounded-l-lg z-50 pointer-events-none flex items-center justify-center animate-in fade-in duration-75">
+          <span className="text-xs font-semibold text-[#10a37f] bg-[#1a1a1a]/95 px-2.5 py-1 rounded border border-[#10a37f]/50 shadow-lg">
+            Split Kiri
+          </span>
+        </div>
+      )}
+
+      {dropZone === 'bottom' && (
+        <div className="absolute bottom-0 left-0 w-full h-1/2 bg-[#10a37f]/15 border-2 border-dashed border-[#10a37f] rounded-b-lg z-50 pointer-events-none flex items-center justify-center animate-in fade-in duration-75">
+          <span className="text-xs font-semibold text-[#10a37f] bg-[#1a1a1a]/95 px-2.5 py-1 rounded border border-[#10a37f]/50 shadow-lg">
+            Split Bawah
+          </span>
+        </div>
+      )}
+
+      {dropZone === 'top' && (
+        <div className="absolute top-0 left-0 w-full h-1/2 bg-[#10a37f]/15 border-2 border-dashed border-[#10a37f] rounded-t-lg z-50 pointer-events-none flex items-center justify-center animate-in fade-in duration-75">
+          <span className="text-xs font-semibold text-[#10a37f] bg-[#1a1a1a]/95 px-2.5 py-1 rounded border border-[#10a37f]/50 shadow-lg">
+            Split Atas
+          </span>
+        </div>
+      )}
+
+      {dropZone === 'tab' && (
+        <div className="absolute inset-2 bg-[#2a2a2a]/80 border-2 border-dashed border-[#505050] rounded-lg z-50 pointer-events-none flex items-center justify-center animate-in fade-in duration-75">
+          <span className="text-xs font-semibold text-[#ececec] bg-[#1f1f1f] px-3 py-1 rounded border border-[#383838] shadow-lg">
+            Gabung Sebagai Tab
+          </span>
+        </div>
+      )}
     </div>
   );
 };

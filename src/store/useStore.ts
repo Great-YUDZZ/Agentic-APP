@@ -403,6 +403,13 @@ interface AppStore {
     customCwd?: string,
     placement?: 'tab' | 'split-right' | 'split-down'
   ) => Promise<string | null>;
+  draggingPaneId: string | null;
+  setDraggingPaneId: (paneId: string | null) => void;
+  reparentPane: (
+    sourcePaneId: string,
+    targetPaneId: string,
+    position: 'left' | 'right' | 'top' | 'bottom' | 'tab'
+  ) => void;
   consumeInitialCommand: (tabId: string) => void;
   addTabToPane: (paneId: string, title?: string, cwd?: string) => Promise<string>;
   setActiveTabInPane: (paneId: string, tabId: string) => void;
@@ -4059,15 +4066,16 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
     const tabId = `tab-agent-${Date.now()}`;
     const workerId = `worker-${Date.now()}`;
 
-    // Tentukan perintah launch yang tepat (gunakan absolute path jika terdeteksi)
-    const launchCmd = agent?.path || agent?.binary_name || (agentId === 'antigravity' ? 'agy' : agentId);
+    // Perintah eksekusi ringkas (nama biner murni seperti agy, claude, opencode, gemini tanpa path folder)
+    let launchCmd = agent?.binary_name || agentId;
+    if (launchCmd.toLowerCase() === 'antigravity') launchCmd = 'agy';
 
     const newTab: TerminalTab = {
       id: tabId,
       title: agentName,
       cwd: customCwd || '',
       logs: [],
-      initialCommand: `${launchCmd}\n`,
+      initialCommand: `${launchCmd}\r`,
       agentId: agent?.id || agentId,
     };
 
@@ -4129,6 +4137,22 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
     }
 
     return workerId;
+  },
+
+  draggingPaneId: null,
+  setDraggingPaneId: (paneId: string | null) => set({ draggingPaneId: paneId }),
+
+  reparentPane: (
+    sourcePaneId: string,
+    targetPaneId: string,
+    position: 'left' | 'right' | 'top' | 'bottom' | 'tab'
+  ) => {
+    const { tilingLayout, addToast } = get();
+    if (!tilingLayout || sourcePaneId === targetPaneId) return;
+
+    const updated = reparentPaneInTilingTree(tilingLayout, sourcePaneId, targetPaneId, position);
+    set({ tilingLayout: updated, draggingPaneId: null });
+    addToast('info', 'Tata letak terminal diperbarui.');
   },
 
   splitPane: async (paneId: string, direction: SplitDirection, newTabId?: string) => {
@@ -4449,4 +4473,68 @@ function updatePaneDataInTilingTree(
       second: updatePaneDataInTilingTree(node.data.second, paneId, updater),
     },
   };
+}
+
+export function countPanesInTilingTree(node: TilingNode | null): number {
+  if (!node) return 0;
+  if (node.type === 'pane') return 1;
+  return countPanesInTilingTree(node.data.first) + countPanesInTilingTree(node.data.second);
+}
+
+export function reparentPaneInTilingTree(
+  root: TilingNode,
+  sourcePaneId: string,
+  targetPaneId: string,
+  position: 'left' | 'right' | 'top' | 'bottom' | 'tab'
+): TilingNode {
+  if (sourcePaneId === targetPaneId) return root;
+
+  const sourcePane = findPaneInTilingTree(root, sourcePaneId);
+  if (!sourcePane) return root;
+
+  if (position === 'tab') {
+    const treeWithoutSource = removePaneFromTilingTree(root, sourcePaneId);
+    if (!treeWithoutSource) return root;
+
+    return updatePaneDataInTilingTree(treeWithoutSource, targetPaneId, (target) => ({
+      ...target,
+      tabs: Array.from(new Set([...target.tabs, ...sourcePane.tabs])),
+      activeTabId: sourcePane.activeTabId || target.activeTabId,
+    }));
+  }
+
+  const treeWithoutSource = removePaneFromTilingTree(root, sourcePaneId);
+  if (!treeWithoutSource) return root;
+
+  const targetPane = findPaneInTilingTree(treeWithoutSource, targetPaneId);
+  if (!targetPane) return root;
+
+  const direction: SplitDirection =
+    position === 'left' || position === 'right' ? 'horizontal' : 'vertical';
+
+  const sourceNode: TilingNode = {
+    type: 'pane',
+    data: { ...sourcePane },
+  };
+
+  const targetNode: TilingNode = {
+    type: 'pane',
+    data: { ...targetPane },
+  };
+
+  const firstNode = position === 'left' || position === 'top' ? sourceNode : targetNode;
+  const secondNode = position === 'left' || position === 'top' ? targetNode : sourceNode;
+
+  const newSplitContainer: TilingNode = {
+    type: 'split',
+    data: {
+      id: `split-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      direction,
+      ratio: 0.5,
+      first: firstNode,
+      second: secondNode,
+    },
+  };
+
+  return replacePaneInTilingTree(treeWithoutSource, targetPaneId, newSplitContainer);
 }

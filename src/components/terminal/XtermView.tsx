@@ -84,9 +84,19 @@ export const XtermView: React.FC<XtermViewProps> = ({ tabId, isActive }) => {
             // Eksekusi initialCommand jika tab memiliki perintah awal (seperti peluncuran agen)
             const currentTab = useStore.getState().terminalTabs.find((t) => t.id === tabId);
             if (currentTab?.initialCommand) {
-              const cmd = currentTab.initialCommand;
+              const rawCmd = currentTab.initialCommand;
               useStore.getState().consumeInitialCommand(tabId);
-              await invoke('terminal_pty_write', { tabId, data: cmd });
+              const cmd = rawCmd.endsWith('\r') ? rawCmd : `${rawCmd.trim()}\r`;
+
+              // Berikan jeda 180ms agar prompt shell selesai muncul di layar
+              setTimeout(async () => {
+                if (isDisposed) return;
+                try {
+                  await invoke('terminal_pty_write', { tabId, data: cmd });
+                } catch (e) {
+                  console.warn('Gagal menulis initialCommand ke PTY:', e);
+                }
+              }, 180);
             }
           } catch (e) {
             console.warn('Error saat initial fit terminal atau eksekusi perintah:', e);
