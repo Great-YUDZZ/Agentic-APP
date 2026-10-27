@@ -11,6 +11,8 @@ agentic-native-hub
 *.deb
 *.app
 *.dmg
+*.AppImage
+release/
 
 # Tauri / Rust build
 src-tauri/target/

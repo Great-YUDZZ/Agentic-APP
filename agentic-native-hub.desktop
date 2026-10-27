@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Agentic Native Hub
+Comment=Autonomous AI Native Hub - Desktop Multi-Agent Studio and Coding Assistant
+Exec=agentic-native-hub %U
+Icon=agentic-native-hub
+Terminal=false
+Type=Application
+Categories=Development;IDE;
+StartupWMClass=agentic-native-hub

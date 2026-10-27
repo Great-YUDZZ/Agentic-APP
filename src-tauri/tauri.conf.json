@@ -32,6 +32,25 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "category": "DeveloperTool",
+    "shortDescription": "Autonomous AI Native Hub",
+    "longDescription": "Autonomous AI Native Hub: Desktop Multi-Agent Studio and Coding Assistant",
+    "copyright": "Copyright 2026 Agentic Hub",
+    "linux": {
+      "deb": {
+        "depends": [
+          "libwebkit2gtk-4.1-0 | libwebkit2gtk-4.0-37",
+          "libayatana-appindicator3-1 | libappindicator3-1",
+          "libssl3 | libssl1.1"
+        ],
+        "section": "devel"
+      }
+    },
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    }
   }
 }
