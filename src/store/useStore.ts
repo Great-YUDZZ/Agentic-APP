@@ -397,7 +397,13 @@ interface AppStore {
   closePane: (paneId: string) => void;
   updateSplitRatio: (containerId: string, ratio: number) => void;
   toggleMaximizePane: (paneId: string) => void;
-  spawnAgentInPane: (paneId: string, agentId: string, customCwd?: string) => Promise<string | null>;
+  spawnAgentInPane: (
+    paneId: string,
+    agentId: string,
+    customCwd?: string,
+    placement?: 'tab' | 'split-right' | 'split-down'
+  ) => Promise<string | null>;
+  consumeInitialCommand: (tabId: string) => void;
   addTabToPane: (paneId: string, title?: string, cwd?: string) => Promise<string>;
   setActiveTabInPane: (paneId: string, tabId: string) => void;
   closeTabInPane: (paneId: string, tabId: string) => void;
@@ -4024,27 +4030,54 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
     return tabId;
   },
 
-  spawnAgentInPane: async (paneId: string, agentId: string, customCwd?: string) => {
-    const { installedCliAgents, addToast, tilingLayout } = get();
-    const agent = installedCliAgents.find((a) => a.id === agentId);
-    const agentName = agent?.name || agentId;
+  consumeInitialCommand: (tabId: string) => {
+    set((s) => ({
+      terminalTabs: s.terminalTabs.map((t) =>
+        t.id === tabId ? { ...t, initialCommand: undefined } : t
+      ),
+    }));
+  },
+
+  spawnAgentInPane: async (
+    paneId: string,
+    agentId: string,
+    customCwd?: string,
+    placement: 'tab' | 'split-right' | 'split-down' = 'tab'
+  ) => {
+    const { installedCliAgents, addToast, tilingLayout, splitPane } = get();
+
+    // Cari metadata agen dengan pencocokan id atau binary_name yang fleksibel
+    const agent = installedCliAgents.find(
+      (a) =>
+        a.id.toLowerCase() === agentId.toLowerCase() ||
+        a.binary_name.toLowerCase() === agentId.toLowerCase() ||
+        (agentId.toLowerCase() === 'antigravity' && a.id.toLowerCase() === 'agy') ||
+        (agentId.toLowerCase() === 'agy' && a.id.toLowerCase() === 'antigravity')
+    );
+
+    const agentName = agent?.name || (agentId === 'agy' || agentId === 'antigravity' ? 'Google Antigravity' : agentId);
     const tabId = `tab-agent-${Date.now()}`;
     const workerId = `worker-${Date.now()}`;
+
+    // Tentukan perintah launch yang tepat (gunakan absolute path jika terdeteksi)
+    const launchCmd = agent?.path || agent?.binary_name || (agentId === 'antigravity' ? 'agy' : agentId);
 
     const newTab: TerminalTab = {
       id: tabId,
       title: agentName,
       cwd: customCwd || '',
       logs: [],
+      initialCommand: `${launchCmd}\n`,
+      agentId: agent?.id || agentId,
     };
 
     const workerSession: TerminalWorkerSession = {
       worker_id: workerId,
-      agent_id: agentId,
+      agent_id: agent?.id || agentId,
       tab_id: tabId,
       role: 'Agent Worker',
       task_spec: '',
-      status: 'idle',
+      status: 'working',
       created_at: Date.now(),
     };
 
@@ -4054,13 +4087,19 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
       activeTerminalWorkers: [...s.activeTerminalWorkers, workerSession],
     }));
 
-    if (tilingLayout) {
-      const updated = updatePaneDataInTilingTree(tilingLayout, paneId, (p) => ({
-        ...p,
-        tabs: [...p.tabs, tabId],
-        activeTabId: tabId,
-      }));
-      set({ tilingLayout: updated });
+    if (placement === 'split-right') {
+      await splitPane(paneId, 'horizontal', tabId);
+    } else if (placement === 'split-down') {
+      await splitPane(paneId, 'vertical', tabId);
+    } else {
+      if (tilingLayout) {
+        const updated = updatePaneDataInTilingTree(tilingLayout, paneId, (p) => ({
+          ...p,
+          tabs: [...p.tabs, tabId],
+          activeTabId: tabId,
+        }));
+        set({ tilingLayout: updated });
+      }
     }
 
     if ((window as any).__TAURI_INTERNALS__) {
@@ -4068,7 +4107,7 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
         const { invoke } = await import('@tauri-apps/api/core');
         await invoke('register_terminal_worker', {
           workerId,
-          agentId,
+          agentId: agent?.id || agentId,
           tabId,
           role: 'Agent Worker',
           taskSpec: '',
@@ -4081,13 +4120,7 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
           cwd: customCwd || undefined,
         });
 
-        const launchCmd = agent?.path || agent?.binary_name || agentId;
-        await invoke('terminal_pty_write', {
-          tabId,
-          data: `${launchCmd}\n`,
-        });
-
-        addToast('success', `Agen '${agentName}' dijalankan interaktif di terminal.`);
+        addToast('success', `Agen '${agentName}' dijalankan di terminal.`);
         return workerId;
       } catch (err: any) {
         addToast('error', `Gagal menjalankan agen '${agentName}': ${err}`);

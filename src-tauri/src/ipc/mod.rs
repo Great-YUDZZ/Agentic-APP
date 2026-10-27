@@ -1343,6 +1343,23 @@ pub async fn init_terminal_pty(
     cols: u16,
     cwd: Option<String>,
 ) -> Result<(), String> {
+    // 1. Cek apakah sesi PTY sudah aktif untuk tab_id ini (idempotent)
+    {
+        let sessions = state.pty_sessions.lock().unwrap();
+        if let Some(session) = sessions.get(&tab_id) {
+            // Sesi sudah berjalan, lakukan resize master jika diperlukan
+            if let Ok(master) = session.master.lock() {
+                let _ = master.resize(PtySize {
+                    rows: rows.max(10),
+                    cols: cols.max(20),
+                    pixel_width: 0,
+                    pixel_height: 0,
+                });
+            }
+            return Ok(());
+        }
+    }
+
     let ws = match &cwd {
         Some(custom_dir) if !custom_dir.trim().is_empty() => std::path::PathBuf::from(custom_dir),
         _ => state.tool_runner.workspace_root(),
@@ -1374,6 +1391,34 @@ pub async fn init_terminal_pty(
     cmd.env("ORCA_AGENT_HOOK_PORT", state.hook_server.port.to_string());
     cmd.env("ORCA_AGENT_HOOK_TOKEN", &state.hook_server.token);
     cmd.env("ORCA_PANE_KEY", &tab_id);
+
+    // Pastikan path CLI agent (.local/bin, .cargo/bin, .opencode/bin, dsb) tersedia di PTY
+    if !cfg!(windows) {
+        let current_path = std::env::var("PATH").unwrap_or_default();
+        let home = std::env::var("HOME").unwrap_or_default();
+        let mut extra_dirs = Vec::new();
+        if !home.is_empty() {
+            extra_dirs.push(format!("{}/.local/bin", home));
+            extra_dirs.push(format!("{}/.cargo/bin", home));
+            extra_dirs.push(format!("{}/.opencode/bin", home));
+            extra_dirs.push(format!("{}/bin", home));
+
+            let nvm_dir = std::path::PathBuf::from(&home).join(".nvm/versions/node");
+            if let Ok(entries) = std::fs::read_dir(nvm_dir) {
+                for entry in entries.flatten() {
+                    let bin_path = entry.path().join("bin");
+                    if bin_path.is_dir() {
+                        extra_dirs.push(bin_path.to_string_lossy().to_string());
+                    }
+                }
+            }
+        }
+        if !extra_dirs.is_empty() {
+            let combined = format!("{}:{}", extra_dirs.join(":"), current_path);
+            cmd.env("PATH", combined);
+        }
+    }
+
     if !cfg!(windows) && default_shell.ends_with("bash") {
         cmd.arg("-i");
     }

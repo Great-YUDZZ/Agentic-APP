@@ -5,6 +5,7 @@ import '@xterm/xterm/css/xterm.css';
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { useStore } from '../../store/useStore';
 
 interface XtermViewProps {
   tabId: string;
@@ -71,21 +72,27 @@ export const XtermView: React.FC<XtermViewProps> = ({ tabId, isActive }) => {
         unlistenChannel = fnChannel;
 
         // Inisialisasi PTY setelah listener terpasang
-        setTimeout(() => {
+        setTimeout(async () => {
           if (isDisposed) return;
           try {
             fitAddon.fit();
             const rows = term.rows || 24;
             const cols = term.cols || 80;
 
-            invoke('init_terminal_pty', { tabId, rows, cols }).catch((err) => {
-              console.warn('Gagal inisialisasi PTY:', err);
-            });
+            await invoke('init_terminal_pty', { tabId, rows, cols });
+
+            // Eksekusi initialCommand jika tab memiliki perintah awal (seperti peluncuran agen)
+            const currentTab = useStore.getState().terminalTabs.find((t) => t.id === tabId);
+            if (currentTab?.initialCommand) {
+              const cmd = currentTab.initialCommand;
+              useStore.getState().consumeInitialCommand(tabId);
+              await invoke('terminal_pty_write', { tabId, data: cmd });
+            }
           } catch (e) {
-            console.warn('Error saat initial fit terminal:', e);
+            console.warn('Error saat initial fit terminal atau eksekusi perintah:', e);
           }
           term.focus();
-        }, 30);
+        }, 50);
       }
     });
 

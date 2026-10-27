@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Columns,
   Rows,
@@ -7,12 +7,14 @@ import {
   Radio,
   PanelRight,
   Terminal,
+  Plus,
   RefreshCw,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { TilingRenderer } from './TilingRenderer';
 import { TerminalInspectorPanel } from './TerminalInspectorPanel';
 import { TerminalPaneNode } from '../../types';
+import { AgentQuickLauncherPopover } from './AgentQuickLauncherPopover';
 
 export const MultiTerminalPane: React.FC = () => {
   const {
@@ -31,6 +33,15 @@ export const MultiTerminalPane: React.FC = () => {
     ensureTilingInitialized();
     refreshInstalledCliAgents();
   }, [ensureTilingInitialized, refreshInstalledCliAgents]);
+
+  const [isTopLauncherOpen, setIsTopLauncherOpen] = useState(false);
+  const topAddBtnRef = useRef<HTMLButtonElement>(null);
+
+  const getFirstPaneId = (node: any): string => {
+    if (!node) return 'pane-default';
+    if (node.type === 'pane') return node.data.id;
+    return getFirstPaneId(node.data.first);
+  };
 
   // Find maximized pane if any
   const findMaximizedPane = (node: any, targetId: string): TerminalPaneNode | null => {
@@ -89,6 +100,27 @@ export const MultiTerminalPane: React.FC = () => {
             >
               <LayoutGrid className="w-3.5 h-3.5" />
             </button>
+          </div>
+
+          {/* Action Tambah Agen */}
+          <div>
+            <button
+              ref={topAddBtnRef}
+              onClick={() => setIsTopLauncherOpen(!isTopLauncherOpen)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#252525] hover:bg-[#303030] border border-[#383838] text-xs font-medium text-[#ececec] transition-colors"
+              title="Buka agen CLI baru atau terminal"
+            >
+              <Plus className="w-3.5 h-3.5 text-[#10a37f]" />
+              <span>Tambah Agen</span>
+            </button>
+
+            {isTopLauncherOpen && (
+              <AgentQuickLauncherPopover
+                paneId={getFirstPaneId(tilingLayout)}
+                triggerRect={topAddBtnRef.current?.getBoundingClientRect()}
+                onClose={() => setIsTopLauncherOpen(false)}
+              />
+            )}
           </div>
         </div>
 

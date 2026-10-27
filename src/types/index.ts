@@ -187,6 +187,8 @@ export interface TerminalTab {
   title: string;
   cwd: string;
   logs: TerminalLog[];
+  initialCommand?: string;
+  agentId?: string;
 }
 
 export interface InstalledSkill {

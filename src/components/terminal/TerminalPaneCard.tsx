@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Columns,
   Rows,
@@ -31,6 +31,7 @@ export const TerminalPaneCard: React.FC<TerminalPaneCardProps> = ({ pane }) => {
   } = useStore();
 
   const [isLauncherOpen, setIsLauncherOpen] = useState(false);
+  const addBtnRef = useRef<HTMLButtonElement>(null);
   const isMaximized = maximizedPaneId === pane.id;
 
   const getWorkerForTab = (tabId: string) => {
@@ -102,11 +103,12 @@ export const TerminalPaneCard: React.FC<TerminalPaneCardProps> = ({ pane }) => {
           })}
 
           {/* '+' Button to open Quick Launcher Popover */}
-          <div className="relative">
+          <div className="flex-shrink-0">
             <button
+              ref={addBtnRef}
               onClick={() => setIsLauncherOpen(!isLauncherOpen)}
               className="p-1 rounded-md bg-[#252525] hover:bg-[#303030] text-[#8e8e8e] hover:text-[#ececec] border border-[#333333] transition-colors"
-              title="Buka agen atau terminal baru di panel ini"
+              title="Buka agen atau terminal baru"
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
@@ -114,6 +116,7 @@ export const TerminalPaneCard: React.FC<TerminalPaneCardProps> = ({ pane }) => {
             {isLauncherOpen && (
               <AgentQuickLauncherPopover
                 paneId={pane.id}
+                triggerRect={addBtnRef.current?.getBoundingClientRect()}
                 onClose={() => setIsLauncherOpen(false)}
               />
             )}
