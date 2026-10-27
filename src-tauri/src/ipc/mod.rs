@@ -2982,6 +2982,7 @@ mod tests {
         let ids: Vec<&str> = agents.iter().map(|a| a.id.as_str()).collect();
         assert!(ids.contains(&"claude"));
         assert!(ids.contains(&"agy"));
+        assert!(ids.contains(&"omp"));
         assert!(ids.contains(&"opencode"));
         assert!(ids.contains(&"gemini"));
     }

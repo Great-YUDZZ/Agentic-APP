@@ -3631,6 +3631,18 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
               is_custom: false,
             },
             {
+              id: 'omp',
+              name: 'Oh My Phi (omp)',
+              binary_name: 'omp',
+              path: '/home/yudz/.local/bin/omp',
+              version: '18.9.0',
+              is_installed: true,
+              default_args: [],
+              custom_env: {},
+              supports_mcp: true,
+              is_custom: false,
+            },
+            {
               id: 'opencode',
               name: 'OpenCode',
               binary_name: 'opencode',
@@ -4059,23 +4071,26 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
         a.id.toLowerCase() === agentId.toLowerCase() ||
         a.binary_name.toLowerCase() === agentId.toLowerCase() ||
         (agentId.toLowerCase() === 'antigravity' && a.id.toLowerCase() === 'agy') ||
-        (agentId.toLowerCase() === 'agy' && a.id.toLowerCase() === 'antigravity')
+        (agentId.toLowerCase() === 'agy' && a.id.toLowerCase() === 'antigravity') ||
+        (agentId.toLowerCase() === 'oh-my-phi' && a.id.toLowerCase() === 'omp') ||
+        (agentId.toLowerCase() === 'omp' && a.id.toLowerCase() === 'oh-my-phi')
     );
 
-    const agentName = agent?.name || (agentId === 'agy' || agentId === 'antigravity' ? 'Google Antigravity' : agentId);
+    const agentName = agent?.name || (agentId === 'agy' || agentId === 'antigravity' ? 'Google Antigravity' : (agentId === 'omp' || agentId === 'oh-my-phi' ? 'Oh My Phi (omp)' : agentId));
     const tabId = `tab-agent-${Date.now()}`;
     const workerId = `worker-${Date.now()}`;
 
-    // Perintah eksekusi ringkas (nama biner murni seperti agy, claude, opencode, gemini tanpa path folder)
+    // Perintah eksekusi ringkas (nama biner murni seperti agy, omp, claude, opencode, gemini tanpa path folder)
     let launchCmd = agent?.binary_name || agentId;
     if (launchCmd.toLowerCase() === 'antigravity') launchCmd = 'agy';
+    if (launchCmd.toLowerCase() === 'oh-my-phi') launchCmd = 'omp';
 
     const newTab: TerminalTab = {
       id: tabId,
       title: agentName,
       cwd: customCwd || '',
       logs: [],
-      initialCommand: `${launchCmd}\r`,
+      initialCommand: `${launchCmd}\n`,
       agentId: agent?.id || agentId,
     };
 

@@ -254,9 +254,13 @@ export const TerminalPaneCard: React.FC<TerminalPaneCardProps> = ({ pane }) => {
 
       {/* Pane Terminal Canvas */}
       <div className="flex-1 min-h-0 relative bg-[#121212]">
-        {pane.activeTabId && (
-          <XtermView tabId={pane.activeTabId} isActive={true} />
-        )}
+        {pane.tabs.map((tabId) => (
+          <XtermView
+            key={tabId}
+            tabId={tabId}
+            isActive={tabId === pane.activeTabId}
+          />
+        ))}
       </div>
 
       {/* Transparent Drag-Over Event Catcher */}

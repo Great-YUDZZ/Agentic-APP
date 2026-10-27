@@ -45,6 +45,14 @@ const KNOWN_AGENTS: &[KnownAgentDefinition] = &[
         extra_dirs: &[".local/bin", ".cargo/bin"],
     },
     KnownAgentDefinition {
+        id: "omp",
+        name: "Oh My Phi (omp)",
+        binary_name: "omp",
+        version_arg: "--version",
+        supports_mcp: true,
+        extra_dirs: &[".local/bin", ".cargo/bin"],
+    },
+    KnownAgentDefinition {
         id: "opencode",
         name: "OpenCode",
         binary_name: "opencode",
