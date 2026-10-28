@@ -69,7 +69,7 @@ jobs:
           echo "PATH=C:\vcpkg\installed\x64-windows\bin;$env:PATH" >> $env:GITHUB_ENV
 
       - name: Install Frontend Dependencies
-        run: npm ci
+        run: npm install
 
       - name: Build and Publish Tauri Application
         uses: tauri-apps/tauri-action@v0
