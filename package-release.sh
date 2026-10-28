@@ -24,6 +24,10 @@ npm run build
 # 3. Build biner dan bundles dengan Tauri
 echo "3. Membangun installer biner (.deb, .AppImage) via Tauri..."
 cd "$MIRROR_DIR"
+if [ -f "$HOME/.tauri/agentic.key" ]; then
+    export TAURI_SIGNING_PRIVATE_KEY="$(cat $HOME/.tauri/agentic.key)"
+    export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="agentic_native_hub_key_2026"
+fi
 # Jalankan tauri build untuk bundler deb dan appimage
 npx tauri build --bundles deb,appimage
 
