@@ -4,7 +4,6 @@ import {
   Rows,
   Square,
   LayoutGrid,
-  Radio,
   PanelRight,
   Terminal,
   Plus,
@@ -25,7 +24,6 @@ export const MultiTerminalPane: React.FC = () => {
     ensureTilingInitialized,
     applyPresetLayout,
     refreshInstalledCliAgents,
-    hookCoords,
     activeTerminalWorkers,
     draggingItem,
     dragPreviewPos,
@@ -128,18 +126,6 @@ export const MultiTerminalPane: React.FC = () => {
 
         {/* Right Info & Inspector Toggle */}
         <div className="flex items-center gap-3">
-          {hookCoords ? (
-            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#1e1e1e] border border-[#333333] text-[11px] text-[#a0a0a0]">
-              <span className="w-2 h-2 rounded-full bg-[#10a37f] animate-pulse" />
-              <span>Hook: 127.0.0.1:{hookCoords.port}</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#1e1e1e] border border-[#333333] text-[11px] text-[#707070]">
-              <Radio className="w-3 h-3 text-[#707070]" />
-              <span>Hook Loopback</span>
-            </div>
-          )}
-
           <div className="flex items-center gap-1.5 text-xs text-[#8e8e8e]">
             <span className="px-2 py-0.5 rounded bg-[#252525] border border-[#303030] text-[#ececec] text-[11px]">
               {activeTerminalWorkers.length} Agen Aktif

@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   X,
-  Radio,
   StopCircle,
   ExternalLink,
   Bot,
@@ -12,7 +11,6 @@ export const TerminalInspectorPanel: React.FC = () => {
   const {
     activeTerminalWorkers,
     terminateTerminalWorker,
-    hookCoords,
     setIsTerminalInspectorOpen,
     setActiveTerminalTabId,
   } = useStore();
@@ -93,22 +91,6 @@ export const TerminalInspectorPanel: React.FC = () => {
             </div>
           ))
         )}
-      </div>
-
-      {/* Telemetry Status Footer */}
-      <div className="p-2.5 border-t border-[#2e2e2e] bg-[#1d1d1d] text-[11px] text-[#8e8e8e] space-y-1">
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-1 text-[#b4b4b4]">
-            <Radio className="w-3 h-3 text-[#10a37f]" />
-            <span>Loopback Webhook</span>
-          </span>
-          <span className="text-[10px] text-[#10a37f] font-mono">
-            {hookCoords ? `127.0.0.1:${hookCoords.port}` : 'Aktif'}
-          </span>
-        </div>
-        <p className="text-[10px] text-[#666666] leading-tight">
-          Menerima telemetri tool.call dan approval dari CLI secara otomatis.
-        </p>
       </div>
     </div>
   );
