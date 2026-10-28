@@ -62,6 +62,7 @@ pub fn run() {
 
     tauri::Builder::<tauri::Wry>::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(app_state)
         .setup(move |app| {
             vault::watcher::start_vault_watcher(
@@ -220,6 +221,7 @@ pub fn run() {
             ipc::remove_task_worktree,
             ipc::merge_task_worktree,
             ipc::get_hook_server_coords,
+            ipc::relaunch_app,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

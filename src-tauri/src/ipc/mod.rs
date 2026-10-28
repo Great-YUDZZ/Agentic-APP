@@ -2860,6 +2860,11 @@ pub async fn get_hook_server_coords(
     })
 }
 
+#[tauri::command]
+pub async fn relaunch_app(app: AppHandle) {
+    app.restart();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

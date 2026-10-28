@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Tag name for release (e.g. v0.1.0)'
+        description: 'Tag name for release (e.g. v0.2.0)'
         required: false
-        default: 'v0.1.0'
+        default: 'v0.2.0'
 
 permissions:
   contents: write
@@ -33,6 +33,13 @@ jobs:
       - name: Setup MSVC developer environment
         if: matrix.platform == 'windows-latest'
         uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure Clang and Bindgen for Windows
+        if: matrix.platform == 'windows-latest'
+        run: |
+          $clangIncludes = ($env:INCLUDE -split ';' | Where-Object { $_ -ne '' } | ForEach-Object { "-I`"$_`"" }) -join ' '
+          echo "BINDGEN_EXTRA_CLANG_ARGS=$clangIncludes" >> $env:GITHUB_ENV
+          echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" >> $env:GITHUB_ENV
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -68,10 +75,12 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_type == 'tag' && github.ref_name || inputs.tag_name }}
           releaseName: 'Agentic Native Hub __VERSION__'
-          releaseBody: 'Official release of Agentic Native Hub. Includes installers for Windows (.exe) and Linux (.deb, .AppImage).'
+          releaseBody: 'Official release of Agentic Native Hub. Includes installers for Windows (.exe) and Linux (.deb, .AppImage) with seamless auto-updater support.'
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}

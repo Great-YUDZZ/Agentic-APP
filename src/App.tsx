@@ -15,14 +15,17 @@ import { VaultAuditModal } from './components/vault/VaultAuditModal';
 import { GraphViewModal } from './components/vault/GraphViewModal';
 import { VaultWorkspace } from './components/vault/VaultWorkspace';
 import { ToastFeedback } from './components/common/ToastFeedback';
+import { UpdateReadyToast } from './components/common/UpdateReadyToast';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { SidecarViewer } from './components/canvas/SidecarViewer';
 import { QuickOpenModal } from './components/build/QuickOpenModal';
 import { GlobalSearchModal } from './components/build/GlobalSearchModal';
 import { useStore } from './store/useStore';
 import { applyTheme } from './utils/theme';
+import { checkAndDownloadUpdateSilently, type UpdateInfo } from './utils/updater';
 
 export const App: React.FC = () => {
+  const [availableUpdate, setAvailableUpdate] = React.useState<UpdateInfo | null>(null);
   const {
     currentMode,
     settings,
@@ -79,6 +82,9 @@ export const App: React.FC = () => {
     fetchMcpTools();
     refreshWorktrees();
     initHookTelemetryListener();
+    checkAndDownloadUpdateSilently((info) => {
+      setAvailableUpdate(info);
+    });
   }, [loadApiKeysFromDb, loadSessionsFromDb, fetchMcpServers, fetchMcpTools, refreshWorktrees, initHookTelemetryListener]);
 
   return (
@@ -127,6 +133,12 @@ export const App: React.FC = () => {
         <VaultAuditModal />
         <GraphViewModal />
         <ToastFeedback />
+        {availableUpdate && (
+          <UpdateReadyToast
+            version={availableUpdate.version}
+            onDismiss={() => setAvailableUpdate(null)}
+          />
+        )}
       </div>
     </ErrorBoundary>
   );

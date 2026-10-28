@@ -33,6 +33,7 @@ import { ShortcutsModal } from './ShortcutsModal';
 import { CreateSkillModal } from './CreateSkillModal';
 import { McpServersTab } from './McpServersTab';
 import { getOfflineSpeechStatus, triggerVoiceModelDownload, OfflineSpeechStatus } from '../../utils/audioRecorder';
+import { checkUpdateManually } from '../../utils/updater';
 
 interface StandardProviderConfig {
   id: string;
@@ -151,6 +152,7 @@ export const SettingsModal: React.FC = () => {
   const [nameInputs, setNameInputs] = useState<Record<string, string>>({});
   const [testingStatus, setTestingStatus] = useState<Record<string, 'testing' | 'success' | 'failed'>>({});
   const [latencies, setLatencies] = useState<Record<string, number>>({});
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 
   useEffect(() => {
     const kMap: Record<string, string> = {};
@@ -824,11 +826,35 @@ export const SettingsModal: React.FC = () => {
 
                 <div>
                   <h3 className="text-xs font-semibold text-[#b4b4b4] uppercase tracking-wider mb-2">
-                    Version
+                    Version & Updates
                   </h3>
                   <div className="p-4 rounded-2xl bg-[#282828] border border-[#383838] flex items-center justify-between">
-                    <div className="text-sm font-medium text-[#ececec]">App Version</div>
-                    <div className="text-xs font-mono text-[#b4b4b4]">0.1.0 (Tauri 2.0 + Tokio Native)</div>
+                    <div>
+                      <div className="text-sm font-medium text-[#ececec]">App Version</div>
+                      <div className="text-xs font-mono text-[#b4b4b4] mt-0.5">
+                        v0.2.0 (Tauri 2.0 + Tokio Native)
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isCheckingUpdate}
+                      onClick={async () => {
+                        setIsCheckingUpdate(true);
+                        const result = await checkUpdateManually();
+                        setIsCheckingUpdate(false);
+                        if (result.hasUpdate) {
+                          addToast('success', `Pembaruan v${result.version} ditemukan dan sedang diunduh di latar belakang.`);
+                        } else if (result.error) {
+                          addToast('error', `Gagal memeriksa pembaruan: ${result.error}`);
+                        } else {
+                          addToast('info', 'Aplikasi sudah dalam versi terbaru (v0.2.0).');
+                        }
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl bg-[#212121] hover:bg-[#303030] border border-[#383838] text-xs font-medium text-[#ececec] transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                    >
+                      <RotateCw className={`w-3.5 h-3.5 ${isCheckingUpdate ? 'animate-spin' : ''}`} />
+                      <span>{isCheckingUpdate ? 'Memeriksa...' : 'Periksa Pembaruan'}</span>
+                    </button>
                   </div>
                 </div>
               </div>
