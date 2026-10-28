@@ -14,7 +14,7 @@ export const BuildStudio: React.FC = () => {
   const { activeStudioTab } = useStore();
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#212121] overflow-hidden relative">
+    <div key={activeStudioTab} className="flex-1 flex flex-col h-full bg-[#212121] overflow-hidden relative">
       {activeStudioTab === 'discussion' && <MultiAgentDiscussion />}
       {activeStudioTab === 'editor' && <StudioCodeEditor />}
       {activeStudioTab === 'hierarchy' && <AgentHierarchyTree />}

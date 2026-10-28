@@ -208,7 +208,7 @@ export const TitleBar: React.FC = () => {
       )}
 
       {/* Right Controls: Studio Tab Dropdown (in Build Mode) or Terminal Toggle (in Agent Mode) */}
-      <div className="flex items-center gap-2">
+      <div key={currentMode} className="flex items-center gap-2">
         {/* Quick Export Button */}
         {!isVaultPageOpen && (
           <button

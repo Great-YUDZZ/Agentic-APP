@@ -98,7 +98,7 @@ export const App: React.FC = () => {
                 <VaultWorkspace />
               ) : (
                 <div className="flex-1 flex h-full overflow-hidden relative">
-                  <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
+                  <div key={currentMode} className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
                     {currentMode === 'chatbot' && <ChatContainer />}
                     {currentMode === 'agent' && <AgentWorkspace />}
                     {currentMode === 'build' && <BuildStudio />}

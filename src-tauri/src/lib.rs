@@ -16,6 +16,12 @@ use vault::VaultState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(target_os = "linux")]
+    {
+        // Cegah glitch ghosting, buffer tearing, dan tumpang tindih repaint pada WebKitGTK Linux Wayland
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+
     let home = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
     let db_path = home.join("agentic_native_hub").join("agentic_hub.db");
 

@@ -254,7 +254,7 @@ export const Sidebar: React.FC = () => {
   }
 
   return (
-    <aside className="w-64 bg-[#171717] border-r border-[#262626] flex flex-col justify-between shrink-0 select-none">
+    <aside key={`${currentMode}-${isVaultPageOpen}`} className="w-64 bg-[#171717] border-r border-[#262626] flex flex-col justify-between shrink-0 select-none">
       {isVaultPageOpen ? (
         <>
           {/* Header Vault & Back Button */}
