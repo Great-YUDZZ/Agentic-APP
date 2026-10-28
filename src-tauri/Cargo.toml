@@ -3,6 +3,7 @@ name = "agentic_native_hub"
 version = "0.2.0"
 description = "Autonomous AI Native Hub for Desktop (Windows & Linux)"
 authors = ["Autonomous Team"]
+license = "MIT"
 edition = "2021"
 
 [lib]
