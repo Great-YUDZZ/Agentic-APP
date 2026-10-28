@@ -51,6 +51,7 @@ import {
   SplitDirection,
   TerminalPaneNode,
   TilingNode,
+  DraggingItem,
 } from '../types';
 import { parseRobustJson, getChatEndpoint, getModelsEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../utils/api';
 import { extractCodeReviewItems } from '../utils/codeExtractor';
@@ -403,8 +404,23 @@ interface AppStore {
     customCwd?: string,
     placement?: 'tab' | 'split-right' | 'split-down'
   ) => Promise<string | null>;
+  draggingItem: DraggingItem | null;
+  setDraggingItem: (item: DraggingItem | null) => void;
   draggingPaneId: string | null;
   setDraggingPaneId: (paneId: string | null) => void;
+  splitPaneWithTab: (
+    sourcePaneId: string,
+    targetPaneId: string,
+    tabId: string,
+    direction: 'left' | 'right' | 'top' | 'bottom'
+  ) => void;
+  moveTabToPane: (
+    sourcePaneId: string,
+    targetPaneId: string,
+    tabId: string,
+    targetIndex?: number
+  ) => void;
+  moveTabInPane: (paneId: string, fromIndex: number, toIndex: number) => void;
   reparentPane: (
     sourcePaneId: string,
     targetPaneId: string,
@@ -4154,8 +4170,75 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
     return workerId;
   },
 
+  draggingItem: null,
+  setDraggingItem: (item: DraggingItem | null) =>
+    set({ draggingItem: item, draggingPaneId: item?.type === 'pane' ? item.paneId : null }),
   draggingPaneId: null,
-  setDraggingPaneId: (paneId: string | null) => set({ draggingPaneId: paneId }),
+  setDraggingPaneId: (paneId: string | null) =>
+    set({
+      draggingPaneId: paneId,
+      draggingItem: paneId ? { type: 'pane', paneId, title: 'Panel' } : null,
+    }),
+
+  splitPaneWithTab: (
+    sourcePaneId: string,
+    targetPaneId: string,
+    tabId: string,
+    direction: 'left' | 'right' | 'top' | 'bottom'
+  ) => {
+    const { tilingLayout, addToast } = get();
+    if (!tilingLayout) return;
+
+    const res = splitPaneWithTabInTilingTree(
+      tilingLayout,
+      sourcePaneId,
+      targetPaneId,
+      tabId,
+      direction
+    );
+    if (res) {
+      set({
+        tilingLayout: res.updatedTree,
+        draggingItem: null,
+        draggingPaneId: null,
+        activeTerminalTabId: tabId,
+      });
+      addToast('info', 'Panel terminal berhasil di-split.');
+    }
+  },
+
+  moveTabToPane: (
+    sourcePaneId: string,
+    targetPaneId: string,
+    tabId: string,
+    targetIndex?: number
+  ) => {
+    const { tilingLayout, addToast } = get();
+    if (!tilingLayout) return;
+
+    const updated = moveTabToPaneInTilingTree(
+      tilingLayout,
+      sourcePaneId,
+      targetPaneId,
+      tabId,
+      targetIndex
+    );
+    set({
+      tilingLayout: updated,
+      draggingItem: null,
+      draggingPaneId: null,
+      activeTerminalTabId: tabId,
+    });
+    addToast('info', 'Tab dipindahkan ke panel target.');
+  },
+
+  moveTabInPane: (paneId: string, fromIndex: number, toIndex: number) => {
+    const { tilingLayout } = get();
+    if (!tilingLayout) return;
+
+    const updated = moveTabInPaneInTilingTree(tilingLayout, paneId, fromIndex, toIndex);
+    set({ tilingLayout: updated, draggingItem: null, draggingPaneId: null });
+  },
 
   reparentPane: (
     sourcePaneId: string,
@@ -4166,7 +4249,7 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
     if (!tilingLayout || sourcePaneId === targetPaneId) return;
 
     const updated = reparentPaneInTilingTree(tilingLayout, sourcePaneId, targetPaneId, position);
-    set({ tilingLayout: updated, draggingPaneId: null });
+    set({ tilingLayout: updated, draggingPaneId: null, draggingItem: null });
     addToast('info', 'Tata letak terminal diperbarui.');
   },
 
@@ -4553,3 +4636,143 @@ export function reparentPaneInTilingTree(
 
   return replacePaneInTilingTree(treeWithoutSource, targetPaneId, newSplitContainer);
 }
+
+export function splitPaneWithTabInTilingTree(
+  root: TilingNode,
+  sourcePaneId: string,
+  targetPaneId: string,
+  tabId: string,
+  direction: 'left' | 'right' | 'top' | 'bottom'
+): { updatedTree: TilingNode; newPaneId: string } | null {
+  const sourcePane = findPaneInTilingTree(root, sourcePaneId);
+  if (!sourcePane || !sourcePane.tabs.includes(tabId)) return null;
+
+  // Jika drag tab dari pane ke dirinya sendiri tapi tab cuma 1, tidak bisa split
+  if (sourcePaneId === targetPaneId && sourcePane.tabs.length <= 1) return null;
+
+  const remainingTabs = sourcePane.tabs.filter((id) => id !== tabId);
+  let treeWithoutSourceTab: TilingNode | null;
+
+  if (remainingTabs.length === 0) {
+    // Sumber menjadi kosong, hapus pane sumber dari tree
+    treeWithoutSourceTab = removePaneFromTilingTree(root, sourcePaneId);
+  } else {
+    // Masih ada tab tersisa di sumber, perbarui pane sumber
+    const nextActive = sourcePane.activeTabId === tabId ? remainingTabs[0] : sourcePane.activeTabId;
+    treeWithoutSourceTab = updatePaneDataInTilingTree(root, sourcePaneId, (p) => ({
+      ...p,
+      tabs: remainingTabs,
+      activeTabId: nextActive,
+    }));
+  }
+
+  if (!treeWithoutSourceTab) return null;
+
+  const targetPane = findPaneInTilingTree(treeWithoutSourceTab, targetPaneId);
+  if (!targetPane) return null;
+
+  const newPaneId = `pane-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+  const newPane: TerminalPaneNode = {
+    id: newPaneId,
+    tabs: [tabId],
+    activeTabId: tabId,
+  };
+
+  const splitDir: SplitDirection =
+    direction === 'left' || direction === 'right' ? 'horizontal' : 'vertical';
+
+  const newNode: TilingNode = {
+    type: 'pane',
+    data: newPane,
+  };
+
+  const targetNode: TilingNode = {
+    type: 'pane',
+    data: { ...targetPane },
+  };
+
+  const firstNode = direction === 'left' || direction === 'top' ? newNode : targetNode;
+  const secondNode = direction === 'left' || direction === 'top' ? targetNode : newNode;
+
+  const newSplitContainer: TilingNode = {
+    type: 'split',
+    data: {
+      id: `split-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      direction: splitDir,
+      ratio: 0.5,
+      first: firstNode,
+      second: secondNode,
+    },
+  };
+
+  const updatedTree = replacePaneInTilingTree(treeWithoutSourceTab, targetPaneId, newSplitContainer);
+  return { updatedTree, newPaneId };
+}
+
+export function moveTabToPaneInTilingTree(
+  root: TilingNode,
+  sourcePaneId: string,
+  targetPaneId: string,
+  tabId: string,
+  targetIndex?: number
+): TilingNode {
+  if (sourcePaneId === targetPaneId) {
+    return root;
+  }
+
+  const sourcePane = findPaneInTilingTree(root, sourcePaneId);
+  if (!sourcePane || !sourcePane.tabs.includes(tabId)) return root;
+
+  const remaining = sourcePane.tabs.filter((id) => id !== tabId);
+  let treeAfterSource: TilingNode | null;
+
+  if (remaining.length === 0) {
+    treeAfterSource = removePaneFromTilingTree(root, sourcePaneId);
+  } else {
+    const nextActive = sourcePane.activeTabId === tabId ? remaining[0] : sourcePane.activeTabId;
+    treeAfterSource = updatePaneDataInTilingTree(root, sourcePaneId, (p) => ({
+      ...p,
+      tabs: remaining,
+      activeTabId: nextActive,
+    }));
+  }
+
+  if (!treeAfterSource) return root;
+
+  return updatePaneDataInTilingTree(treeAfterSource, targetPaneId, (target) => {
+    const newTabs = [...target.tabs];
+    if (targetIndex !== undefined && targetIndex >= 0 && targetIndex <= newTabs.length) {
+      newTabs.splice(targetIndex, 0, tabId);
+    } else {
+      newTabs.push(tabId);
+    }
+    return {
+      ...target,
+      tabs: newTabs,
+      activeTabId: tabId,
+    };
+  });
+}
+
+export function moveTabInPaneInTilingTree(
+  root: TilingNode,
+  paneId: string,
+  fromIndex: number,
+  toIndex: number
+): TilingNode {
+  return updatePaneDataInTilingTree(root, paneId, (pane) => {
+    if (
+      fromIndex < 0 ||
+      fromIndex >= pane.tabs.length ||
+      toIndex < 0 ||
+      toIndex >= pane.tabs.length
+    ) {
+      return pane;
+    }
+    const newTabs = [...pane.tabs];
+    const [moved] = newTabs.splice(fromIndex, 1);
+    newTabs.splice(toIndex, 0, moved);
+    return { ...pane, tabs: newTabs };
+  });
+}
+

@@ -525,3 +525,10 @@ export type TilingNode =
   | { type: 'pane'; data: TerminalPaneNode }
   | { type: 'split'; data: SplitContainerNode };
 
+export interface DraggingItem {
+  type: 'tab' | 'pane';
+  tabId?: string;
+  paneId: string;
+  title: string;
+}
+

@@ -24,10 +24,14 @@ export const TerminalPaneCard: React.FC<TerminalPaneCardProps> = ({ pane }) => {
     terminalTabs,
     activeTerminalWorkers,
     maximizedPaneId,
-    draggingPaneId,
+    draggingItem,
+    setDraggingItem,
     setDraggingPaneId,
     reparentPane,
     splitPane,
+    splitPaneWithTab,
+    moveTabToPane,
+    moveTabInPane,
     closePane,
     toggleMaximizePane,
     setActiveTabInPane,
@@ -63,38 +67,73 @@ export const TerminalPaneCard: React.FC<TerminalPaneCardProps> = ({ pane }) => {
     }
   };
 
-  // Drag Source Handlers
-  const handleDragStart = (e: React.DragEvent) => {
+  // Drag Source Handlers for Pane Header
+  const handlePaneDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData('text/plain', pane.id);
     e.dataTransfer.effectAllowed = 'move';
-    setDraggingPaneId(pane.id);
+    setDraggingItem({
+      type: 'pane',
+      paneId: pane.id,
+      title: 'Panel',
+    });
+  };
+
+  // Drag Source Handlers for Individual Tab
+  const handleTabDragStart = (e: React.DragEvent, tabId: string, title: string) => {
+    e.stopPropagation();
+    e.dataTransfer.setData('text/plain', tabId);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggingItem({
+      type: 'tab',
+      tabId,
+      paneId: pane.id,
+      title,
+    });
   };
 
   const handleDragEnd = () => {
+    setDraggingItem(null);
     setDraggingPaneId(null);
     setDropZone(null);
   };
 
-  // Drop Target Handlers
+  // Drop Target Handlers for Pane Body & Drag Shield
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    if (!cardRef.current || !draggingPaneId || draggingPaneId === pane.id) return;
+    if (!cardRef.current || !draggingItem) return;
     e.dataTransfer.dropEffect = 'move';
+
+    // Jika drag tab dari pane ini sendiri dan hanya ada 1 tab, tidak bisa split dengan diri sendiri
+    if (draggingItem.type === 'tab' && draggingItem.paneId === pane.id && pane.tabs.length <= 1) {
+      setDropZone(null);
+      return;
+    }
+
+    // Jika drag panel ke panel yang sama, abaikan
+    if (draggingItem.type === 'pane' && draggingItem.paneId === pane.id) {
+      setDropZone(null);
+      return;
+    }
 
     const rect = cardRef.current.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
 
-    if (x > 0.72) {
+    if (x > 0.65) {
       setDropZone('right');
-    } else if (x < 0.28) {
+    } else if (x < 0.35) {
       setDropZone('left');
-    } else if (y > 0.72) {
+    } else if (y > 0.65) {
       setDropZone('bottom');
-    } else if (y < 0.28) {
+    } else if (y < 0.35) {
       setDropZone('top');
     } else {
-      setDropZone('tab');
+      // Area tengah: jika dari pane berbeda, gabung tab. Jika dari pane sama, tidak ada aksi tengah
+      if (draggingItem.paneId !== pane.id) {
+        setDropZone('tab');
+      } else {
+        setDropZone(null);
+      }
     }
   };
 
@@ -106,13 +145,65 @@ export const TerminalPaneCard: React.FC<TerminalPaneCardProps> = ({ pane }) => {
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const sourceId = e.dataTransfer.getData('text/plain') || draggingPaneId;
-    if (sourceId && sourceId !== pane.id && dropZone) {
-      reparentPane(sourceId, pane.id, dropZone);
+    e.stopPropagation();
+
+    if (!draggingItem || !dropZone) {
+      setDropZone(null);
+      setDraggingItem(null);
+      return;
     }
+
+    if (draggingItem.type === 'tab' && draggingItem.tabId) {
+      if (dropZone === 'tab') {
+        if (draggingItem.paneId !== pane.id) {
+          moveTabToPane(draggingItem.paneId, pane.id, draggingItem.tabId);
+        }
+      } else {
+        splitPaneWithTab(draggingItem.paneId, pane.id, draggingItem.tabId, dropZone);
+      }
+    } else if (draggingItem.type === 'pane') {
+      if (draggingItem.paneId !== pane.id) {
+        reparentPane(draggingItem.paneId, pane.id, dropZone);
+      }
+    }
+
+    setDraggingItem(null);
     setDraggingPaneId(null);
     setDropZone(null);
   };
+
+  // Tab Item Reorder Handlers
+  const handleTabItemDragOver = (e: React.DragEvent) => {
+    if (draggingItem?.type === 'tab') {
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = 'move';
+    }
+  };
+
+  const handleTabItemDrop = (e: React.DragEvent, targetIndex: number) => {
+    if (!draggingItem || draggingItem.type !== 'tab' || !draggingItem.tabId) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (draggingItem.paneId === pane.id) {
+      const fromIndex = pane.tabs.indexOf(draggingItem.tabId);
+      if (fromIndex !== -1 && fromIndex !== targetIndex) {
+        moveTabInPane(pane.id, fromIndex, targetIndex);
+      }
+    } else {
+      moveTabToPane(draggingItem.paneId, pane.id, draggingItem.tabId, targetIndex);
+    }
+
+    setDraggingItem(null);
+    setDraggingPaneId(null);
+    setDropZone(null);
+  };
+
+  // Tentukan apakah transparent drag catcher aktif
+  const isShieldActive =
+    draggingItem !== null &&
+    (draggingItem.paneId !== pane.id || (draggingItem.type === 'tab' && pane.tabs.length > 1));
 
   return (
     <div
@@ -122,7 +213,7 @@ export const TerminalPaneCard: React.FC<TerminalPaneCardProps> = ({ pane }) => {
       {/* Pane Header */}
       <div
         draggable={canDragSnap}
-        onDragStart={canDragSnap ? handleDragStart : undefined}
+        onDragStart={canDragSnap ? handlePaneDragStart : undefined}
         onDragEnd={canDragSnap ? handleDragEnd : undefined}
         className={`h-9 bg-[#1f1f1f] border-b border-[#2e2e2e] px-2 flex items-center justify-between flex-shrink-0 select-none ${
           canDragSnap ? 'cursor-grab active:cursor-grabbing' : ''
@@ -133,29 +224,38 @@ export const TerminalPaneCard: React.FC<TerminalPaneCardProps> = ({ pane }) => {
           {canDragSnap && (
             <div
               className="p-1 rounded text-[#707070] hover:text-[#ececec] flex-shrink-0 mr-0.5"
-              title="Tarik untuk memindahkan atau men-split posisi terminal (Drag to Snap)"
+              title="Tarik untuk memindahkan atau men-split posisi panel terminal"
             >
               <GripVertical className="w-3.5 h-3.5" />
             </div>
           )}
 
-          {pane.tabs.map((tabId) => {
+          {pane.tabs.map((tabId, tabIndex) => {
             const tab = terminalTabs.find((t) => t.id === tabId);
             const worker = getWorkerForTab(tabId);
             const isActive = tabId === pane.activeTabId;
+            const isTabBeingDragged = draggingItem?.type === 'tab' && draggingItem?.tabId === tabId;
 
             return (
               <div
                 key={tabId}
+                draggable={true}
+                onDragStart={(e) => handleTabDragStart(e, tabId, tab?.title || 'Terminal')}
+                onDragEnd={handleDragEnd}
+                onDragOver={handleTabItemDragOver}
+                onDrop={(e) => handleTabItemDrop(e, tabIndex)}
                 onClick={() => setActiveTabInPane(pane.id, tabId)}
-                className={`group flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs cursor-pointer border transition-colors flex-shrink-0 ${
+                className={`group flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs cursor-grab active:cursor-grabbing border transition-all flex-shrink-0 select-none ${
+                  isTabBeingDragged ? 'opacity-40 border-dashed border-blue-400' : ''
+                } ${
                   isActive
                     ? 'bg-[#2a2a2a] border-[#404040] text-[#ececec]'
                     : 'bg-[#1b1b1b] border-transparent text-[#8e8e8e] hover:text-[#b4b4b4] hover:bg-[#222222]'
                 }`}
+                title="Klik untuk memilih. Tarik ke sisi layar untuk split panel baru (Orca style)"
               >
                 <span
-                  className={`w-1.5 h-1.5 rounded-full ${
+                  className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
                     worker?.status === 'working'
                       ? 'bg-[#10a37f] animate-pulse'
                       : worker?.status === 'waiting_approval'
@@ -263,8 +363,8 @@ export const TerminalPaneCard: React.FC<TerminalPaneCardProps> = ({ pane }) => {
         ))}
       </div>
 
-      {/* Transparent Drag-Over Event Catcher */}
-      {draggingPaneId !== null && draggingPaneId !== pane.id && (
+      {/* Transparent Drag-Over Event Shield across Xterm */}
+      {isShieldActive && (
         <div
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -273,44 +373,49 @@ export const TerminalPaneCard: React.FC<TerminalPaneCardProps> = ({ pane }) => {
         />
       )}
 
-      {/* Visual Drop Zone Previews (Windows Snap Style) */}
+      {/* Visual Drop Zone Previews (Orca Blue Style) */}
       {dropZone === 'right' && (
-        <div className="absolute top-0 right-0 w-1/2 h-full bg-[#10a37f]/15 border-2 border-dashed border-[#10a37f] rounded-r-lg z-50 pointer-events-none flex items-center justify-center animate-in fade-in duration-75">
-          <span className="text-xs font-semibold text-[#10a37f] bg-[#1a1a1a]/95 px-2.5 py-1 rounded border border-[#10a37f]/50 shadow-lg">
-            Split Kanan
-          </span>
+        <div className="absolute top-0 right-0 w-1/2 h-full bg-[#3b82f6]/12 border-2 border-[#3b82f6] rounded-r-lg z-50 pointer-events-none flex flex-col justify-end p-3 animate-in fade-in duration-75">
+          <div className="bg-[#0d1527]/95 border border-[#3b82f6]/60 text-[#60a5fa] text-[11px] font-medium px-2.5 py-1 rounded shadow-lg self-start flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#60a5fa] animate-pulse" />
+            New split
+          </div>
         </div>
       )}
 
       {dropZone === 'left' && (
-        <div className="absolute top-0 left-0 w-1/2 h-full bg-[#10a37f]/15 border-2 border-dashed border-[#10a37f] rounded-l-lg z-50 pointer-events-none flex items-center justify-center animate-in fade-in duration-75">
-          <span className="text-xs font-semibold text-[#10a37f] bg-[#1a1a1a]/95 px-2.5 py-1 rounded border border-[#10a37f]/50 shadow-lg">
-            Split Kiri
-          </span>
+        <div className="absolute top-0 left-0 w-1/2 h-full bg-[#3b82f6]/12 border-2 border-[#3b82f6] rounded-l-lg z-50 pointer-events-none flex flex-col justify-end p-3 animate-in fade-in duration-75">
+          <div className="bg-[#0d1527]/95 border border-[#3b82f6]/60 text-[#60a5fa] text-[11px] font-medium px-2.5 py-1 rounded shadow-lg self-start flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#60a5fa] animate-pulse" />
+            New split
+          </div>
         </div>
       )}
 
       {dropZone === 'bottom' && (
-        <div className="absolute bottom-0 left-0 w-full h-1/2 bg-[#10a37f]/15 border-2 border-dashed border-[#10a37f] rounded-b-lg z-50 pointer-events-none flex items-center justify-center animate-in fade-in duration-75">
-          <span className="text-xs font-semibold text-[#10a37f] bg-[#1a1a1a]/95 px-2.5 py-1 rounded border border-[#10a37f]/50 shadow-lg">
-            Split Bawah
-          </span>
+        <div className="absolute bottom-0 left-0 w-full h-1/2 bg-[#3b82f6]/12 border-2 border-[#3b82f6] rounded-b-lg z-50 pointer-events-none flex flex-col justify-end p-3 animate-in fade-in duration-75">
+          <div className="bg-[#0d1527]/95 border border-[#3b82f6]/60 text-[#60a5fa] text-[11px] font-medium px-2.5 py-1 rounded shadow-lg self-start flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#60a5fa] animate-pulse" />
+            New split
+          </div>
         </div>
       )}
 
       {dropZone === 'top' && (
-        <div className="absolute top-0 left-0 w-full h-1/2 bg-[#10a37f]/15 border-2 border-dashed border-[#10a37f] rounded-t-lg z-50 pointer-events-none flex items-center justify-center animate-in fade-in duration-75">
-          <span className="text-xs font-semibold text-[#10a37f] bg-[#1a1a1a]/95 px-2.5 py-1 rounded border border-[#10a37f]/50 shadow-lg">
-            Split Atas
-          </span>
+        <div className="absolute top-0 left-0 w-full h-1/2 bg-[#3b82f6]/12 border-2 border-[#3b82f6] rounded-t-lg z-50 pointer-events-none flex flex-col justify-end p-3 animate-in fade-in duration-75">
+          <div className="bg-[#0d1527]/95 border border-[#3b82f6]/60 text-[#60a5fa] text-[11px] font-medium px-2.5 py-1 rounded shadow-lg self-start flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#60a5fa] animate-pulse" />
+            New split
+          </div>
         </div>
       )}
 
       {dropZone === 'tab' && (
-        <div className="absolute inset-2 bg-[#2a2a2a]/80 border-2 border-dashed border-[#505050] rounded-lg z-50 pointer-events-none flex items-center justify-center animate-in fade-in duration-75">
-          <span className="text-xs font-semibold text-[#ececec] bg-[#1f1f1f] px-3 py-1 rounded border border-[#383838] shadow-lg">
-            Gabung Sebagai Tab
-          </span>
+        <div className="absolute inset-1.5 bg-[#3b82f6]/10 border-2 border-dashed border-[#3b82f6]/70 rounded-lg z-50 pointer-events-none flex flex-col justify-end p-3 animate-in fade-in duration-75">
+          <div className="bg-[#0d1527]/95 border border-[#3b82f6]/60 text-[#60a5fa] text-[11px] font-medium px-2.5 py-1 rounded shadow-lg self-start flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#60a5fa]" />
+            New tab
+          </div>
         </div>
       )}
     </div>
