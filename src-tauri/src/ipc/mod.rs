@@ -1361,8 +1361,23 @@ pub async fn init_terminal_pty(
     }
 
     let ws = match &cwd {
-        Some(custom_dir) if !custom_dir.trim().is_empty() => std::path::PathBuf::from(custom_dir),
+        Some(custom_dir) if !custom_dir.trim().is_empty() => {
+            let p = std::path::PathBuf::from(custom_dir);
+            if p.exists() {
+                p
+            } else {
+                state.tool_runner.workspace_root()
+            }
+        }
         _ => state.tool_runner.workspace_root(),
+    };
+
+    let final_ws = if !ws.as_os_str().is_empty() && ws.exists() {
+        ws
+    } else {
+        std::env::var("HOME")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|_| std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("/")))
     };
     let pty_system = native_pty_system();
 
@@ -1382,7 +1397,9 @@ pub async fn init_terminal_pty(
     };
 
     let mut cmd = CommandBuilder::new(default_shell.clone());
-    cmd.cwd(&ws);
+    if final_ws.exists() {
+        cmd.cwd(&final_ws);
+    }
     cmd.env("TERM", "xterm-256color");
     cmd.env("COLORTERM", "truecolor");
     cmd.env("AGENTIC_HOOK_PORT", state.hook_server.port.to_string());

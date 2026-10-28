@@ -59,6 +59,18 @@ export const XtermView: React.FC<XtermViewProps> = ({ tabId, isActive }) => {
 
     let unlistenChannel: (() => void) | null = null;
     let isDisposed = false;
+    let isPtyReady = false;
+    const inputBuffer: string[] = [];
+
+    const flushInputBuffer = () => {
+      isPtyReady = true;
+      while (inputBuffer.length > 0) {
+        const item = inputBuffer.shift();
+        if (item) {
+          invoke('terminal_pty_write', { tabId, data: item }).catch(() => {});
+        }
+      }
+    };
 
     // Pasang listener event channel PTY khusus sesi ini
     listen<string>(`terminal-output-${tabId}`, (event) => {
@@ -74,9 +86,11 @@ export const XtermView: React.FC<XtermViewProps> = ({ tabId, isActive }) => {
 
       // Inisialisasi PTY setelah listener terpasang
       try {
-        fitAddon.fit();
-        const rows = term.rows || 24;
-        const cols = term.cols || 80;
+        try {
+          fitAddon.fit();
+        } catch (_) {}
+        const rows = term.rows && term.rows > 0 ? term.rows : 24;
+        const cols = term.cols && term.cols > 0 ? term.cols : 80;
 
         const currentTab = useStore.getState().terminalTabs.find((t) => t.id === tabId);
         await invoke('init_terminal_pty', {
@@ -86,14 +100,16 @@ export const XtermView: React.FC<XtermViewProps> = ({ tabId, isActive }) => {
           cwd: currentTab?.cwd || undefined,
         });
 
+        flushInputBuffer();
+
         // Eksekusi initialCommand jika tab memiliki perintah awal (seperti peluncuran agen)
         if (currentTab?.initialCommand) {
           const rawCmd = currentTab.initialCommand;
           useStore.getState().consumeInitialCommand(tabId);
           const cleanCmd = rawCmd.replace(/[\r\n]+$/, '').trim();
-          const cmd = `${cleanCmd}\n`;
+          const cmd = `${cleanCmd}\r\n`;
 
-          // Berikan jeda 250ms agar prompt shell dan readline selesai inisialisasi
+          // Berikan jeda 350ms agar prompt shell dan readline selesai inisialisasi
           setTimeout(async () => {
             if (isDisposed) return;
             try {
@@ -101,7 +117,7 @@ export const XtermView: React.FC<XtermViewProps> = ({ tabId, isActive }) => {
             } catch (e) {
               console.warn('Gagal menulis initialCommand ke PTY:', e);
             }
-          }, 250);
+          }, 350);
         }
       } catch (e) {
         console.warn('Error saat initial fit terminal atau eksekusi perintah:', e);
@@ -109,8 +125,12 @@ export const XtermView: React.FC<XtermViewProps> = ({ tabId, isActive }) => {
       term.focus();
     });
 
-    // Kirim input ketikan pengguna langsung ke PTY backend
+    // Kirim input ketikan pengguna langsung ke PTY backend (dengan buffer jika PTY belum siap)
     const onDataDisposable = term.onData((data) => {
+      if (!isPtyReady) {
+        inputBuffer.push(data);
+        return;
+      }
       invoke('terminal_pty_write', { tabId, data }).catch((err) => {
         console.warn('Gagal menulis ke PTY:', err);
       });

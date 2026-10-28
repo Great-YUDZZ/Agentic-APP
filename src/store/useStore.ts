@@ -3934,23 +3934,10 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
       const defaultTab: TerminalTab = {
         id: initialTabId,
         title: 'Terminal 1',
-        cwd: '',
+        cwd: get().workspaceProjectRoot || '',
         logs: [],
       };
       set({ terminalTabs: [defaultTab], activeTerminalTabId: initialTabId });
-
-      if ((window as any).__TAURI_INTERNALS__) {
-        try {
-          const { invoke } = await import('@tauri-apps/api/core');
-          await invoke('init_terminal_pty', {
-            tabId: initialTabId,
-            cols: 80,
-            rows: 24,
-          });
-        } catch (e) {
-          console.error('Failed to init terminal PTY for default pane:', e);
-        }
-      }
     }
 
     const rootPane: TilingNode = {
@@ -3970,7 +3957,7 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
     const newTab: TerminalTab = {
       id: tabId,
       title: title || `Terminal ${get().terminalTabs.length + 1}`,
-      cwd: cwd || '',
+      cwd: cwd || get().workspaceProjectRoot || '',
       logs: [],
     };
 
@@ -3978,20 +3965,6 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
       terminalTabs: [...s.terminalTabs, newTab],
       activeTerminalTabId: tabId,
     }));
-
-    if ((window as any).__TAURI_INTERNALS__) {
-      try {
-        const { invoke } = await import('@tauri-apps/api/core');
-        await invoke('init_terminal_pty', {
-          tabId,
-          cols: 80,
-          rows: 24,
-          cwd: cwd || undefined,
-        });
-      } catch (err) {
-        console.error('Error init terminal PTY:', err);
-      }
-    }
 
     if (tilingLayout) {
       const updated = updatePaneDataInTilingTree(tilingLayout, paneId, (p) => ({
@@ -4061,9 +4034,9 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
     const newTab: TerminalTab = {
       id: tabId,
       title: agentName,
-      cwd: customCwd || '',
+      cwd: customCwd || get().workspaceProjectRoot || '',
       logs: [],
-      initialCommand: `${launchCmd}\n`,
+      initialCommand: `${launchCmd}\r\n`,
       agentId: agent?.id || agentId,
     };
 
@@ -4234,26 +4207,13 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
       const newTab: TerminalTab = {
         id: assignedTabId,
         title: `Terminal ${get().terminalTabs.length + 1}`,
-        cwd: '',
+        cwd: get().workspaceProjectRoot || '',
         logs: [],
       };
       set((s) => ({
         terminalTabs: [...s.terminalTabs, newTab],
         activeTerminalTabId: assignedTabId,
       }));
-
-      if ((window as any).__TAURI_INTERNALS__) {
-        try {
-          const { invoke } = await import('@tauri-apps/api/core');
-          await invoke('init_terminal_pty', {
-            tabId: assignedTabId,
-            cols: 80,
-            rows: 24,
-          });
-        } catch (e) {
-          console.error(e);
-        }
-      }
     }
 
     const newPaneNode: TilingNode = {
