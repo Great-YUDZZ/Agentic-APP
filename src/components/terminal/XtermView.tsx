@@ -65,46 +65,48 @@ export const XtermView: React.FC<XtermViewProps> = ({ tabId, isActive }) => {
       if (!isDisposed && event.payload) {
         term.write(event.payload);
       }
-    }).then((fnChannel) => {
+    }).then(async (fnChannel) => {
       if (isDisposed) {
         fnChannel();
-      } else {
-        unlistenChannel = fnChannel;
-
-        // Inisialisasi PTY setelah listener terpasang
-        setTimeout(async () => {
-          if (isDisposed) return;
-          try {
-            fitAddon.fit();
-            const rows = term.rows || 24;
-            const cols = term.cols || 80;
-
-            await invoke('init_terminal_pty', { tabId, rows, cols });
-
-            // Eksekusi initialCommand jika tab memiliki perintah awal (seperti peluncuran agen)
-            const currentTab = useStore.getState().terminalTabs.find((t) => t.id === tabId);
-            if (currentTab?.initialCommand) {
-              const rawCmd = currentTab.initialCommand;
-              useStore.getState().consumeInitialCommand(tabId);
-              const cleanCmd = rawCmd.replace(/[\r\n]+$/, '').trim();
-              const cmd = `${cleanCmd}\n`;
-
-              // Berikan jeda 350ms agar prompt shell dan readline selesai inisialisasi
-              setTimeout(async () => {
-                if (isDisposed) return;
-                try {
-                  await invoke('terminal_pty_write', { tabId, data: cmd });
-                } catch (e) {
-                  console.warn('Gagal menulis initialCommand ke PTY:', e);
-                }
-              }, 350);
-            }
-          } catch (e) {
-            console.warn('Error saat initial fit terminal atau eksekusi perintah:', e);
-          }
-          term.focus();
-        }, 50);
+        return;
       }
+      unlistenChannel = fnChannel;
+
+      // Inisialisasi PTY setelah listener terpasang
+      try {
+        fitAddon.fit();
+        const rows = term.rows || 24;
+        const cols = term.cols || 80;
+
+        const currentTab = useStore.getState().terminalTabs.find((t) => t.id === tabId);
+        await invoke('init_terminal_pty', {
+          tabId,
+          rows,
+          cols,
+          cwd: currentTab?.cwd || undefined,
+        });
+
+        // Eksekusi initialCommand jika tab memiliki perintah awal (seperti peluncuran agen)
+        if (currentTab?.initialCommand) {
+          const rawCmd = currentTab.initialCommand;
+          useStore.getState().consumeInitialCommand(tabId);
+          const cleanCmd = rawCmd.replace(/[\r\n]+$/, '').trim();
+          const cmd = `${cleanCmd}\n`;
+
+          // Berikan jeda 250ms agar prompt shell dan readline selesai inisialisasi
+          setTimeout(async () => {
+            if (isDisposed) return;
+            try {
+              await invoke('terminal_pty_write', { tabId, data: cmd });
+            } catch (e) {
+              console.warn('Gagal menulis initialCommand ke PTY:', e);
+            }
+          }, 250);
+        }
+      } catch (e) {
+        console.warn('Error saat initial fit terminal atau eksekusi perintah:', e);
+      }
+      term.focus();
     });
 
     // Kirim input ketikan pengguna langsung ke PTY backend
@@ -135,8 +137,7 @@ export const XtermView: React.FC<XtermViewProps> = ({ tabId, isActive }) => {
       onDataDisposable.dispose();
       if (unlistenChannel) unlistenChannel();
 
-      // Tutup sesi PTY saat tab dilepas
-      invoke('close_terminal_pty', { tabId }).catch(() => {});
+      // Sesi PTY dipertahankan saat tab berpindah panel (hanya ditutup saat tab dihapus permanen)
       term.dispose();
     };
   }, [tabId]);

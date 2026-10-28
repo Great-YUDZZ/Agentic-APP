@@ -14,6 +14,7 @@ export const AgentRosterModal: React.FC = () => {
     setOrchestratorConfig,
     spawnTerminalWorker,
     selectedModel,
+    setActiveStudioTab,
   } = useStore();
 
   const [selectedAgentForRole, setSelectedAgentForRole] = useState<string | null>(null);
@@ -46,6 +47,8 @@ export const AgentRosterModal: React.FC = () => {
       await spawnTerminalWorker(agent.id, roleToAssign, taskSpecInput);
       setTaskSpecInput('');
       setSelectedAgentForRole(null);
+      setIsAgentRosterModalOpen(false);
+      setActiveStudioTab('terminals');
     } finally {
       setIsSpawning(false);
     }

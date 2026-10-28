@@ -27,6 +27,8 @@ export const MultiTerminalPane: React.FC = () => {
     refreshInstalledCliAgents,
     hookCoords,
     activeTerminalWorkers,
+    draggingItem,
+    dragPreviewPos,
   } = useStore();
 
   useEffect(() => {
@@ -38,9 +40,9 @@ export const MultiTerminalPane: React.FC = () => {
   const topAddBtnRef = useRef<HTMLButtonElement>(null);
 
   const getFirstPaneId = (node: any): string => {
-    if (!node) return 'pane-default';
+    if (!node) return 'pane-root';
     if (node.type === 'pane') return node.data.id;
-    return getFirstPaneId(node.data.first);
+    return getFirstPaneId(node.data.first) || getFirstPaneId(node.data.second) || 'pane-root';
   };
 
   // Find maximized pane if any
@@ -181,6 +183,23 @@ export const MultiTerminalPane: React.FC = () => {
         {/* Collapsible Right Inspector Panel */}
         {isTerminalInspectorOpen && <TerminalInspectorPanel />}
       </div>
+
+      {/* Floating Drag Chip Preview following cursor */}
+      {draggingItem && dragPreviewPos && (
+        <div
+          style={{
+            position: 'fixed',
+            left: dragPreviewPos.x + 14,
+            top: dragPreviewPos.y + 14,
+            zIndex: 999999,
+            pointerEvents: 'none',
+          }}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#141414]/95 border border-[#3b82f6] shadow-2xl text-xs text-[#ececec] font-medium select-none animate-in fade-in duration-75"
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-[#3b82f6] animate-pulse" />
+          <span className="max-w-[150px] truncate">{draggingItem.title}</span>
+        </div>
+      )}
     </div>
   );
 };

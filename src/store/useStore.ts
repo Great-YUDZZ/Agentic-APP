@@ -52,6 +52,7 @@ import {
   TerminalPaneNode,
   TilingNode,
   DraggingItem,
+  ActiveDropTarget,
 } from '../types';
 import { parseRobustJson, getChatEndpoint, getModelsEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../utils/api';
 import { extractCodeReviewItems } from '../utils/codeExtractor';
@@ -405,7 +406,11 @@ interface AppStore {
     placement?: 'tab' | 'split-right' | 'split-down'
   ) => Promise<string | null>;
   draggingItem: DraggingItem | null;
+  dragPreviewPos: { x: number; y: number } | null;
+  activeDropTarget: ActiveDropTarget | null;
   setDraggingItem: (item: DraggingItem | null) => void;
+  setDragPreviewPos: (pos: { x: number; y: number } | null) => void;
+  setActiveDropTarget: (target: ActiveDropTarget | null) => void;
   draggingPaneId: string | null;
   setDraggingPaneId: (paneId: string | null) => void;
   splitPaneWithTab: (
@@ -3692,81 +3697,16 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
     }
   },
 
-  spawnTerminalWorker: async (agentId: string, role: string, taskSpec?: string) => {
-    const { installedCliAgents, addToast } = get();
-    const agent = installedCliAgents.find((a) => a.id === agentId);
-    const agentName = agent?.name || agentId;
-    const workerId = `worker-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-    const tabId = `tab-${workerId}`;
-    const initialTitle = `${agentName} [${role}]`;
+  spawnTerminalWorker: async (agentId: string, _role: string, _taskSpec?: string) => {
+    const { ensureTilingInitialized } = get();
+    await ensureTilingInitialized();
+    const currentLayout = get().tilingLayout;
+    const targetPane = getFirstPaneInTilingTree(currentLayout);
+    const targetPaneId = targetPane?.id || 'pane-root';
 
-    const newTab: TerminalTab = {
-      id: tabId,
-      title: initialTitle,
-      cwd: get().workspaceProjectRoot || '',
-      logs: [],
-    };
-
-    set((s) => ({
-      terminalTabs: [...s.terminalTabs, newTab],
-      activeTerminalTabId: tabId,
-      isTerminalOpen: true,
-    }));
-
-    const workerSession: TerminalWorkerSession = {
-      worker_id: workerId,
-      agent_id: agentId,
-      tab_id: tabId,
-      role,
-      task_spec: taskSpec || 'Autonomous worker task',
-      status: 'working',
-      created_at: Date.now(),
-    };
-
-    set((s) => ({
-      activeTerminalWorkers: [...s.activeTerminalWorkers, workerSession],
-    }));
-
-    if ((window as any).__TAURI_INTERNALS__) {
-      try {
-        const { invoke } = await import('@tauri-apps/api/core');
-        await invoke('register_terminal_worker', {
-          workerId,
-          agentId,
-          tabId,
-          role,
-          taskSpec: taskSpec || '',
-        });
-
-        await invoke('init_terminal_pty', {
-          tabId,
-          cols: 80,
-          rows: 24,
-        });
-
-        const launchCmd = agent?.path || agent?.binary_name || agentId;
-        const initialCommand = taskSpec ? `${launchCmd} "${taskSpec.replace(/"/g, '\\"')}"\n` : `${launchCmd}\n`;
-        await invoke('terminal_pty_write', {
-          tabId,
-          data: initialCommand,
-        });
-
-        addToast('success', `Agen pekerja '${agentName}' berhasil dimulai pada terminal.`);
-        return workerId;
-      } catch (err: any) {
-        addToast('error', `Gagal menjalankan agen '${agentName}': ${err}`);
-        set((s) => ({
-          activeTerminalWorkers: s.activeTerminalWorkers.map((w) =>
-            w.worker_id === workerId ? { ...w, status: 'error' } : w
-          ),
-        }));
-        return null;
-      }
-    } else {
-      addToast('info', `Simulasi: Pekerja terminal '${agentName}' [${role}] dimulai.`);
-      return workerId;
-    }
+    return await get().spawnAgentInPane(targetPaneId, agentId, undefined, 'tab');
   },
+
 
   terminateTerminalWorker: async (workerId: string) => {
     const { activeTerminalWorkers, addToast } = get();
@@ -4079,7 +4019,17 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
     customCwd?: string,
     placement: 'tab' | 'split-right' | 'split-down' = 'tab'
   ) => {
-    const { installedCliAgents, addToast, tilingLayout, splitPane } = get();
+    const { installedCliAgents, addToast, splitPane, ensureTilingInitialized } = get();
+
+    await ensureTilingInitialized();
+    let currentLayout = get().tilingLayout;
+
+    // Pastikan target pane valid di dalam tilingLayout
+    let targetPane = findPaneInTilingTree(currentLayout, paneId);
+    if (!targetPane) {
+      targetPane = getFirstPaneInTilingTree(currentLayout);
+    }
+    const resolvedPaneId = targetPane?.id || 'pane-root';
 
     // Cari metadata agen dengan pencocokan id atau binary_name yang fleksibel
     const agent = installedCliAgents.find(
@@ -4092,7 +4042,14 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
         (agentId.toLowerCase() === 'omp' && a.id.toLowerCase() === 'oh-my-phi')
     );
 
-    const agentName = agent?.name || (agentId === 'agy' || agentId === 'antigravity' ? 'Google Antigravity' : (agentId === 'omp' || agentId === 'oh-my-phi' ? 'Oh My Phi (omp)' : agentId));
+    const agentName =
+      agent?.name ||
+      (agentId === 'agy' || agentId === 'antigravity'
+        ? 'Google Antigravity'
+        : agentId === 'omp' || agentId === 'oh-my-phi'
+        ? 'Oh My Phi (omp)'
+        : agentId);
+
     const tabId = `tab-agent-${Date.now()}`;
     const workerId = `worker-${Date.now()}`;
 
@@ -4127,18 +4084,17 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
     }));
 
     if (placement === 'split-right') {
-      await splitPane(paneId, 'horizontal', tabId);
+      await splitPane(resolvedPaneId, 'horizontal', tabId);
     } else if (placement === 'split-down') {
-      await splitPane(paneId, 'vertical', tabId);
+      await splitPane(resolvedPaneId, 'vertical', tabId);
     } else {
-      if (tilingLayout) {
-        const updated = updatePaneDataInTilingTree(tilingLayout, paneId, (p) => ({
-          ...p,
-          tabs: [...p.tabs, tabId],
-          activeTabId: tabId,
-        }));
-        set({ tilingLayout: updated });
-      }
+      const activeLayout = get().tilingLayout || currentLayout!;
+      const updated = updatePaneDataInTilingTree(activeLayout, resolvedPaneId, (p) => ({
+        ...p,
+        tabs: [...p.tabs, tabId],
+        activeTabId: tabId,
+      }));
+      set({ tilingLayout: updated });
     }
 
     if ((window as any).__TAURI_INTERNALS__) {
@@ -4151,28 +4107,22 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
           role: 'Agent Worker',
           taskSpec: '',
         });
-
-        await invoke('init_terminal_pty', {
-          tabId,
-          cols: 80,
-          rows: 24,
-          cwd: customCwd || undefined,
-        });
-
-        addToast('success', `Agen '${agentName}' dijalankan di terminal.`);
-        return workerId;
       } catch (err: any) {
-        addToast('error', `Gagal menjalankan agen '${agentName}': ${err}`);
-        return null;
+        console.warn('Gagal registrasi terminal worker:', err);
       }
     }
 
+    addToast('success', `Agen '${agentName}' dijalankan di terminal.`);
     return workerId;
   },
 
   draggingItem: null,
+  dragPreviewPos: null,
+  activeDropTarget: null,
   setDraggingItem: (item: DraggingItem | null) =>
     set({ draggingItem: item, draggingPaneId: item?.type === 'pane' ? item.paneId : null }),
+  setDragPreviewPos: (pos: { x: number; y: number } | null) => set({ dragPreviewPos: pos }),
+  setActiveDropTarget: (target: ActiveDropTarget | null) => set({ activeDropTarget: target }),
   draggingPaneId: null,
   setDraggingPaneId: (paneId: string | null) =>
     set({
@@ -4200,6 +4150,8 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
       set({
         tilingLayout: res.updatedTree,
         draggingItem: null,
+        dragPreviewPos: null,
+        activeDropTarget: null,
         draggingPaneId: null,
         activeTerminalTabId: tabId,
       });
@@ -4226,6 +4178,8 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
     set({
       tilingLayout: updated,
       draggingItem: null,
+      dragPreviewPos: null,
+      activeDropTarget: null,
       draggingPaneId: null,
       activeTerminalTabId: tabId,
     });
@@ -4237,7 +4191,13 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
     if (!tilingLayout) return;
 
     const updated = moveTabInPaneInTilingTree(tilingLayout, paneId, fromIndex, toIndex);
-    set({ tilingLayout: updated, draggingItem: null, draggingPaneId: null });
+    set({
+      tilingLayout: updated,
+      draggingItem: null,
+      dragPreviewPos: null,
+      activeDropTarget: null,
+      draggingPaneId: null,
+    });
   },
 
   reparentPane: (
@@ -4249,7 +4209,13 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
     if (!tilingLayout || sourcePaneId === targetPaneId) return;
 
     const updated = reparentPaneInTilingTree(tilingLayout, sourcePaneId, targetPaneId, position);
-    set({ tilingLayout: updated, draggingPaneId: null, draggingItem: null });
+    set({
+      tilingLayout: updated,
+      draggingPaneId: null,
+      draggingItem: null,
+      dragPreviewPos: null,
+      activeDropTarget: null,
+    });
     addToast('info', 'Tata letak terminal diperbarui.');
   },
 
@@ -4484,13 +4450,20 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
 }));
 
 // Tiling Tree Pure Helper Functions
-function findPaneInTilingTree(node: TilingNode | null, paneId: string): TerminalPaneNode | null {
+export function findPaneInTilingTree(node: TilingNode | null, paneId: string): TerminalPaneNode | null {
   if (!node) return null;
   if (node.type === 'pane') {
     return node.data.id === paneId ? node.data : null;
   }
   return findPaneInTilingTree(node.data.first, paneId) || findPaneInTilingTree(node.data.second, paneId);
 }
+
+export function getFirstPaneInTilingTree(node: TilingNode | null): TerminalPaneNode | null {
+  if (!node) return null;
+  if (node.type === 'pane') return node.data;
+  return getFirstPaneInTilingTree(node.data.first) || getFirstPaneInTilingTree(node.data.second);
+}
+
 
 function replacePaneInTilingTree(
   node: TilingNode,

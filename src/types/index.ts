@@ -532,3 +532,10 @@ export interface DraggingItem {
   title: string;
 }
 
+export interface ActiveDropTarget {
+  paneId: string;
+  zone: 'left' | 'right' | 'top' | 'bottom' | 'tab';
+  tabIndex?: number;
+}
+
+

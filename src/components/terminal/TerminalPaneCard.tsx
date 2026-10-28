@@ -25,8 +25,10 @@ export const TerminalPaneCard: React.FC<TerminalPaneCardProps> = ({ pane }) => {
     activeTerminalWorkers,
     maximizedPaneId,
     draggingItem,
+    activeDropTarget,
     setDraggingItem,
-    setDraggingPaneId,
+    setDragPreviewPos,
+    setActiveDropTarget,
     reparentPane,
     splitPane,
     splitPaneWithTab,
@@ -40,7 +42,6 @@ export const TerminalPaneCard: React.FC<TerminalPaneCardProps> = ({ pane }) => {
   } = useStore();
 
   const [isLauncherOpen, setIsLauncherOpen] = useState(false);
-  const [dropZone, setDropZone] = useState<'left' | 'right' | 'top' | 'bottom' | 'tab' | null>(null);
 
   const cardRef = useRef<HTMLDivElement>(null);
   const addBtnRef = useRef<HTMLButtonElement>(null);
@@ -48,6 +49,9 @@ export const TerminalPaneCard: React.FC<TerminalPaneCardProps> = ({ pane }) => {
 
   const totalPanes = countPanesInTilingTree(tilingLayout);
   const canDragSnap = totalPanes >= 2;
+
+  const isTargetOfDrop = activeDropTarget?.paneId === pane.id;
+  const dropZone = isTargetOfDrop ? activeDropTarget?.zone : null;
 
   const getWorkerForTab = (tabId: string) => {
     return activeTerminalWorkers.find((w) => w.tab_id === tabId);
@@ -67,163 +71,236 @@ export const TerminalPaneCard: React.FC<TerminalPaneCardProps> = ({ pane }) => {
     }
   };
 
-  // Drag Source Handlers for Pane Header
-  const handlePaneDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.setData('text/plain', pane.id);
-    e.dataTransfer.effectAllowed = 'move';
-    setDraggingItem({
-      type: 'pane',
-      paneId: pane.id,
-      title: 'Panel',
-    });
-  };
+  // Pointer-Based Drag Handler for Individual Tab
+  const handleTabPointerDown = (
+    e: React.PointerEvent,
+    tabId: string,
+    title: string
+  ) => {
+    if (e.button !== 0) return;
 
-  // Drag Source Handlers for Individual Tab
-  const handleTabDragStart = (e: React.DragEvent, tabId: string, title: string) => {
-    e.stopPropagation();
-    e.dataTransfer.setData('text/plain', tabId);
-    e.dataTransfer.effectAllowed = 'move';
-    setDraggingItem({
-      type: 'tab',
-      tabId,
-      paneId: pane.id,
-      title,
-    });
-  };
+    const startX = e.clientX;
+    const startY = e.clientY;
+    let hasStartedDrag = false;
 
-  const handleDragEnd = () => {
-    setDraggingItem(null);
-    setDraggingPaneId(null);
-    setDropZone(null);
-  };
-
-  // Drop Target Handlers for Pane Body & Drag Shield
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    if (!cardRef.current || !draggingItem) return;
-    e.dataTransfer.dropEffect = 'move';
-
-    // Jika drag tab dari pane ini sendiri dan hanya ada 1 tab, tidak bisa split dengan diri sendiri
-    if (draggingItem.type === 'tab' && draggingItem.paneId === pane.id && pane.tabs.length <= 1) {
-      setDropZone(null);
-      return;
-    }
-
-    // Jika drag panel ke panel yang sama, abaikan
-    if (draggingItem.type === 'pane' && draggingItem.paneId === pane.id) {
-      setDropZone(null);
-      return;
-    }
-
-    const rect = cardRef.current.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-
-    if (x > 0.65) {
-      setDropZone('right');
-    } else if (x < 0.35) {
-      setDropZone('left');
-    } else if (y > 0.65) {
-      setDropZone('bottom');
-    } else if (y < 0.35) {
-      setDropZone('top');
-    } else {
-      // Area tengah: jika dari pane berbeda, gabung tab. Jika dari pane sama, tidak ada aksi tengah
-      if (draggingItem.paneId !== pane.id) {
-        setDropZone('tab');
-      } else {
-        setDropZone(null);
+    const onPointerMove = (moveEvt: PointerEvent) => {
+      const dist = Math.hypot(moveEvt.clientX - startX, moveEvt.clientY - startY);
+      if (!hasStartedDrag && dist > 5) {
+        hasStartedDrag = true;
+        setDraggingItem({
+          type: 'tab',
+          tabId,
+          paneId: pane.id,
+          title,
+        });
       }
-    }
-  };
 
-  const handleDragLeave = (e: React.DragEvent) => {
-    if (!cardRef.current?.contains(e.relatedTarget as Node)) {
-      setDropZone(null);
-    }
-  };
+      if (hasStartedDrag) {
+        setDragPreviewPos({ x: moveEvt.clientX, y: moveEvt.clientY });
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (!draggingItem || !dropZone) {
-      setDropZone(null);
-      setDraggingItem(null);
-      return;
-    }
-
-    if (draggingItem.type === 'tab' && draggingItem.tabId) {
-      if (dropZone === 'tab') {
-        if (draggingItem.paneId !== pane.id) {
-          moveTabToPane(draggingItem.paneId, pane.id, draggingItem.tabId);
+        const el = document.elementFromPoint(moveEvt.clientX, moveEvt.clientY);
+        if (!el) {
+          setActiveDropTarget(null);
+          return;
         }
-      } else {
-        splitPaneWithTab(draggingItem.paneId, pane.id, draggingItem.tabId, dropZone);
-      }
-    } else if (draggingItem.type === 'pane') {
-      if (draggingItem.paneId !== pane.id) {
-        reparentPane(draggingItem.paneId, pane.id, dropZone);
-      }
-    }
 
-    setDraggingItem(null);
-    setDraggingPaneId(null);
-    setDropZone(null);
+        const paneCardEl = el.closest('[data-terminal-pane-id]');
+        if (!paneCardEl) {
+          setActiveDropTarget(null);
+          return;
+        }
+
+        const targetPaneId = paneCardEl.getAttribute('data-terminal-pane-id');
+        if (!targetPaneId) {
+          setActiveDropTarget(null);
+          return;
+        }
+
+        // Check if pointer is over a tab item (tab reordering)
+        const tabItemEl = el.closest('[data-tab-index]');
+        if (tabItemEl) {
+          const idx = parseInt(tabItemEl.getAttribute('data-tab-index') || '0', 10);
+          setActiveDropTarget({
+            paneId: targetPaneId,
+            zone: 'tab',
+            tabIndex: idx,
+          });
+          return;
+        }
+
+        // Calculate relative zone on the card body
+        const rect = paneCardEl.getBoundingClientRect();
+        const rx = (moveEvt.clientX - rect.left) / rect.width;
+        const ry = (moveEvt.clientY - rect.top) / rect.height;
+
+        // If dragging from self and self has only 1 tab, cannot split with self
+        if (targetPaneId === pane.id && pane.tabs.length <= 1) {
+          setActiveDropTarget(null);
+          return;
+        }
+
+        let zone: 'left' | 'right' | 'top' | 'bottom' | 'tab' | null = null;
+        if (rx > 0.65) {
+          zone = 'right';
+        } else if (rx < 0.35) {
+          zone = 'left';
+        } else if (ry > 0.70) {
+          zone = 'bottom';
+        } else if (ry < 0.30) {
+          zone = 'top';
+        } else {
+          if (targetPaneId !== pane.id) {
+            zone = 'tab';
+          }
+        }
+
+        if (zone) {
+          setActiveDropTarget({ paneId: targetPaneId, zone });
+        } else {
+          setActiveDropTarget(null);
+        }
+      }
+    };
+
+    const onPointerUp = () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+
+      if (hasStartedDrag) {
+        const dropTarget = useStore.getState().activeDropTarget;
+        const dragItem = useStore.getState().draggingItem;
+
+        if (dragItem?.type === 'tab' && dragItem.tabId && dropTarget) {
+          if (dropTarget.zone === 'tab') {
+            if (dropTarget.paneId === dragItem.paneId) {
+              if (dropTarget.tabIndex !== undefined) {
+                const sourceIdx = pane.tabs.indexOf(dragItem.tabId);
+                if (sourceIdx !== -1 && sourceIdx !== dropTarget.tabIndex) {
+                  moveTabInPane(dragItem.paneId, sourceIdx, dropTarget.tabIndex);
+                }
+              }
+            } else {
+              moveTabToPane(
+                dragItem.paneId,
+                dropTarget.paneId,
+                dragItem.tabId,
+                dropTarget.tabIndex
+              );
+            }
+          } else {
+            splitPaneWithTab(
+              dragItem.paneId,
+              dropTarget.paneId,
+              dragItem.tabId,
+              dropTarget.zone
+            );
+          }
+        }
+
+        setDraggingItem(null);
+        setDragPreviewPos(null);
+        setActiveDropTarget(null);
+      }
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
   };
 
-  // Tab Item Reorder Handlers
-  const handleTabItemDragOver = (e: React.DragEvent) => {
-    if (draggingItem?.type === 'tab') {
-      e.preventDefault();
-      e.stopPropagation();
-      e.dataTransfer.dropEffect = 'move';
-    }
-  };
+  // Pointer-Based Drag Handler for Whole Pane Grip Handle
+  const handleGripPointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0 || !canDragSnap) return;
 
-  const handleTabItemDrop = (e: React.DragEvent, targetIndex: number) => {
-    if (!draggingItem || draggingItem.type !== 'tab' || !draggingItem.tabId) return;
-    e.preventDefault();
-    e.stopPropagation();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    let hasStartedDrag = false;
 
-    if (draggingItem.paneId === pane.id) {
-      const fromIndex = pane.tabs.indexOf(draggingItem.tabId);
-      if (fromIndex !== -1 && fromIndex !== targetIndex) {
-        moveTabInPane(pane.id, fromIndex, targetIndex);
+    const onPointerMove = (moveEvt: PointerEvent) => {
+      const dist = Math.hypot(moveEvt.clientX - startX, moveEvt.clientY - startY);
+      if (!hasStartedDrag && dist > 5) {
+        hasStartedDrag = true;
+        setDraggingItem({
+          type: 'pane',
+          paneId: pane.id,
+          title: 'Panel',
+        });
       }
-    } else {
-      moveTabToPane(draggingItem.paneId, pane.id, draggingItem.tabId, targetIndex);
-    }
 
-    setDraggingItem(null);
-    setDraggingPaneId(null);
-    setDropZone(null);
+      if (hasStartedDrag) {
+        setDragPreviewPos({ x: moveEvt.clientX, y: moveEvt.clientY });
+
+        const el = document.elementFromPoint(moveEvt.clientX, moveEvt.clientY);
+        if (!el) {
+          setActiveDropTarget(null);
+          return;
+        }
+
+        const paneCardEl = el.closest('[data-terminal-pane-id]');
+        if (!paneCardEl) {
+          setActiveDropTarget(null);
+          return;
+        }
+
+        const targetPaneId = paneCardEl.getAttribute('data-terminal-pane-id');
+        if (!targetPaneId || targetPaneId === pane.id) {
+          setActiveDropTarget(null);
+          return;
+        }
+
+        const rect = paneCardEl.getBoundingClientRect();
+        const rx = (moveEvt.clientX - rect.left) / rect.width;
+        const ry = (moveEvt.clientY - rect.top) / rect.height;
+
+        let zone: 'left' | 'right' | 'top' | 'bottom' | 'tab' = 'tab';
+        if (rx > 0.70) zone = 'right';
+        else if (rx < 0.30) zone = 'left';
+        else if (ry > 0.70) zone = 'bottom';
+        else if (ry < 0.30) zone = 'top';
+
+        setActiveDropTarget({ paneId: targetPaneId, zone });
+      }
+    };
+
+    const onPointerUp = () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+
+      if (hasStartedDrag) {
+        const dropTarget = useStore.getState().activeDropTarget;
+        const dragItem = useStore.getState().draggingItem;
+
+        if (
+          dragItem?.type === 'pane' &&
+          dropTarget &&
+          dropTarget.paneId !== dragItem.paneId
+        ) {
+          reparentPane(dragItem.paneId, dropTarget.paneId, dropTarget.zone);
+        }
+
+        setDraggingItem(null);
+        setDragPreviewPos(null);
+        setActiveDropTarget(null);
+      }
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
   };
-
-  // Tentukan apakah transparent drag catcher aktif
-  const isShieldActive =
-    draggingItem !== null &&
-    (draggingItem.paneId !== pane.id || (draggingItem.type === 'tab' && pane.tabs.length > 1));
 
   return (
     <div
       ref={cardRef}
+      data-terminal-pane-id={pane.id}
       className="flex flex-col h-full w-full bg-[#171717] border border-[#2e2e2e] rounded-lg overflow-hidden relative shadow-sm"
     >
       {/* Pane Header */}
-      <div
-        draggable={canDragSnap}
-        onDragStart={canDragSnap ? handlePaneDragStart : undefined}
-        onDragEnd={canDragSnap ? handleDragEnd : undefined}
-        className={`h-9 bg-[#1f1f1f] border-b border-[#2e2e2e] px-2 flex items-center justify-between flex-shrink-0 select-none ${
-          canDragSnap ? 'cursor-grab active:cursor-grabbing' : ''
-        }`}
-      >
+      <div className="h-9 bg-[#1f1f1f] border-b border-[#2e2e2e] px-2 flex items-center justify-between flex-shrink-0 select-none">
         {/* Left Drag Handle + Tabs */}
         <div className="flex items-center gap-1 overflow-x-auto max-w-[70%] scrollbar-none py-1">
           {canDragSnap && (
             <div
-              className="p-1 rounded text-[#707070] hover:text-[#ececec] flex-shrink-0 mr-0.5"
+              onPointerDown={handleGripPointerDown}
+              className="p-1 rounded text-[#707070] hover:text-[#ececec] flex-shrink-0 mr-0.5 cursor-grab active:cursor-grabbing"
               title="Tarik untuk memindahkan atau men-split posisi panel terminal"
             >
               <GripVertical className="w-3.5 h-3.5" />
@@ -234,19 +311,21 @@ export const TerminalPaneCard: React.FC<TerminalPaneCardProps> = ({ pane }) => {
             const tab = terminalTabs.find((t) => t.id === tabId);
             const worker = getWorkerForTab(tabId);
             const isActive = tabId === pane.activeTabId;
-            const isTabBeingDragged = draggingItem?.type === 'tab' && draggingItem?.tabId === tabId;
+            const isTabBeingDragged =
+              draggingItem?.type === 'tab' && draggingItem?.tabId === tabId;
 
             return (
               <div
                 key={tabId}
-                draggable={true}
-                onDragStart={(e) => handleTabDragStart(e, tabId, tab?.title || 'Terminal')}
-                onDragEnd={handleDragEnd}
-                onDragOver={handleTabItemDragOver}
-                onDrop={(e) => handleTabItemDrop(e, tabIndex)}
+                data-tab-index={tabIndex}
+                onPointerDown={(e) =>
+                  handleTabPointerDown(e, tabId, tab?.title || 'Terminal')
+                }
                 onClick={() => setActiveTabInPane(pane.id, tabId)}
                 className={`group flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs cursor-grab active:cursor-grabbing border transition-all flex-shrink-0 select-none ${
-                  isTabBeingDragged ? 'opacity-40 border-dashed border-blue-400' : ''
+                  isTabBeingDragged
+                    ? 'opacity-30 border-dashed border-[#3b82f6]'
+                    : ''
                 } ${
                   isActive
                     ? 'bg-[#2a2a2a] border-[#404040] text-[#ececec]'
@@ -362,16 +441,6 @@ export const TerminalPaneCard: React.FC<TerminalPaneCardProps> = ({ pane }) => {
           />
         ))}
       </div>
-
-      {/* Transparent Drag-Over Event Shield across Xterm */}
-      {isShieldActive && (
-        <div
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          className="absolute inset-0 z-40 bg-transparent"
-        />
-      )}
 
       {/* Visual Drop Zone Previews (Orca Blue Style) */}
       {dropZone === 'right' && (
