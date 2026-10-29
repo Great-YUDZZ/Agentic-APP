@@ -513,13 +513,7 @@ const loadSavedSettings = (): AppSettings => {
   return DEFAULT_SETTINGS;
 };
 
-export const DEFAULT_POPULAR_MODELS: ModelOption[] = [
-  { id: 'gemini-2.5-flash', name: 'gemini-2.5-flash', provider: 'custom', endpoint_id: 'custom', endpoint_name: 'Google Gemini' },
-  { id: 'gemini-2.5-pro', name: 'gemini-2.5-pro', provider: 'custom', endpoint_id: 'custom', endpoint_name: 'Google Gemini' },
-  { id: 'claude-3-7-sonnet', name: 'claude-3-7-sonnet', provider: 'custom', endpoint_id: 'custom', endpoint_name: 'Anthropic Claude' },
-  { id: 'gpt-4o', name: 'gpt-4o', provider: 'custom', endpoint_id: 'custom', endpoint_name: 'OpenAI' },
-  { id: 'deepseek-chat', name: 'deepseek-chat', provider: 'custom', endpoint_id: 'custom', endpoint_name: 'DeepSeek' },
-];
+export const DEFAULT_POPULAR_MODELS: ModelOption[] = [];
 
 export const useStore = create<AppStore>((set, get) => ({
   // Studio View Navigation (Build Mode)
@@ -614,9 +608,9 @@ export const useStore = create<AppStore>((set, get) => ({
   },
 
   // Custom Endpoint - model dideteksi berdasarkan ketersediaan API key
-  selectedModel: 'gemini-2.5-flash',
+  selectedModel: '',
   selectedProvider: 'custom',
-  availableModels: DEFAULT_POPULAR_MODELS,
+  availableModels: [],
   isDetectingModels: false,
   setModel: (selectedModel) => set({ selectedModel }),
   setProvider: (selectedProvider) => set({ selectedProvider }),
@@ -663,11 +657,11 @@ export const useStore = create<AppStore>((set, get) => ({
 
     if (activeCustoms.length === 0) {
       set({
-        availableModels: DEFAULT_POPULAR_MODELS,
-        selectedModel: get().selectedModel || DEFAULT_POPULAR_MODELS[0].id,
+        availableModels: [],
+        selectedModel: '',
         isDetectingModels: false,
       });
-      return DEFAULT_POPULAR_MODELS.length;
+      return 0;
     }
 
     set({ isDetectingModels: true });
@@ -718,11 +712,11 @@ export const useStore = create<AppStore>((set, get) => ({
     }
 
     set({
-      availableModels: DEFAULT_POPULAR_MODELS,
-      selectedModel: get().selectedModel || DEFAULT_POPULAR_MODELS[0].id,
+      availableModels: [],
+      selectedModel: '',
       isDetectingModels: false,
     });
-    return DEFAULT_POPULAR_MODELS.length;
+    return 0;
   },
 
   isSettingsOpen: false,

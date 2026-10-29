@@ -16,6 +16,8 @@ import {
   Square,
   Loader2,
   GitBranch,
+  KeyRound,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { useVoiceRecorder } from '../../utils/audioRecorder';
 import { useStore } from '../../store/useStore';
@@ -74,6 +76,7 @@ export const ChatContainer: React.FC = () => {
     forkSessionFromMessage,
     setLastTelemetry,
     selectSession,
+    setSettingsOpen,
   } = useStore();
 
   const convWidthClass = getConversationWidthClass(settings?.conversationWidth);
@@ -988,7 +991,11 @@ export const ChatContainer: React.FC = () => {
                     className="flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-mono transition-all group bg-[#212121] hover:bg-[#262626] border-[#383838] text-[#ececec]"
                     title="Pilih Model AI"
                   >
-                    <Cpu className="w-3.5 h-3.5 text-[#ececec]" />
+                    {availableModels.length === 0 ? (
+                      <span className="w-2 h-2 rounded-full bg-amber-400/90 shrink-0" />
+                    ) : (
+                      <Cpu className="w-3.5 h-3.5 text-[#ececec]" />
+                    )}
                     <span className="max-w-[160px] truncate font-medium">
                       {selectedModel || 'Pilih Model'}
                     </span>
@@ -1074,7 +1081,30 @@ export const ChatContainer: React.FC = () => {
 
                       {/* Scrollable Model List grouped by Endpoint with Accordion */}
                       <div className="flex-1 overflow-y-auto max-h-64 space-y-2 pr-1">
-                        {filteredModels.length === 0 ? (
+                        {availableModels.length === 0 && !modelSearchQuery.trim() ? (
+                          <div className="p-4 rounded-xl border border-[#303030] bg-[#1f1f1f] text-center space-y-3 my-1">
+                            <div className="w-9 h-9 mx-auto rounded-full bg-[#2a2a2a] border border-[#383838] flex items-center justify-center text-[#b4b4b4]">
+                              <KeyRound className="w-4 h-4 text-amber-400/90" />
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-[#ececec]">Belum Ada Model Aktif</p>
+                              <p className="text-[11px] text-[#888888] leading-relaxed">
+                                Tambahkan API Key di Pengaturan untuk mengaktifkan model AI.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsModelMenuOpen(false);
+                                setSettingsOpen(true);
+                              }}
+                              className="w-full py-1.5 px-3 rounded-xl bg-[#2b2b2b] hover:bg-[#383838] border border-[#383838] text-xs font-medium text-[#ececec] transition-colors flex items-center justify-center gap-1.5"
+                            >
+                              <SlidersHorizontal className="w-3.5 h-3.5 text-[#b4b4b4]" />
+                              <span>Buka Pengaturan API</span>
+                            </button>
+                          </div>
+                        ) : filteredModels.length === 0 ? (
                           <div className="p-4 text-center text-xs text-[#b4b4b4] space-y-2">
                             <p>Tidak ada model yang cocok dengan pencarian.</p>
                             {modelSearchQuery.trim() && (
