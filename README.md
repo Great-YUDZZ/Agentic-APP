@@ -16,24 +16,24 @@
 
 ---
 
-## Unduh dan Rilis Siap Pakai (v0.1.1)
+## Unduh dan Rilis Siap Pakai (v0.2.1)
 
 Paket instalasi dan berkas binari mandiri untuk Linux dan Windows tersedia secara langsung pada rilis resmi. Anda dapat mengunduh berkas yang sesuai dengan sistem operasi yang digunakan:
 
 | Sistem Operasi | Tipe Berkas | Deskripsi | Tautan Unduh |
 | :--- | :--- | :--- | :--- |
-| **Linux (Debian/Ubuntu/Mint)** | `.deb` | Paket instalasi native berbasis Debian (6.0 MB) | [Unduh .deb](https://github.com/Great-YUDZZ/Agentic-APP/releases/download/v0.1.1/Agentic.Native.Hub_0.1.1_amd64.deb) |
-| **Linux (Universal Portable)** | `.AppImage` | Berkas mandiri tanpa perlu instalasi, langsung jalan (80 MB) | [Unduh .AppImage](https://github.com/Great-YUDZZ/Agentic-APP/releases/download/v0.1.1/Agentic.Native.Hub_0.1.1_amd64.AppImage) |
-| **Linux (Binari Arsip)** | `.zip` | Arsip binari stripped dengan desktop launcher (5.8 MB) | [Unduh .zip](https://github.com/Great-YUDZZ/Agentic-APP/releases/download/v0.1.1/agentic-native-hub-v0.1.1-linux-x86_64.zip) |
-| **Windows (x64)** | `.exe` | Installer wizard mandiri berbasis NSIS (4.3 MB) | [Unduh .exe](https://github.com/Great-YUDZZ/Agentic-APP/releases/download/v0.1.1/Agentic.Native.Hub_0.1.1_x64-setup.exe) |
-| **Semua Platform** | GitHub Releases | Halaman daftar rilis lengkap dengan catatan versi | [Buka Rilis v0.1.1](https://github.com/Great-YUDZZ/Agentic-APP/releases/tag/v0.1.1) |
+| **Linux (Debian/Ubuntu/Mint)** | `.deb` | Paket instalasi native berbasis Debian (6.0 MB) | [Unduh .deb](https://github.com/Great-YUDZZ/Agentic-APP/releases/download/v0.2.1/Agentic.Native.Hub_0.2.1_amd64.deb) |
+| **Linux (Universal Portable)** | `.AppImage` | Berkas mandiri tanpa perlu instalasi, langsung jalan (80 MB) | [Unduh .AppImage](https://github.com/Great-YUDZZ/Agentic-APP/releases/download/v0.2.1/Agentic.Native.Hub_0.2.1_amd64.AppImage) |
+| **Linux (Binari Arsip)** | `.zip` | Arsip binari stripped dengan desktop launcher (5.8 MB) | [Unduh .zip](https://github.com/Great-YUDZZ/Agentic-APP/releases/download/v0.2.1/agentic-native-hub-v0.2.1-linux-x86_64.zip) |
+| **Windows (x64)** | `.exe` | Installer wizard mandiri berbasis NSIS (4.3 MB) | [Unduh .exe](https://github.com/Great-YUDZZ/Agentic-APP/releases/download/v0.2.1/Agentic.Native.Hub_0.2.1_x64-setup.exe) |
+| **Semua Platform** | GitHub Releases | Halaman daftar rilis lengkap dengan catatan versi | [Buka Rilis v0.2.1](https://github.com/Great-YUDZZ/Agentic-APP/releases/tag/v0.2.1) |
 
 ### Petunjuk Instalasi dan Menjalankan
 
 #### 1. Linux Debian / Ubuntu / Mint (.deb)
 ```bash
 # Instal paket deb menggunakan dpkg
-sudo dpkg -i Agentic.Native.Hub_0.1.1_amd64.deb
+sudo dpkg -i Agentic.Native.Hub_0.2.1_amd64.deb
 
 # Jika ada dependensi sistem yang belum terpenuhi, perbaiki dengan perintah berikut:
 sudo apt-get install -f
@@ -42,16 +42,16 @@ sudo apt-get install -f
 #### 2. Linux AppImage (Portabel Universal)
 ```bash
 # Berikan izin eksekusi pada berkas AppImage
-chmod +x Agentic.Native.Hub_0.1.1_amd64.AppImage
+chmod +x Agentic.Native.Hub_0.2.1_amd64.AppImage
 
 # Jalankan aplikasi langsung
-./Agentic.Native.Hub_0.1.1_amd64.AppImage
+./Agentic.Native.Hub_0.2.1_amd64.AppImage
 ```
 
 #### 3. Linux Binari Zip
 ```bash
 # Ekstrak arsip zip
-unzip agentic-native-hub-v0.1.1-linux-x86_64.zip -d agentic-native-hub
+unzip agentic-native-hub-v0.2.1-linux-x86_64.zip -d agentic-native-hub
 cd agentic-native-hub
 
 # Jalankan binari
@@ -59,7 +59,7 @@ cd agentic-native-hub
 ```
 
 #### 4. Windows Installer (.exe)
-Unduh berkas `Agentic.Native.Hub_0.1.1_x64-setup.exe`, klik dua kali untuk membuka wizard instalasi, lalu ikuti petunjuk pemasangan hingga selesai.
+Unduh berkas `Agentic.Native.Hub_0.2.1_x64-setup.exe`, klik dua kali untuk membuka wizard instalasi, lalu ikuti petunjuk pemasangan hingga selesai.
 
 ### Verifikasi Integritas Berkas (SHA-256)
 
