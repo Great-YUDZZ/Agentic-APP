@@ -207,11 +207,11 @@ export const McpServersTab: React.FC = () => {
         </div>
         <div className="p-3 bg-[#262626] border border-[#383838] rounded-2xl">
           <div className="text-[11px] text-[#707070] uppercase font-semibold tracking-wider">Server Aktif</div>
-          <div className="text-lg font-bold text-emerald-400 mt-1">{activeCount}</div>
+          <div className="text-lg font-bold text-[#ececec] mt-1">{activeCount}</div>
         </div>
         <div className="p-3 bg-[#262626] border border-[#383838] rounded-2xl">
           <div className="text-[11px] text-[#707070] uppercase font-semibold tracking-wider">Tool Terhubung</div>
-          <div className="text-lg font-bold text-sky-400 mt-1">{mcpTools.length}</div>
+          <div className="text-lg font-bold text-[#ececec] mt-1">{mcpTools.length}</div>
         </div>
       </div>
 
@@ -279,21 +279,21 @@ export const McpServersTab: React.FC = () => {
 
                         {server.is_active ? (
                           status?.is_connected ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 font-medium">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                            <span className="inline-flex items-center gap-1 text-[11px] text-[#ececec] font-medium">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#ececec]" />
                               <span>Terhubung ({status.tools_count} tool)</span>
                             </span>
                           ) : status?.error_message ? (
                             <span
-                              className="inline-flex items-center gap-1 text-[11px] text-rose-400 font-medium truncate max-w-xs"
+                              className="inline-flex items-center gap-1 text-[11px] text-[#ececec] font-medium truncate max-w-xs"
                               title={status.error_message}
                             >
-                              <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#8e8e8e]" />
                               <span className="truncate">Gagal: {status.error_message}</span>
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-[11px] text-amber-400 font-medium">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                            <span className="inline-flex items-center gap-1 text-[11px] text-[#b4b4b4] font-medium">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#ececec] animate-pulse" />
                               <span>Menghubungkan...</span>
                             </span>
                           )
@@ -325,7 +325,7 @@ export const McpServersTab: React.FC = () => {
                       onClick={() => toggleMcpServer(server.id, !server.is_active)}
                       className={`h-7 px-2.5 rounded-lg text-[11px] font-medium border transition-colors ${
                         server.is_active
-                          ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800/60 hover:bg-emerald-900/50'
+                          ? 'bg-[#2f2f2f] text-[#ececec] border-[#4f4f4f] hover:bg-[#383838]'
                           : 'bg-[#212121] text-[#707070] border-[#383838] hover:bg-[#2d2d2d] hover:text-[#ececec]'
                       }`}
                     >

@@ -259,19 +259,23 @@ export const MultiAgentDiscussion: React.FC = () => {
   };
 
   const handleAttachClick = async () => {
+    let nativeSuccess = false;
     if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
       try {
         const picked = await pickNativeFiles();
         if (picked && picked.length > 0) {
           setAttachedFiles((prev) => [...prev, ...picked]);
           addToast('success', `${picked.length} file berhasil dilampirkan.`);
+          return;
         }
-        return;
+        nativeSuccess = true;
       } catch (err) {
         console.warn('Native file picker fallback to HTML input:', err);
       }
     }
-    fileInputRef.current?.click();
+    if (!nativeSuccess) {
+      fileInputRef.current?.click();
+    }
   };
 
   const dailyGreeting = getDailyGreeting();

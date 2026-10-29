@@ -44,7 +44,7 @@ export const GitDocsModal: React.FC<GitDocsModalProps> = ({ isOpen, onClose }) =
 
           <div className="p-3.5 rounded-xl bg-[#171717] border border-[#2e2e2e] space-y-1.5">
             <div className="flex items-center gap-2 text-[#ececec] font-medium">
-              <GitBranch className="w-4 h-4 text-emerald-400" />
+              <GitBranch className="w-4 h-4 text-[#ececec]" />
               <span>2. Kloning Repositori Git (Clone Repository)</span>
             </div>
             <p className="text-[11px] text-[#8e8e8e]">

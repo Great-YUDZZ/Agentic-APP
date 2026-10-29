@@ -752,17 +752,17 @@ export const SettingsModal: React.FC = () => {
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-[#ececec]">Voice Input (Offline Whisper)</span>
                             {voiceStatus?.available && (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-[#262626] text-[#ececec] border border-[#383838]">
                                 {voiceStatus.is_small_model ? 'Akurasi Tinggi (Small Q5)' : 'Model Bawaan (Tiny)'} ({(voiceStatus.size_bytes / (1024 * 1024)).toFixed(0)} MB)
                               </span>
                             )}
                             {voiceStatus?.download_status === 'downloading' && (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20 animate-pulse">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-[#262626] text-[#ececec] border border-[#383838] animate-pulse">
                                 Mengunduh Small Q5 ({voiceStatus.download_percent?.toFixed(0) || 0}%)
                               </span>
                             )}
                             {!voiceStatus?.available && voiceStatus?.download_status !== 'downloading' && (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-[#1e1e1e] text-[#8e8e8e] border border-[#383838]">
                                 Menunggu Unduhan
                               </span>
                             )}
@@ -793,7 +793,7 @@ export const SettingsModal: React.FC = () => {
                           </div>
                           <div className="w-full h-1.5 rounded-full bg-[#303030] overflow-hidden">
                             <div
-                              className="h-full bg-emerald-500 transition-all duration-300"
+                              className="h-full bg-[#ececec] transition-all duration-300"
                               style={{ width: `${Math.max(2, voiceStatus.download_percent || 0)}%` }}
                             />
                           </div>
@@ -868,7 +868,7 @@ export const SettingsModal: React.FC = () => {
                     <div>
                       <div className="text-sm font-medium text-[#ececec]">App Version</div>
                       <div className="text-xs font-mono text-[#b4b4b4] mt-0.5">
-                        v0.2.2
+                        v0.2.3
                       </div>
                     </div>
                     <button
@@ -883,7 +883,7 @@ export const SettingsModal: React.FC = () => {
                         } else if (result.error) {
                           addToast('error', `Gagal memeriksa pembaruan: ${result.error}`);
                         } else {
-                          addToast('info', 'Aplikasi sudah dalam versi terbaru (v0.2.2).');
+                          addToast('info', 'Aplikasi sudah dalam versi terbaru (v0.2.3).');
                         }
                       }}
                       className="px-3.5 py-1.5 rounded-xl bg-[#212121] hover:bg-[#303030] border border-[#383838] text-xs font-medium text-[#ececec] transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer"

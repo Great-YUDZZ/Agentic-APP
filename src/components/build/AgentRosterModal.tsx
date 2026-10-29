@@ -233,8 +233,8 @@ export const AgentRosterModal: React.FC = () => {
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-[#ececec]">{agent.name}</span>
                             {agent.is_installed ? (
-                              <span className="flex items-center gap-1 text-[11px] text-[#4ade80] bg-[#1a3a22] px-2 py-0.5 rounded-full border border-[#22c55e]/30">
-                                <CheckCircle2 className="w-3 h-3" />
+                              <span className="flex items-center gap-1 text-[11px] text-[#ececec] bg-[#262626] px-2 py-0.5 rounded-full border border-[#383838]">
+                                <CheckCircle2 className="w-3 h-3 text-[#b4b4b4]" />
                                 {agent.version ? `v${agent.version}` : 'Terpasang'}
                               </span>
                             ) : (

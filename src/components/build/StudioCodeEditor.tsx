@@ -672,7 +672,7 @@ export const StudioCodeEditor: React.FC = () => {
               </>
             ) : (
               <>
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <Check className="w-3.5 h-3.5 text-[#ececec]" />
                 <span>Tersimpan</span>
               </>
             )}
@@ -817,7 +817,7 @@ export const StudioCodeEditor: React.FC = () => {
           <span>{lineCount} baris</span>
           <span>{activeFile.content.length} karakter</span>
           <span className="uppercase text-[#aaaaaa] font-semibold">{targetLang}</span>
-          <span className={activeFile.isDirty ? 'text-amber-400 font-medium' : 'text-emerald-400'}>
+          <span className={activeFile.isDirty ? 'text-[#ececec] font-medium' : 'text-[#8e8e8e]'}>
             {activeFile.isDirty ? 'Belum disimpan' : 'Sinkron'}
           </span>
         </div>

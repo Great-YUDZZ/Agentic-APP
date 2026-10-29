@@ -1,6 +1,6 @@
 [package]
 name = "agentic_native_hub"
-version = "0.2.2"
+version = "0.2.3"
 description = "Autonomous AI Native Hub for Desktop (Windows & Linux)"
 authors = ["Autonomous Team"]
 license = "MIT"

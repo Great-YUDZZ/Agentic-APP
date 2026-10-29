@@ -565,20 +565,26 @@ export const useStore = create<AppStore>((set, get) => ({
     try {
       if ((window as any).__TAURI_INTERNALS__) {
         const { invoke } = await import('@tauri-apps/api/core');
-        const chosen = (await invoke('pick_workspace_directory')) as string | null;
-        if (chosen) {
-          set((s) => ({
-            workspaceProjectRoot: chosen,
-            activeWorkspacePath: chosen,
-            terminalTabs: s.terminalTabs.map((t) => ({ ...t, cwd: chosen })),
-          }));
-          await invoke('set_workspace_directory', { path: chosen });
-          await get().fetchWorkspaceFiles();
-          get().addToast('success', `Direktori proyek aktif: ${chosen}`);
-          return chosen;
+        try {
+          const chosen = (await invoke('pick_workspace_directory')) as string | null;
+          if (chosen) {
+            set((s) => ({
+              workspaceProjectRoot: chosen,
+              activeWorkspacePath: chosen,
+              terminalTabs: s.terminalTabs.map((t) => ({ ...t, cwd: chosen })),
+            }));
+            await invoke('set_workspace_directory', { path: chosen });
+            await get().fetchWorkspaceFiles();
+            get().addToast('success', `Direktori proyek aktif: ${chosen}`);
+            return chosen;
+          }
+          return null;
+        } catch (nativeErr: any) {
+          console.warn('Native folder picker failed or unavailable, trying browser fallback:', nativeErr);
         }
-        return null;
-      } else if (typeof window !== 'undefined' && 'showDirectoryPicker' in window) {
+      }
+
+      if (typeof window !== 'undefined' && 'showDirectoryPicker' in window) {
         // Fallback untuk browser web preview
         const handle = await (window as any).showDirectoryPicker();
         if (handle?.name) {
@@ -587,6 +593,26 @@ export const useStore = create<AppStore>((set, get) => ({
           get().addToast('success', `Folder terpilih: ${handle.name}`);
           return pseudoPath;
         }
+      } else if (typeof document !== 'undefined') {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.webkitdirectory = true;
+        (input as any).directory = true;
+        return new Promise<string | null>((resolve) => {
+          input.onchange = () => {
+            const files = input.files;
+            if (files && files.length > 0) {
+              const folderName = files[0].webkitRelativePath.split('/')[0] || 'Proyek';
+              set({ workspaceProjectRoot: folderName });
+              get().addToast('success', `Folder terpilih: ${folderName}`);
+              resolve(folderName);
+            } else {
+              resolve(null);
+            }
+          };
+          input.oncancel = () => resolve(null);
+          input.click();
+        });
       }
     } catch (err: any) {
       if (err?.name !== 'AbortError') {

@@ -74,10 +74,10 @@ export const DiffViewer: React.FC = () => {
               <FileCode className="w-3.5 h-3.5 text-[#b4b4b4]" />
               <span className="truncate max-w-[170px]">{file.filename.split('/').pop()}</span>
               {file.status === 'accepted' && (
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#ececec] shrink-0" />
               )}
               {file.status === 'rejected' && (
-                <XCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                <XCircle className="w-3.5 h-3.5 text-[#8e8e8e] shrink-0" />
               )}
             </button>
           ))}

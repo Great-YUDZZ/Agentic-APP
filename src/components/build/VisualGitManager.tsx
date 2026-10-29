@@ -760,7 +760,7 @@ export const VisualGitManager: React.FC = () => {
                 gitStatus.unstaged_files.length === 0 &&
                 gitStatus.untracked_files.length === 0 && (
                   <div className="p-6 text-center text-xs text-[#707070]">
-                    <Check className="w-6 h-6 mx-auto mb-2 text-emerald-400/80" />
+                    <Check className="w-6 h-6 mx-auto mb-2 text-[#ececec]/80" />
                     <p className="font-medium text-[#b4b4b4]">Working Tree Clean</p>
                     <p className="mt-1">Tidak ada perubahan file yang belum di-commit.</p>
                   </div>

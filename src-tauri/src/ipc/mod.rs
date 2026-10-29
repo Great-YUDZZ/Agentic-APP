@@ -369,6 +369,20 @@ pub async fn set_workspace_directory(
     Ok(path)
 }
 
+#[cfg(target_os = "linux")]
+pub fn clean_gui_command(program: &str) -> std::process::Command {
+    let mut cmd = std::process::Command::new(program);
+    // Ketika dijalankan dari AppImage, LD_LIBRARY_PATH berisi pustaka bersama internal
+    // yang dapat merusak pemanggilan biner GUI sistem eksternal seperti zenity atau kdialog.
+    if let Ok(orig_ld) = std::env::var("ORIGINAL_LD_LIBRARY_PATH") {
+        cmd.env("LD_LIBRARY_PATH", orig_ld);
+    } else {
+        cmd.env_remove("LD_LIBRARY_PATH");
+    }
+    cmd.env_remove("LD_PRELOAD");
+    cmd
+}
+
 #[tauri::command]
 pub async fn pick_workspace_directory(
     state: State<'_, AppState>,
@@ -377,10 +391,10 @@ pub async fn pick_workspace_directory(
     tokio::task::spawn_blocking(move || {
         #[cfg(target_os = "linux")]
         {
-            // Coba gunakan zenity terlebih dahulu
-            let output = std::process::Command::new("zenity")
-                .args(["--file-selection", "--directory", "--title=Pilih Direktori Proyek"])
-                .output();
+            // Coba gunakan zenity terlebih dahulu dengan environment bersih
+            let mut zenity_cmd = clean_gui_command("zenity");
+            zenity_cmd.args(["--file-selection", "--directory", "--title=Pilih Direktori Proyek"]);
+            let output = zenity_cmd.output();
 
             if let Ok(out) = output {
                 if out.status.success() {
@@ -390,14 +404,16 @@ pub async fn pick_workspace_directory(
                         tool_runner.set_workspace_root(pb);
                         return Ok(Some(path_str));
                     }
+                } else if out.status.code() == Some(1) && out.stdout.is_empty() {
+                    // Pengguna sengaja membatalkan dialog
+                    return Ok(None);
                 }
-                return Ok(None);
             }
 
             // Fallback kdialog untuk lingkungan KDE
-            let kdialog_output = std::process::Command::new("kdialog")
-                .args(["--getexistingdirectory", "--title", "Pilih Direktori Proyek"])
-                .output();
+            let mut kdialog_cmd = clean_gui_command("kdialog");
+            kdialog_cmd.args(["--getexistingdirectory", "--title", "Pilih Direktori Proyek"]);
+            let kdialog_output = kdialog_cmd.output();
 
             if let Ok(out) = kdialog_output {
                 if out.status.success() {
@@ -407,10 +423,12 @@ pub async fn pick_workspace_directory(
                         tool_runner.set_workspace_root(pb);
                         return Ok(Some(path_str));
                     }
+                } else if out.status.code() == Some(1) {
+                    return Ok(None);
                 }
             }
 
-            Ok(None)
+            Err("Dialog pemilih direktori sistem (zenity/kdialog) tidak ditemukan di sistem.".to_string())
         }
 
         #[cfg(target_os = "windows")]
@@ -829,17 +847,17 @@ pub async fn save_exported_file_dialog(
             {
                 let mut path = None;
                 // Coba zenity --file-selection --save
-                let zenity_res = std::process::Command::new("zenity")
-                    .args([
-                        "--file-selection",
-                        "--save",
-                        "--confirm-overwrite",
-                        &format!("--filename={}", default_filename),
-                        "--file-filter=Markdown (*.md) | *.md",
-                        "--file-filter=Semua Berkas | *",
-                        "--title=Simpan Berkas Ekspor",
-                    ])
-                    .output();
+                let mut zenity_cmd = clean_gui_command("zenity");
+                zenity_cmd.args([
+                    "--file-selection",
+                    "--save",
+                    "--confirm-overwrite",
+                    &format!("--filename={}", default_filename),
+                    "--file-filter=Markdown (*.md) | *.md",
+                    "--file-filter=Semua Berkas | *",
+                    "--title=Simpan Berkas Ekspor",
+                ]);
+                let zenity_res = zenity_cmd.output();
 
                 if let Ok(out) = zenity_res {
                     if out.status.success() {
@@ -852,15 +870,15 @@ pub async fn save_exported_file_dialog(
 
                 // Fallback kdialog untuk KDE
                 if path.is_none() {
-                    let kdialog_res = std::process::Command::new("kdialog")
-                        .args([
-                            "--getsavefilename",
-                            &default_filename,
-                            "*.md | Markdown (*.md)",
-                            "--title",
-                            "Simpan Berkas Ekspor",
-                        ])
-                        .output();
+                    let mut kdialog_cmd = clean_gui_command("kdialog");
+                    kdialog_cmd.args([
+                        "--getsavefilename",
+                        &default_filename,
+                        "*.md | Markdown (*.md)",
+                        "--title",
+                        "Simpan Berkas Ekspor",
+                    ]);
+                    let kdialog_res = kdialog_cmd.output();
 
                     if let Ok(out) = kdialog_res {
                         if out.status.success() {
@@ -1080,73 +1098,75 @@ pub fn read_picked_files_to_payload(paths: Vec<String>) -> Vec<PickedNativeFile>
 #[tauri::command]
 pub async fn pick_files_native() -> Result<Vec<PickedNativeFile>, String> {
     tokio::task::spawn_blocking(move || {
-        let selected_paths: Vec<String> = {
-            #[cfg(target_os = "linux")]
-            {
-                let mut paths = Vec::new();
-                // 1. Coba zenity --file-selection --multiple --separator="|"
-                let zenity_res = std::process::Command::new("zenity")
-                    .args([
-                        "--file-selection",
-                        "--multiple",
-                        "--separator=|",
-                        "--file-filter=Semua Berkas | *",
-                        "--file-filter=Dokumen & Kode | *.txt *.md *.json *.py *.rs *.ts *.tsx *.js *.html *.css *.yaml *.yml *.sh *.sql",
-                        "--file-filter=Gambar | *.png *.jpg *.jpeg *.gif *.webp *.svg",
-                        "--title=Pilih Berkas untuk Dilampirkan",
-                    ])
-                    .output();
+        #[cfg(target_os = "linux")]
+        {
+            let mut paths = Vec::new();
+            // 1. Coba zenity --file-selection --multiple --separator="|"
+            let mut zenity_cmd = clean_gui_command("zenity");
+            zenity_cmd.args([
+                "--file-selection",
+                "--multiple",
+                "--separator=|",
+                "--file-filter=Semua Berkas | *",
+                "--file-filter=Dokumen & Kode | *.txt *.md *.json *.py *.rs *.ts *.tsx *.js *.html *.css *.yaml *.yml *.sh *.sql",
+                "--file-filter=Gambar | *.png *.jpg *.jpeg *.gif *.webp *.svg",
+                "--title=Pilih Berkas untuk Dilampirkan",
+            ]);
+            let zenity_res = zenity_cmd.output();
 
-                if let Ok(out) = zenity_res {
-                    if out.status.success() {
-                        let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                        if !stdout.is_empty() {
-                            for p in stdout.split('|') {
-                                let trimmed = p.trim();
-                                if !trimmed.is_empty() {
-                                    paths.push(trimmed.to_string());
-                                }
+            if let Ok(out) = zenity_res {
+                if out.status.success() {
+                    let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                    if !stdout.is_empty() {
+                        for p in stdout.split('|') {
+                            let trimmed = p.trim();
+                            if !trimmed.is_empty() {
+                                paths.push(trimmed.to_string());
                             }
-                            return Ok(read_picked_files_to_payload(paths));
                         }
+                        return Ok(read_picked_files_to_payload(paths));
                     }
+                } else if out.status.code() == Some(1) && out.stdout.is_empty() {
+                    // Pengguna sengaja membatalkan pemilih berkas
                     return Ok(Vec::new());
                 }
-
-                // 2. Fallback kdialog untuk lingkungan KDE
-                let kdialog_res = std::process::Command::new("kdialog")
-                    .args([
-                        "--getopenfilename",
-                        "--multiple",
-                        "--separate-output",
-                        ".",
-                        "*",
-                    ])
-                    .output();
-
-                if let Ok(out) = kdialog_res {
-                    if out.status.success() {
-                        let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                        if !stdout.is_empty() {
-                            for line in stdout.lines() {
-                                let trimmed = line.trim();
-                                if !trimmed.is_empty() {
-                                    paths.push(trimmed.to_string());
-                                }
-                            }
-                            return Ok(read_picked_files_to_payload(paths));
-                        }
-                    }
-                    return Ok(Vec::new());
-                }
-
-                paths
             }
 
-            #[cfg(target_os = "windows")]
-            {
-                use std::os::windows::process::CommandExt;
-                let script = r#"
+            // 2. Fallback kdialog untuk lingkungan KDE
+            let mut kdialog_cmd = clean_gui_command("kdialog");
+            kdialog_cmd.args([
+                "--getopenfilename",
+                "--multiple",
+                "--separate-output",
+                ".",
+                "*",
+            ]);
+            let kdialog_res = kdialog_cmd.output();
+
+            if let Ok(out) = kdialog_res {
+                if out.status.success() {
+                    let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                    if !stdout.is_empty() {
+                        for line in stdout.lines() {
+                            let trimmed = line.trim();
+                            if !trimmed.is_empty() {
+                                paths.push(trimmed.to_string());
+                            }
+                        }
+                        return Ok(read_picked_files_to_payload(paths));
+                    }
+                } else if out.status.code() == Some(1) {
+                    return Ok(Vec::new());
+                }
+            }
+
+            Err("Dialog pemilih berkas sistem (zenity/kdialog) tidak dapat dijalankan".to_string())
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            let script = r#"
 Add-Type -AssemblyName System.Windows.Forms
 $dialog = New-Object System.Windows.Forms.OpenFileDialog
 $dialog.Multiselect = $true
@@ -1156,31 +1176,28 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
     $dialog.FileNames | ForEach-Object { Write-Output $_ }
 }
 "#;
-                let mut cmd = std::process::Command::new("powershell");
-                cmd.args(["-NoProfile", "-Command", script]);
-                cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-                let mut paths = Vec::new();
-                if let Ok(out) = cmd.output() {
-                    if out.status.success() {
-                        let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                        for line in stdout.lines() {
-                            let trimmed = line.trim();
-                            if !trimmed.is_empty() {
-                                paths.push(trimmed.to_string());
-                            }
+            let mut cmd = std::process::Command::new("powershell");
+            cmd.args(["-NoProfile", "-Command", script]);
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+            let mut paths = Vec::new();
+            if let Ok(out) = cmd.output() {
+                if out.status.success() {
+                    let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                    for line in stdout.lines() {
+                        let trimmed = line.trim();
+                        if !trimmed.is_empty() {
+                            paths.push(trimmed.to_string());
                         }
                     }
                 }
-                paths
             }
+            Ok(read_picked_files_to_payload(paths))
+        }
 
-            #[cfg(not(any(target_os = "linux", target_os = "windows")))]
-            {
-                Vec::new()
-            }
-        };
-
-        Ok(read_picked_files_to_payload(selected_paths))
+        #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+        {
+            Ok(Vec::new())
+        }
     })
     .await
     .map_err(|e| format!("Gagal menjalankan dialog pemilih berkas: {}", e))?
@@ -1903,9 +1920,9 @@ pub async fn pick_local_directory() -> Result<Option<String>, String> {
     tokio::task::spawn_blocking(move || {
         #[cfg(target_os = "linux")]
         {
-            let output = std::process::Command::new("zenity")
-                .args(["--file-selection", "--directory", "--title=Pilih Direktori Skill"])
-                .output();
+            let mut zenity_cmd = clean_gui_command("zenity");
+            zenity_cmd.args(["--file-selection", "--directory", "--title=Pilih Direktori Skill"]);
+            let output = zenity_cmd.output();
 
             if let Ok(out) = output {
                 if out.status.success() {
@@ -1913,13 +1930,14 @@ pub async fn pick_local_directory() -> Result<Option<String>, String> {
                     if !path_str.is_empty() {
                         return Ok(Some(path_str));
                     }
+                } else if out.status.code() == Some(1) && out.stdout.is_empty() {
+                    return Ok(None);
                 }
-                return Ok(None);
             }
 
-            let kdialog_output = std::process::Command::new("kdialog")
-                .args(["--getexistingdirectory", "--title", "Pilih Direktori Skill"])
-                .output();
+            let mut kdialog_cmd = clean_gui_command("kdialog");
+            kdialog_cmd.args(["--getexistingdirectory", "--title", "Pilih Direktori Skill"]);
+            let kdialog_output = kdialog_cmd.output();
 
             if let Ok(out) = kdialog_output {
                 if out.status.success() {
@@ -1927,6 +1945,8 @@ pub async fn pick_local_directory() -> Result<Option<String>, String> {
                     if !path_str.is_empty() {
                         return Ok(Some(path_str));
                     }
+                } else if out.status.code() == Some(1) {
+                    return Ok(None);
                 }
             }
 
