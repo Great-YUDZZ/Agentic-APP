@@ -215,6 +215,22 @@ export const TitleBar: React.FC = () => {
           </button>
         )}
 
+        {/* Build Mode: Quick Terminal Shortcut (Icon only, located to the left of Roster Agen) */}
+        {!isVaultPageOpen && currentMode === 'build' && (
+          <button
+            type="button"
+            onClick={() => setTerminalOpen(!isTerminalOpen)}
+            title={isTerminalOpen ? 'Tutup Terminal [Ctrl+`]' : 'Buka Terminal [Ctrl+`]'}
+            className={`p-2 rounded-xl text-xs font-medium transition-colors border ${
+              isTerminalOpen
+                ? 'bg-[#2f2f2f] text-[#ececec] border-[#4f4f4f]'
+                : 'bg-[#212121] text-[#b4b4b4] hover:text-[#ececec] border-[#303030] hover:bg-[#282828]'
+            }`}
+          >
+            <Terminal className="w-3.5 h-3.5" />
+          </button>
+        )}
+
         {/* Build Mode: Roster Agen */}
         {!isVaultPageOpen && currentMode === 'build' && (
           <button
@@ -300,20 +316,19 @@ export const TitleBar: React.FC = () => {
           </button>
         )}
 
-        {/* Quick Terminal Shortcut in Top-Right Corner */}
-        {!isVaultPageOpen && currentMode !== 'chatbot' && (
+        {/* Agent Mode: Quick Terminal Shortcut (Icon only) */}
+        {!isVaultPageOpen && currentMode === 'agent' && (
           <button
             type="button"
             onClick={() => setTerminalOpen(!isTerminalOpen)}
             title={isTerminalOpen ? 'Tutup Terminal [Ctrl+`]' : 'Buka Terminal [Ctrl+`]'}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-colors border ${
+            className={`p-2 rounded-xl text-xs font-medium transition-colors border ${
               isTerminalOpen
                 ? 'bg-[#2f2f2f] text-[#ececec] border-[#4f4f4f]'
                 : 'bg-[#212121] text-[#b4b4b4] hover:text-[#ececec] border-[#303030] hover:bg-[#282828]'
             }`}
           >
             <Terminal className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Terminal</span>
           </button>
         )}
       </div>

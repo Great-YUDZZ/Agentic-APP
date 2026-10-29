@@ -455,9 +455,10 @@ export const MultiAgentDiscussion: React.FC = () => {
 
 
       {/* 3. Discussion Stream Messages */}
-      <div className={`flex-1 overflow-y-auto p-6 space-y-4 ${convWidthClass} mx-auto w-full`}>
-        {buildDiscussion.messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-3">
+      <div className="flex-1 overflow-y-auto p-6 w-full">
+        <div className={`space-y-4 ${convWidthClass} mx-auto w-full ${buildDiscussion.messages.length === 0 ? 'h-full flex flex-col items-center justify-center' : ''}`}>
+          {buildDiscussion.messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center text-center space-y-3">
             <div className="w-12 h-12 rounded-2xl bg-[#212121] border border-[#303030] flex items-center justify-center text-[#ececec]">
               <Users className="w-6 h-6" />
             </div>
@@ -617,6 +618,7 @@ export const MultiAgentDiscussion: React.FC = () => {
         )}
 
         <div ref={messagesEndRef} />
+        </div>
       </div>
 
       {/* 4. Interactive Chat & Directive Dock (Bottom) */}
