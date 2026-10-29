@@ -18,7 +18,6 @@ import {
   ChevronDown,
   ChevronUp,
   Folder,
-  Terminal,
   ArrowUp,
   Mic,
   Square,
@@ -141,9 +140,7 @@ export const MultiAgentDiscussion: React.FC = () => {
     fetchAvailableModels,
     workspaceProjectRoot,
     pickAndSetWorkspaceRoot,
-    setSkillsModalOpen,
     setCodeReviewModalOpen,
-    setTerminalOpen,
     updateCustomAgent,
     settings,
     isStreaming,
@@ -468,10 +465,32 @@ export const MultiAgentDiscussion: React.FC = () => {
               <h2 className="text-2xl font-medium tracking-tight text-[#ececec]">
                 {dailyGreeting}
               </h2>
-              <p className="text-xs text-[#b4b4b4] max-w-md mt-1.5 leading-relaxed">
-                Ketik instruksi, arsitektur, atau target proyek pada kotak input di bawah untuk memulai
-                kolaborasi tim multi-agent.
-              </p>
+              {workspaceProjectRoot ? (
+                <>
+                  <p className="text-xs text-[#b4b4b4] max-w-md mt-1.5 leading-relaxed">
+                    Ketik instruksi, arsitektur, atau target proyek pada kotak input di bawah untuk memulai
+                    kolaborasi tim multi-agent.
+                  </p>
+                  <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#171717] border border-[#303030] text-[11px] font-mono text-[#b4b4b4]">
+                    <Folder className="w-3.5 h-3.5 text-[#707070]" />
+                    <span className="truncate max-w-[280px]">{workspaceProjectRoot}</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-[#b4b4b4] max-w-md mt-1.5 leading-relaxed">
+                    Pilih atau buat folder proyek untuk mulai berkolaborasi dengan skuad multi-agent.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => pickAndSetWorkspaceRoot()}
+                    className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#2f2f2f] hover:bg-[#383838] border border-[#383838] hover:border-[#4f4f4f] text-xs font-medium text-[#ececec] transition-colors"
+                  >
+                    <Folder className="w-4 h-4 text-[#b4b4b4]" />
+                    <span>Pilih / Buat Folder Proyek</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
         ) : (
@@ -1237,46 +1256,6 @@ export const MultiAgentDiscussion: React.FC = () => {
                 </button>
               </div>
             </div>
-          </div>
-
-          {/* Bottom Tier: Auxiliary Sub-Bar (Choose project, @ Plugins, terminal shortcut) */}
-          <div className="flex items-center justify-between px-2 pt-0.5">
-            <div className="flex items-center gap-3">
-              {/* Choose project button */}
-              <button
-                type="button"
-                onClick={() => pickAndSetWorkspaceRoot()}
-                title={`Pilih folder proyek native: ${workspaceProjectRoot}`}
-                className="flex items-center gap-1.5 text-xs text-[#b4b4b4] hover:text-[#ececec] transition-colors group"
-              >
-                <Folder className="w-3.5 h-3.5 text-[#b4b4b4] group-hover:text-[#ececec]" />
-                <span>Choose project</span>
-                <span className="text-[10px] text-[#707070] font-mono max-w-[120px] truncate">
-                  ({workspaceProjectRoot.split('/').pop() || 'workspace'})
-                </span>
-              </button>
-
-              {/* @ Plugins button */}
-              <button
-                type="button"
-                onClick={() => setSkillsModalOpen(true)}
-                title="Buka Skills & Plugins Hub"
-                className="flex items-center gap-1.5 text-xs text-[#b4b4b4] hover:text-[#ececec] transition-colors group"
-              >
-                <AtSign className="w-3.5 h-3.5 text-[#b4b4b4] group-hover:text-[#ececec]" />
-                <span>Plugins</span>
-              </button>
-            </div>
-
-            {/* Right: Quick Terminal Shortcut */}
-            <button
-              type="button"
-              onClick={() => setTerminalOpen(true)}
-              title="Buka Terminal Terintegrasi"
-              className="p-1 rounded text-[#707070] hover:text-[#ececec] transition-colors"
-            >
-              <Terminal className="w-4 h-4" />
-            </button>
           </div>
         </div>
       </div>

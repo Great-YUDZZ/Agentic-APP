@@ -44,6 +44,9 @@ export const Sidebar: React.FC = () => {
     messages,
     sidebarTab,
     setSidebarTab,
+    createNewSession,
+    pickAndSetWorkspaceRoot,
+    resetBuildDiscussion,
   } = useStore();
 
   useEffect(() => {
@@ -110,8 +113,19 @@ export const Sidebar: React.FC = () => {
 
   const modeLabel = getModeLabel();
 
-  const handleCreateNew = () => {
+  const handleCreateNew = async () => {
     setIsVaultPageOpen(false);
+    if (currentMode === 'build') {
+      const chosen = await pickAndSetWorkspaceRoot();
+      if (!chosen) {
+        return;
+      }
+      const folderName = chosen.split(/[\\/]/).filter(Boolean).pop() || 'Proyek Baru';
+      createNewSession(folderName, 'build');
+      resetBuildDiscussion();
+      return;
+    }
+
     useStore.setState({
       activeSessionId: null,
       messages: [],
@@ -120,9 +134,6 @@ export const Sidebar: React.FC = () => {
       openEditorFiles: [],
       activeEditorFilePath: null,
     });
-    if (currentMode === 'build') {
-      useStore.getState().resetBuildDiscussion();
-    }
   };
 
   const handleDeleteSession = (e: React.MouseEvent, id: string) => {

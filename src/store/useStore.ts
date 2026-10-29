@@ -545,20 +545,44 @@ export const useStore = create<AppStore>((set, get) => ({
   // Workspace Project Root & Approval Policy
   workspaceProjectRoot: '',
   setWorkspaceProjectRoot: async (workspaceProjectRoot) => {
-    set((s) => ({
-      workspaceProjectRoot,
-      activeWorkspacePath: workspaceProjectRoot,
-      terminalTabs: s.terminalTabs.map((t) => ({ ...t, cwd: workspaceProjectRoot })),
-    }));
+    const newTabId = `tab-terminal-${Date.now()}`;
+    const cleanTab: TerminalTab = {
+      id: newTabId,
+      title: 'Terminal 1',
+      cwd: workspaceProjectRoot,
+      logs: [],
+    };
+    const rootPane: TilingNode = {
+      type: 'pane',
+      data: {
+        id: 'pane-root',
+        tabs: [newTabId],
+        activeTabId: newTabId,
+      },
+    };
+
     if ((window as any).__TAURI_INTERNALS__) {
       try {
         const { invoke } = await import('@tauri-apps/api/core');
+        for (const t of get().terminalTabs) {
+          try {
+            await invoke('close_terminal_pty', { tabId: t.id });
+          } catch (_) {}
+        }
         await invoke('set_workspace_directory', { path: workspaceProjectRoot });
         await get().fetchWorkspaceFiles();
       } catch (err) {
         console.warn('Gagal sinkronisasi workspace directory ke Rust:', err);
       }
     }
+
+    set({
+      workspaceProjectRoot,
+      activeWorkspacePath: workspaceProjectRoot,
+      terminalTabs: [cleanTab],
+      activeTerminalTabId: newTabId,
+      tilingLayout: rootPane,
+    });
     get().addToast('info', `Direktori proyek diatur ke: ${workspaceProjectRoot}`);
   },
   pickAndSetWorkspaceRoot: async () => {
@@ -568,11 +592,35 @@ export const useStore = create<AppStore>((set, get) => ({
         try {
           const chosen = (await invoke('pick_workspace_directory')) as string | null;
           if (chosen) {
-            set((s) => ({
+            const newTabId = `tab-terminal-${Date.now()}`;
+            const cleanTab: TerminalTab = {
+              id: newTabId,
+              title: 'Terminal 1',
+              cwd: chosen,
+              logs: [],
+            };
+            const rootPane: TilingNode = {
+              type: 'pane',
+              data: {
+                id: 'pane-root',
+                tabs: [newTabId],
+                activeTabId: newTabId,
+              },
+            };
+
+            for (const t of get().terminalTabs) {
+              try {
+                await invoke('close_terminal_pty', { tabId: t.id });
+              } catch (_) {}
+            }
+
+            set({
               workspaceProjectRoot: chosen,
               activeWorkspacePath: chosen,
-              terminalTabs: s.terminalTabs.map((t) => ({ ...t, cwd: chosen })),
-            }));
+              terminalTabs: [cleanTab],
+              activeTerminalTabId: newTabId,
+              tilingLayout: rootPane,
+            });
             await invoke('set_workspace_directory', { path: chosen });
             await get().fetchWorkspaceFiles();
             get().addToast('success', `Direktori proyek aktif: ${chosen}`);
@@ -589,7 +637,28 @@ export const useStore = create<AppStore>((set, get) => ({
         const handle = await (window as any).showDirectoryPicker();
         if (handle?.name) {
           const pseudoPath = `/workspace/${handle.name}`;
-          set({ workspaceProjectRoot: pseudoPath });
+          const newTabId = `tab-terminal-${Date.now()}`;
+          const cleanTab: TerminalTab = {
+            id: newTabId,
+            title: 'Terminal 1',
+            cwd: pseudoPath,
+            logs: [],
+          };
+          const rootPane: TilingNode = {
+            type: 'pane',
+            data: {
+              id: 'pane-root',
+              tabs: [newTabId],
+              activeTabId: newTabId,
+            },
+          };
+          set({
+            workspaceProjectRoot: pseudoPath,
+            activeWorkspacePath: pseudoPath,
+            terminalTabs: [cleanTab],
+            activeTerminalTabId: newTabId,
+            tilingLayout: rootPane,
+          });
           get().addToast('success', `Folder terpilih: ${handle.name}`);
           return pseudoPath;
         }
@@ -603,7 +672,28 @@ export const useStore = create<AppStore>((set, get) => ({
             const files = input.files;
             if (files && files.length > 0) {
               const folderName = files[0].webkitRelativePath.split('/')[0] || 'Proyek';
-              set({ workspaceProjectRoot: folderName });
+              const newTabId = `tab-terminal-${Date.now()}`;
+              const cleanTab: TerminalTab = {
+                id: newTabId,
+                title: 'Terminal 1',
+                cwd: folderName,
+                logs: [],
+              };
+              const rootPane: TilingNode = {
+                type: 'pane',
+                data: {
+                  id: 'pane-root',
+                  tabs: [newTabId],
+                  activeTabId: newTabId,
+                },
+              };
+              set({
+                workspaceProjectRoot: folderName,
+                activeWorkspacePath: folderName,
+                terminalTabs: [cleanTab],
+                activeTerminalTabId: newTabId,
+                tilingLayout: rootPane,
+              });
               get().addToast('success', `Folder terpilih: ${folderName}`);
               resolve(folderName);
             } else {

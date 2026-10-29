@@ -19,8 +19,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { AppMode, StudioTab } from '../../types';
-import { exportConversationSession, exportProjectReport } from '../../utils/exporter';
-import { extractCodeReviewItems } from '../../utils/codeExtractor';
+import { exportConversationSession } from '../../utils/exporter';
 
 const MODES: { id: AppMode; label: string; icon: React.ElementType }[] = [
   { id: 'chatbot', label: 'Chat', icon: MessageSquare },
@@ -59,10 +58,6 @@ export const TitleBar: React.FC = () => {
     activeSessionId,
     messages,
     selectedModel,
-    buildDiscussion,
-    customAgents,
-    kanbanTasks,
-    codeReviewItems,
     isSidecarOpen,
     toggleSidecar,
     artifacts,
@@ -73,20 +68,6 @@ export const TitleBar: React.FC = () => {
 
   const handleExportCurrent = async () => {
     if (isVaultPageOpen) return;
-
-    if (currentMode === 'build') {
-      const codeItems =
-        codeReviewItems.length > 0
-          ? codeReviewItems
-          : extractCodeReviewItems(buildDiscussion.messages);
-      const savedPath = await exportProjectReport(buildDiscussion, customAgents, kanbanTasks, codeItems);
-      if (savedPath) {
-        addToast('success', `Laporan projek berhasil disimpan di: ${savedPath}`);
-      } else {
-        addToast('info', 'Penyimpanan laporan dibatalkan.');
-      }
-      return;
-    }
 
     // Mode Chatbot atau Agent
     let targetSession = sessions.find((s) => s.id === activeSessionId);
@@ -161,64 +142,80 @@ export const TitleBar: React.FC = () => {
   };
 
   return (
-    <header className="relative h-12 w-full bg-[#171717] border-b border-[#262626] px-4 flex items-center justify-between select-none z-30 shrink-0">
-      {/* Left: Spacer to balance layout without navbar logo/title */}
-      <div className="flex items-center gap-3" />
+    <header className="grid grid-cols-[1fr_auto_1fr] items-center h-12 w-full bg-[#171717] border-b border-[#262626] px-4 select-none z-30 shrink-0">
+      {/* Left: Balanced spacer */}
+      <div className="flex items-center justify-start gap-2 min-w-0" />
 
       {/* Center: Flat Segmented Capsule Pill Switcher (Exact 50% Horizontal Center, hidden in Vault) */}
-      {!isVaultPageOpen && (
-        <div
-          style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}
-          className="flex items-center gap-1 bg-[#212121] p-1 rounded-full border border-[#303030] z-10"
-        >
-          {MODES.map((mode) => {
-            const Icon = mode.icon;
-            const isActive = currentMode === mode.id;
-
-            return (
-              <button
-                key={mode.id}
-                onClick={() => setMode(mode.id)}
-                className={`relative flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                  isActive ? 'text-[#ececec]' : 'text-[#b4b4b4] hover:text-[#ececec]'
-                }`}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="activeModeIndicator"
-                    className="absolute inset-0 bg-[#2f2f2f] border border-[#383838] rounded-full -z-0"
-                    transition={{ type: 'spring', stiffness: 450, damping: 35 }}
-                  />
-                )}
-                <Icon className="w-3.5 h-3.5 relative z-10" />
-                <span className="relative z-10">{mode.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Right Controls: Studio Tab Dropdown (in Build Mode) or Terminal Toggle (in Agent Mode) */}
-      <div key={currentMode} className="flex items-center gap-2">
-        {/* Quick Export Button */}
+      <div className="flex items-center justify-center shrink-0">
         {!isVaultPageOpen && (
+          <div className="flex items-center gap-1 bg-[#212121] p-1 rounded-full border border-[#303030]">
+            {MODES.map((mode) => {
+              const Icon = mode.icon;
+              const isActive = currentMode === mode.id;
+
+              return (
+                <button
+                  key={mode.id}
+                  onClick={() => setMode(mode.id)}
+                  className={`relative flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                    isActive ? 'text-[#ececec]' : 'text-[#b4b4b4] hover:text-[#ececec]'
+                  }`}
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeModeIndicator"
+                      className="absolute inset-0 bg-[#2f2f2f] border border-[#383838] rounded-full -z-0"
+                      transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                    />
+                  )}
+                  <Icon className="w-3.5 h-3.5 relative z-10" />
+                  <span className="relative z-10">{mode.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Right Controls: Roster, Studio Tabs, Canvas, Approvals, and Terminal shortcut */}
+      <div key={currentMode} className="flex items-center justify-end gap-2 min-w-0">
+        {/* Quick Export Button (Hidden in Build Mode & Vault) */}
+        {!isVaultPageOpen && currentMode !== 'build' && (
           <button
             type="button"
             onClick={handleExportCurrent}
-            title={
-              currentMode === 'build'
-                ? 'Ekspor Laporan Projek (.md)'
-                : 'Ekspor Percakapan (.md)'
-            }
+            title="Ekspor Percakapan (.md)"
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#212121] hover:bg-[#282828] border border-[#303030] hover:border-[#383838] text-[#b4b4b4] hover:text-[#ececec] text-xs font-medium transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">
-              {currentMode === 'build' ? 'Ekspor Laporan' : 'Ekspor Chat'}
-            </span>
+            <span className="hidden sm:inline">Ekspor Chat</span>
           </button>
         )}
 
+        {/* Dedicated Canvas / Artifacts Sidecar Toggle Button */}
+        {(currentMode === 'chatbot' || currentMode === 'agent') && !isVaultPageOpen && (
+          <button
+            type="button"
+            onClick={toggleSidecar}
+            title={isSidecarOpen ? 'Tutup Panel Canvas' : 'Buka Panel Canvas'}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-colors border ${
+              isSidecarOpen
+                ? 'bg-[#2f2f2f] text-[#ececec] border-[#4f4f4f]'
+                : 'bg-[#212121] text-[#b4b4b4] hover:text-[#ececec] border-[#303030] hover:bg-[#282828]'
+            }`}
+          >
+            <PanelRight className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Canvas</span>
+            {artifacts.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-[#2f2f2f] text-[#ececec] border border-[#383838]">
+                {artifacts.length}
+              </span>
+            )}
+          </button>
+        )}
+
+        {/* Build Mode: Roster Agen */}
         {!isVaultPageOpen && currentMode === 'build' && (
           <button
             type="button"
@@ -231,7 +228,8 @@ export const TitleBar: React.FC = () => {
           </button>
         )}
 
-        {!isVaultPageOpen && currentMode === 'build' ? (
+        {/* Build Mode: Studio Tab Dropdown */}
+        {!isVaultPageOpen && currentMode === 'build' && (
           <div className="relative">
             <button
               onClick={() => setIsStudioMenuOpen(!isStudioMenuOpen)}
@@ -281,41 +279,6 @@ export const TitleBar: React.FC = () => {
               </div>
             )}
           </div>
-        ) : !isVaultPageOpen && currentMode === 'agent' ? (
-          <button
-            onClick={() => setTerminalOpen(!isTerminalOpen)}
-            title={isTerminalOpen ? 'Tutup Terminal [Ctrl+`]' : 'Buka Terminal [Ctrl+`]'}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono transition-colors border ${
-              isTerminalOpen
-                ? 'bg-[#2b2b2b] text-[#ececec] border-[#4f4f4f] shadow-sm'
-                : 'bg-[#212121] text-[#8e8e8e] hover:text-[#ececec] border-[#303030] hover:bg-[#2b2b2b]'
-            }`}
-          >
-            <Terminal className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Terminal</span>
-          </button>
-        ) : null}
-
-        {/* Dedicated Canvas / Artifacts Sidecar Toggle Button */}
-        {(currentMode === 'chatbot' || currentMode === 'agent') && !isVaultPageOpen && (
-          <button
-            type="button"
-            onClick={toggleSidecar}
-            title={isSidecarOpen ? 'Tutup Panel Canvas' : 'Buka Panel Canvas'}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors border ${
-              isSidecarOpen
-                ? 'bg-[#2b2b2b] text-[#ececec] border-[#4f4f4f] shadow-sm'
-                : 'bg-[#212121] text-[#8e8e8e] hover:text-[#ececec] border-[#303030] hover:bg-[#2b2b2b]'
-            }`}
-          >
-            <PanelRight className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Canvas</span>
-            {artifacts.length > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-[#2f2f2f] text-[#ececec] border border-[#383838]">
-                {artifacts.length}
-              </span>
-            )}
-          </button>
         )}
 
         {/* Global Vault Pending Approvals Button */}
@@ -334,6 +297,23 @@ export const TitleBar: React.FC = () => {
             <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-[#2f2f2f] border border-[#383838] text-[#ececec]">
               {pendingDeleteRequests.length}
             </span>
+          </button>
+        )}
+
+        {/* Quick Terminal Shortcut in Top-Right Corner */}
+        {!isVaultPageOpen && currentMode !== 'chatbot' && (
+          <button
+            type="button"
+            onClick={() => setTerminalOpen(!isTerminalOpen)}
+            title={isTerminalOpen ? 'Tutup Terminal [Ctrl+`]' : 'Buka Terminal [Ctrl+`]'}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-colors border ${
+              isTerminalOpen
+                ? 'bg-[#2f2f2f] text-[#ececec] border-[#4f4f4f]'
+                : 'bg-[#212121] text-[#b4b4b4] hover:text-[#ececec] border-[#303030] hover:bg-[#282828]'
+            }`}
+          >
+            <Terminal className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Terminal</span>
           </button>
         )}
       </div>
