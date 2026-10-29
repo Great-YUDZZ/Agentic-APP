@@ -2,12 +2,8 @@ import React, { useEffect, useRef, useMemo, useState } from 'react';
 import {
   FileCode,
   X,
-  Save,
-  Check,
   Code2,
   FolderOpen,
-  Search,
-  FileSearch,
 } from 'lucide-react';
 import Prism from 'prismjs';
 // Base, Markup & Web
@@ -185,8 +181,6 @@ export const StudioCodeEditor: React.FC = () => {
     updateEditorFileContent,
     saveActiveEditorFile,
     pickAndSetWorkspaceRoot,
-    setQuickOpenModalOpen,
-    setGlobalSearchModalOpen,
     pendingTypingAnimations,
     consumePendingTypingAnimation,
   } = useStore();
@@ -574,110 +568,38 @@ export const StudioCodeEditor: React.FC = () => {
   return (
     <div className="flex flex-col h-full bg-[#1e1e1e] font-mono text-xs select-none">
       {/* Tab Bar Berkas Terbuka */}
-      <div className="flex items-center justify-between px-2 bg-[#171717] border-b border-[#262626] shrink-0 gap-2 overflow-x-auto">
-        <div className="flex items-center gap-1 min-w-0 py-1.5 overflow-x-auto">
-          {openEditorFiles.map((file) => {
-            const isActive = file.path === activeFile.path;
-            return (
-              <div
-                key={file.path}
-                onClick={() => setActiveEditorFile(file.path)}
-                className={`group flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs cursor-pointer transition-colors shrink-0 ${
-                  isActive
-                    ? 'bg-[#2a2a2a] border-[#383838] text-[#ececec] font-medium'
-                    : 'bg-[#1f1f1f] border-transparent text-[#909090] hover:text-[#ececec] hover:bg-[#262626]'
-                }`}
+      <div className="flex items-center px-2 bg-[#171717] border-b border-[#262626] shrink-0 gap-1 overflow-x-auto py-1.5">
+        {openEditorFiles.map((file) => {
+          const isActive = file.path === activeFile.path;
+          return (
+            <div
+              key={file.path}
+              onClick={() => setActiveEditorFile(file.path)}
+              className={`group flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs cursor-pointer transition-colors shrink-0 ${
+                isActive
+                  ? 'bg-[#2a2a2a] border-[#383838] text-[#ececec] font-medium'
+                  : 'bg-[#1f1f1f] border-transparent text-[#909090] hover:text-[#ececec] hover:bg-[#262626]'
+              }`}
+            >
+              <FileCode className="w-3.5 h-3.5 text-[#888888]" />
+              <span className="truncate max-w-[150px]">{file.name}</span>
+              {file.isDirty ? (
+                <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" title="Ada perubahan belum disimpan" />
+              ) : null}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  closeEditorFile(file.path);
+                }}
+                className="p-0.5 rounded hover:bg-[#383838] text-[#707070] hover:text-[#ececec] transition-colors"
+                title="Tutup tab"
               >
-                <FileCode className="w-3.5 h-3.5 text-[#888888]" />
-                <span className="truncate max-w-[150px]">{file.name}</span>
-                {file.isDirty ? (
-                  <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" title="Ada perubahan belum disimpan" />
-                ) : null}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    closeEditorFile(file.path);
-                  }}
-                  className="p-0.5 rounded hover:bg-[#383838] text-[#707070] hover:text-[#ececec] transition-colors"
-                  title="Tutup tab"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Action Buttons: Buka Berkas, Cari & Simpan */}
-        <div className="flex items-center gap-2 shrink-0 py-1.5 pr-2">
-          {/* Tombol Buka Berkas Cepat (Quick Open) */}
-          <button
-            type="button"
-            onClick={() => setQuickOpenModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs bg-[#252525] hover:bg-[#303030] text-[#909090] hover:text-[#ececec] border border-[#333333] transition-colors"
-            title="Buka berkas cepat (Ctrl + P)"
-          >
-            <FolderOpen className="w-3.5 h-3.5 text-[#888888]" />
-            <span className="hidden sm:inline">Buka Berkas</span>
-            <span className="text-[10px] text-[#555555] font-normal hidden md:inline">Ctrl+P</span>
-          </button>
-
-          {/* Tombol Cari */}
-          <button
-            type="button"
-            onClick={() => {
-              setIsFindOpen(true);
-            }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs transition-colors ${
-              isFindOpen
-                ? 'bg-[#383838] text-[#ececec]'
-                : 'bg-[#252525] hover:bg-[#303030] text-[#909090] hover:text-[#ececec] border border-[#333333]'
-            }`}
-            title="Cari di dalam berkas (Ctrl + F)"
-          >
-            <Search className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Cari</span>
-            <span className="text-[10px] text-[#555555] font-normal hidden md:inline">Ctrl+F</span>
-          </button>
-
-          {/* Tombol Cari Global */}
-          <button
-            type="button"
-            onClick={() => setGlobalSearchModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs bg-[#252525] hover:bg-[#303030] text-[#909090] hover:text-[#ececec] border border-[#333333] transition-colors"
-            title="Cari teks di seluruh project (Ctrl + Shift + F)"
-          >
-            <FileSearch className="w-3.5 h-3.5 text-[#888888]" />
-            <span className="hidden sm:inline">Cari Global</span>
-            <span className="text-[10px] text-[#555555] font-normal hidden lg:inline">Ctrl+Shift+F</span>
-          </button>
-
-          {/* Tombol Simpan */}
-          <button
-            onClick={() => saveActiveEditorFile()}
-            disabled={!activeFile.isDirty}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
-              activeFile.isDirty
-                ? 'bg-[#ececec] hover:bg-white text-[#171717] cursor-pointer'
-                : 'bg-[#282828] text-[#666666] border border-[#333333] cursor-not-allowed'
-            }`}
-            title="Simpan berkas (Ctrl + S)"
-          >
-            {activeFile.isDirty ? (
-              <>
-                <Save className="w-3.5 h-3.5" />
-                <span>Simpan</span>
-                <span className="text-[10px] text-[#555555] font-normal hidden sm:inline">Ctrl+S</span>
-              </>
-            ) : (
-              <>
-                <Check className="w-3.5 h-3.5 text-[#ececec]" />
-                <span>Tersimpan</span>
-              </>
-            )}
-          </button>
-        </div>
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          );
+        })}
       </div>
 
       {/* Editor Body Area: Gutter Line Numbers + Syntax Highlighted Canvas & Textarea */}
