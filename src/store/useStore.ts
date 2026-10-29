@@ -135,6 +135,7 @@ interface AppStore {
   setProjectPickerOpen: (open: boolean) => void;
   isStrictApprovalMode: boolean; // false = 'Ask for approval' (HITL), true = 'Strict' (Auto-execute without asking)
   toggleStrictApprovalMode: () => void;
+  setStrictApprovalMode: (val: boolean) => void;
 
   // Model & Provider
   selectedModel: string;
@@ -596,12 +597,26 @@ export const useStore = create<AppStore>((set, get) => ({
   },
   isProjectPickerOpen: false,
   setProjectPickerOpen: (isProjectPickerOpen) => set({ isProjectPickerOpen }),
-  isStrictApprovalMode: false,
+  isStrictApprovalMode: typeof localStorage !== 'undefined' ? localStorage.getItem('agentic_strict_approval_mode') === 'true' : false,
   toggleStrictApprovalMode: () => {
     const nextVal = !get().isStrictApprovalMode;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('agentic_strict_approval_mode', nextVal ? 'true' : 'false');
+    }
     set({ isStrictApprovalMode: nextVal });
     if (nextVal) {
-      get().addToast('warning', 'Mode Strict aktif: AI mengeksekusi terminal tanpa meminta izin.');
+      get().addToast('warning', 'Mode Strict aktif: AI mengeksekusi aksi tanpa meminta izin.');
+    } else {
+      get().addToast('info', 'Mode Ask for approval aktif: Operator menyetujui setiap aksi berisiko.');
+    }
+  },
+  setStrictApprovalMode: (val: boolean) => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('agentic_strict_approval_mode', val ? 'true' : 'false');
+    }
+    set({ isStrictApprovalMode: val });
+    if (val) {
+      get().addToast('warning', 'Mode Strict aktif: AI mengeksekusi aksi tanpa meminta izin.');
     } else {
       get().addToast('info', 'Mode Ask for approval aktif: Operator menyetujui setiap aksi berisiko.');
     }

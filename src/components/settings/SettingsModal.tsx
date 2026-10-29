@@ -134,6 +134,8 @@ export const SettingsModal: React.FC = () => {
     pickAndSetWorkspaceRoot,
     pickAndScanLocalSkills,
     mcpServers,
+    isStrictApprovalMode,
+    setStrictApprovalMode,
   } = useStore();
 
   const [activeSection, setActiveSection] = useState<SettingsSection>('general');
@@ -527,6 +529,40 @@ export const SettingsModal: React.FC = () => {
                       />
                     </div>
 
+                    {/* Approval Policy: Ask for approval vs Strict */}
+                    <div className="p-4 flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-medium text-[#ececec]">Approval Mode</div>
+                        <div className="text-xs text-[#707070] mt-0.5">
+                          Tentukan apakah AI meminta izin operator sebelum aksi penting atau berjalan otomatis.
+                        </div>
+                      </div>
+                      <div className="flex items-center p-1 rounded-full bg-[#1e1e1e] border border-[#383838]">
+                        <button
+                          type="button"
+                          onClick={() => setStrictApprovalMode(false)}
+                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                            !isStrictApprovalMode
+                              ? 'bg-[#383838] text-white'
+                              : 'text-[#707070] hover:text-[#ececec]'
+                          }`}
+                        >
+                          Ask for approval
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setStrictApprovalMode(true)}
+                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                            isStrictApprovalMode
+                              ? 'bg-[#383838] text-white'
+                              : 'text-[#707070] hover:text-[#ececec]'
+                          }`}
+                        >
+                          Strict (Auto)
+                        </button>
+                      </div>
+                    </div>
+
                     {/* Installed Skills (Replaces Tools as requested) */}
                     <div className="p-4 flex items-center justify-between">
                       <div>
@@ -832,7 +868,7 @@ export const SettingsModal: React.FC = () => {
                     <div>
                       <div className="text-sm font-medium text-[#ececec]">App Version</div>
                       <div className="text-xs font-mono text-[#b4b4b4] mt-0.5">
-                        v0.2.1 (Tauri 2.0 + Tokio Native)
+                        v0.2.2
                       </div>
                     </div>
                     <button
@@ -847,7 +883,7 @@ export const SettingsModal: React.FC = () => {
                         } else if (result.error) {
                           addToast('error', `Gagal memeriksa pembaruan: ${result.error}`);
                         } else {
-                          addToast('info', 'Aplikasi sudah dalam versi terbaru (v0.2.1).');
+                          addToast('info', 'Aplikasi sudah dalam versi terbaru (v0.2.2).');
                         }
                       }}
                       className="px-3.5 py-1.5 rounded-xl bg-[#212121] hover:bg-[#303030] border border-[#383838] text-xs font-medium text-[#ececec] transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer"

@@ -21,8 +21,6 @@ import {
   Loader2,
   Folder,
   AtSign,
-  Zap,
-  Hand,
   RotateCw,
   GitBranch,
   KeyRound,
@@ -61,8 +59,6 @@ export const AgentWorkspace: React.FC = () => {
     pickAndSetWorkspaceRoot,
     setSkillsModalOpen,
     setTerminalOpen,
-    isStrictApprovalMode,
-    toggleStrictApprovalMode,
     addToast,
     addLog,
     settings,
@@ -1257,7 +1253,7 @@ ${mcpTools.length > 0 ? `\n2. Anda juga memiliki akses langsung ke perkakas ekst
 
               {/* Inner Bottom Actions Bar */}
               <div className="flex items-center justify-between pt-2 border-t border-[#383838] mt-1">
-                {/* Left: Plus button & Approval Toggle (Ask for approval vs Strict) */}
+                {/* Left: Plus button */}
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -1270,34 +1266,6 @@ ${mcpTools.length > 0 ? `\n2. Anda juga memiliki akses langsung ke perkakas ekst
                     }`}
                   >
                     <Plus className="w-4 h-4" />
-                  </button>
-
-                  {/* Approval Mode Toggle: Ask for approval vs Strict */}
-                  <button
-                    type="button"
-                    onClick={toggleStrictApprovalMode}
-                    title={
-                      isStrictApprovalMode
-                        ? 'Mode Strict Aktif: AI langsung menjalankan perintah terminal tanpa izin.'
-                        : 'Mode Ask for Approval Aktif: AI meminta izin operator sebelum aksi berisiko.'
-                    }
-                    className={`h-8 flex items-center gap-1.5 px-3 rounded-full text-xs font-medium border transition-colors ${
-                      isStrictApprovalMode
-                        ? 'bg-amber-500/15 border-amber-500/30 text-amber-300 hover:bg-amber-500/25'
-                        : 'bg-[#212121] hover:bg-[#262626] border-[#383838] text-[#ececec]'
-                    }`}
-                  >
-                    {isStrictApprovalMode ? (
-                      <>
-                        <Zap className="w-3.5 h-3.5 text-amber-400" />
-                        <span>Strict (Auto)</span>
-                      </>
-                    ) : (
-                      <>
-                        <Hand className="w-3.5 h-3.5 text-[#ececec]" />
-                        <span>Ask for approval</span>
-                      </>
-                    )}
                   </button>
                 </div>
 

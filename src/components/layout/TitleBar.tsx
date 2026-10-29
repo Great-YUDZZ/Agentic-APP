@@ -162,17 +162,8 @@ export const TitleBar: React.FC = () => {
 
   return (
     <header className="relative h-12 w-full bg-[#171717] border-b border-[#262626] px-4 flex items-center justify-between select-none z-30 shrink-0">
-      {/* Left: Clean Brand Logo & App Title (No Traffic Lights) */}
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2.5 text-xs font-semibold text-[#ececec] tracking-tight hover:opacity-90 transition-opacity">
-          <img
-            src="/logo.png"
-            alt="Agentic Logo"
-            className="w-5 h-5 rounded-md object-contain"
-          />
-          <span className="font-semibold tracking-tight">Agentic Native Hub</span>
-        </div>
-      </div>
+      {/* Left: Spacer to balance layout without navbar logo/title */}
+      <div className="flex items-center gap-3" />
 
       {/* Center: Flat Segmented Capsule Pill Switcher (Exact 50% Horizontal Center, hidden in Vault) */}
       {!isVaultPageOpen && (

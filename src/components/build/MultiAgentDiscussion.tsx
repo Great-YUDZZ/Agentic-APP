@@ -15,8 +15,6 @@ import {
   AtSign,
   FileCode,
   Plus,
-  Hand,
-  Zap,
   ChevronDown,
   ChevronUp,
   Folder,
@@ -147,8 +145,6 @@ export const MultiAgentDiscussion: React.FC = () => {
     setCodeReviewModalOpen,
     setTerminalOpen,
     updateCustomAgent,
-    isStrictApprovalMode,
-    toggleStrictApprovalMode,
     settings,
     isStreaming,
     isWorking,
@@ -1002,33 +998,6 @@ export const MultiAgentDiscussion: React.FC = () => {
                   />
                 )}
 
-                {/* Approval Mode Toggle: Ask for approval vs Strict (Harmonized h-8) */}
-                <button
-                  type="button"
-                  onClick={toggleStrictApprovalMode}
-                  title={
-                    isStrictApprovalMode
-                      ? 'Mode Strict Aktif: AI langsung menjalankan perintah terminal tanpa izin.'
-                      : 'Mode Ask for Approval Aktif: AI meminta izin operator sebelum aksi berisiko.'
-                  }
-                  className={`h-8 flex items-center gap-1.5 px-3 rounded-full text-xs font-medium border transition-colors ${
-                    isStrictApprovalMode
-                      ? 'bg-amber-500/15 border-amber-500/30 text-amber-300 hover:bg-amber-500/25'
-                      : 'bg-[#212121] hover:bg-[#262626] border-[#383838] text-[#ececec]'
-                  }`}
-                >
-                  {isStrictApprovalMode ? (
-                    <>
-                      <Zap className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Strict (Auto)</span>
-                    </>
-                  ) : (
-                    <>
-                      <Hand className="w-3.5 h-3.5 text-[#ececec]" />
-                      <span>Ask for approval</span>
-                    </>
-                  )}
-                </button>
 
                 {/* Phase Toggle Pill: Plan | Build */}
                 <div className="flex items-center p-0.5 rounded-full bg-[#212121] border border-[#383838] h-8">
