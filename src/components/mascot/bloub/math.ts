@@ -6,10 +6,9 @@ export const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 export type Easing = (t: number) => number
 
 /**
- * Mesure sur la video : les transitions sont des ease-out exponentiels, sans
- * depassement du corps. Les seuls effets de ressort sont locaux (le pop de la
- * pastille de notification, l'ouverture des yeux) et sont ecrits directement
- * dans l'etat concerne.
+ * Diukur dari video referensi: transisi menggunakan kurva exponential ease-out
+ * tanpa overshoot pada tubuh. Efek pegas hanya digunakan secara lokal
+ * (pop notifikasi dan bukaan mata) langsung di state terkait.
  */
 export const easings = {
   easeOutCubic: (t: number) => 1 - (1 - t) ** 3,
@@ -17,7 +16,7 @@ export const easings = {
   easeOutQuint: (t: number) => 1 - (1 - t) ** 5
 } satisfies Record<string, Easing>
 
-/** Bruit 1D periodique : boucle sans couture sur `period`, utile pour la derive du regard. */
+/** Derau 1D periodik: loop mulus per periode, berguna untuk gerakan tatapan mata alami. */
 export function loopNoise(t: number, period: number, seed = 0): number {
   const p = (t / period) * TAU
   return (
@@ -27,7 +26,7 @@ export function loopNoise(t: number, period: number, seed = 0): number {
   )
 }
 
-/** PRNG deterministe (mulberry32) : meme sequence a chaque lecture. */
+/** PRNG deterministik (mulberry32): menghasilkan urutan acak identik yang dapat diputar ulang. */
 export function createRng(seed: number) {
   let a = seed >>> 0
   return () => {
@@ -38,5 +37,5 @@ export function createRng(seed: number) {
   }
 }
 
-/** Arrondi court : divise par ~2 le poids des chaines de path generees a 60 fps. */
+/** Pembulatan 2 desimal: mengurangi ukuran string path SVG yang dihasilkan pada 60 FPS. */
 export const r2 = (v: number) => Math.round(v * 100) / 100

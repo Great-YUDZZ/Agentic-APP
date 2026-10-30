@@ -7,21 +7,21 @@ export interface Point {
 }
 
 /**
- * Une silhouette = un profil radial r(theta) plus une pose.
+ * Siluet: profil radial r(theta) ditambah pose.
  *
- * Tout passe par des profils echantillonnes au MEME nombre d'angles : deux
- * formes quelconques ont donc des points qui se correspondent un a un, et le
- * morphing se reduit a une interpolation lineaire des rayons. C'est ce qui
- * rend les transitions propres sans librairie de morphing de path.
+ * Semua bentuk diproses melalui profil yang disampel pada jumlah sudut yang sama.
+ * Dua bentuk sembarang memiliki titik-titik yang berkorespondensi satu per satu,
+ * sehingga morphing disederhanakan menjadi interpolasi linear jari-jari (radii).
+ * Pendekatan ini membuat transisi sangat halus dan efisien tanpa pustaka morphing eksternal.
  */
 export interface Silhouette {
   radii: number[]
-  /** rotation du profil, en radians */
+  /** rotasi profil, dalam radian */
   rot: number
-  /** decalage du centre, en unites de rayon de boule */
+  /** pergeseran pusat, dalam satuan radius bola */
   cx: number
   cy: number
-  /** squash & stretch, applique en repere ecran (apres rotation) */
+  /** squash & stretch, diterapkan pada koordinat layar (setelah rotasi) */
   sx: number
   sy: number
 }
@@ -42,7 +42,7 @@ export function silhouette(name: ProfileName, pose: Partial<Silhouette> = {}): S
   }
 }
 
-/** Cercle parfait : sert de base neutre (point, bulle, cible de fondu). */
+/** Lingkaran sempurna: berfungsi sebagai basis netral (titik, gelembung, target transisi). */
 export function circle(radius: number, pose: Partial<Silhouette> = {}): Silhouette {
   return {
     radii: new Array(PROFILE_SAMPLES).fill(radius),
@@ -55,14 +55,13 @@ export function circle(radius: number, pose: Partial<Silhouette> = {}): Silhouet
   }
 }
 
-/** Interpolation de deux silhouettes. `out` est reutilise pour eviter d'allouer a 60 fps. */
+/** Interpolasi dua siluet. Objek `out` digunakan kembali untuk menghindari alokasi memori pada 60 fps. */
 export function blend(a: Silhouette, b: Silhouette, t: number, out?: Silhouette): Silhouette {
   const dst = out ?? { radii: new Array<number>(PROFILE_SAMPLES), rot: 0, cx: 0, cy: 0, sx: 1, sy: 1 }
   for (let i = 0; i < PROFILE_SAMPLES; i++) {
     dst.radii[i] = lerp(a.radii[i] ?? 1, b.radii[i] ?? 1, t)
   }
-  // Rotation par le chemin le plus court : evite de faire un tour complet
-  // quand on passe par exemple de +170deg a -170deg.
+  // Rotasi melalui jalur terpendek: mencegah putaran penuh saat berpindah dari +170 deg ke -170 deg.
   let dRot = b.rot - a.rot
   while (dRot > Math.PI) dRot -= TAU
   while (dRot < -Math.PI) dRot += TAU
@@ -74,7 +73,7 @@ export function blend(a: Silhouette, b: Silhouette, t: number, out?: Silhouette)
   return dst
 }
 
-/** Projette la silhouette en points ecran. `scale` = rayon de la boule en unites de viewBox. */
+/** Proyeksikan siluet ke titik-titik koordinat layar. `scale` = radius bola dalam unit viewBox. */
 export function toPoints(s: Silhouette, scale: number, out: Point[] = []): Point[] {
   const cr = Math.cos(s.rot)
   const sr = Math.sin(s.rot)
@@ -82,7 +81,7 @@ export function toPoints(s: Silhouette, scale: number, out: Point[] = []): Point
     const r = s.radii[i] ?? 1
     const x = r * (COS[i] ?? 0)
     const y = r * (SIN[i] ?? 0)
-    // rotation puis squash en repere ecran, puis translation
+    // Rotasi lalu squash pada koordinat layar, diikuti translasi
     const rx = x * cr - y * sr
     const ry = x * sr + y * cr
     const p = out[i] ?? { x: 0, y: 0 }
@@ -95,10 +94,10 @@ export function toPoints(s: Silhouette, scale: number, out: Point[] = []): Point
 }
 
 /**
- * Polyligne fermee -> cubiques Catmull-Rom.
+ * Poliline tertutup -> kurva kubik Catmull-Rom.
  *
- * Avec 64 points les tangentes centrees suffisent largement : le contour est
- * lisse au pixel pres meme affiche en 600 px, et la chaine reste courte.
+ * Dengan 64 titik sampel, tangen berpusat sudah sangat memadai: kontur tampak
+ * halus hingga tingkat sub-piksel bahkan pada ukuran tampilan 600 px.
  */
 export function closedPath(pts: Point[], tension = 1 / 6): string {
   const n = pts.length
@@ -120,11 +119,10 @@ export function closedPath(pts: Point[], tension = 1 / 6): string {
 }
 
 /**
- * Polygone quelconque -> profil radial, par lancer de rayon depuis `center`.
+ * Poligon sembarang -> profil radial melalui ray casting dari titik pusat `center`.
  *
- * Sert a fabriquer les formes qui ne s'expriment pas naturellement en r(theta)
- * (la barre tronconique du "!"). Calcule une seule fois au chargement, jamais
- * dans la boucle de rendu.
+ * Digunakan untuk membentuk geometri yang tidak mudah dinyatakan dalam fungsi analitik r(theta),
+ * seperti batang tanda seru ("!"). Dihitung satu kali saat inisialisasi, tidak pernah pada render loop.
  */
 export function profileFromPolygon(poly: Point[], cx: number, cy: number): number[] {
   const radii = new Array<number>(PROFILE_SAMPLES).fill(0)
@@ -142,8 +140,8 @@ export function profileFromPolygon(poly: Point[], cx: number, cy: number): numbe
       if (Math.abs(den) < 1e-9) continue
       const px = a.x - cx
       const py = a.y - cy
-      const t = (px * ey - py * ex) / den // distance le long du rayon
-      const u = (px * dy - py * dx) / den // position sur le segment
+      const t = (px * ey - py * ex) / den // Jarak sepanjang sinar
+      const u = (px * dy - py * dx) / den // Posisi pada segmen garis
       if (t > best && u >= 0 && u <= 1) best = t
     }
     radii[k] = best
@@ -151,7 +149,7 @@ export function profileFromPolygon(poly: Point[], cx: number, cy: number): numbe
   return radii
 }
 
-/** Enveloppe convexe de deux cercles : la barre tronconique du "!" vertical. */
+/** Convex hull dari dua lingkaran: membentuk geometri batang tanda seru ("!") vertikal. */
 export function hullOfCircles(
   x1: number,
   y1: number,
@@ -164,16 +162,16 @@ export function hullOfCircles(
   const dx = x2 - x1
   const dy = y2 - y1
   const dist = Math.hypot(dx, dy) || 1e-6
-  // angle des tangentes externes communes
+  // Sudut garis singgung eksternal bersama
   const base = Math.atan2(dy, dx)
   const spread = Math.acos(Math.max(-1, Math.min(1, (r1 - r2v) / dist)))
   const pts: Point[] = []
-  // arc du grand cercle
+  // Busur lingkaran besar
   for (let i = 0; i <= steps / 2; i++) {
     const a = base + spread + ((TAU - 2 * spread) * i) / (steps / 2)
     pts.push({ x: x1 + Math.cos(a) * r1, y: y1 + Math.sin(a) * r1 })
   }
-  // arc du petit cercle
+  // Busur lingkaran kecil
   for (let i = 0; i <= steps / 2; i++) {
     const a = base - spread + ((2 * spread) * i) / (steps / 2)
     pts.push({ x: x2 + Math.cos(a) * r2v, y: y2 + Math.sin(a) * r2v })
@@ -182,13 +180,10 @@ export function hullOfCircles(
 }
 
 /**
- * Rayon du profil dans une direction quelconque, par interpolation entre les
- * deux echantillons voisins.
+ * Jari-jari profil dalam arah sudut sembarang melalui interpolasi dua sampel bertetangga.
  *
- * Sert a recaler ce qui est pose "sur" le corps (les yeux, la pastille de
- * notification) quand la silhouette n'est plus un cercle : sans ca, un oeil
- * place a 0.62 rayon sort d'une forme dont le bord est a 0.55 dans cette
- * direction, et le masque le rogne.
+ * Menyelaraskan elemen yang menempel pada tubuh maskot (seperti mata atau lencana notifikasi)
+ * ketika siluet bukan lingkaran sempurna. Menghindari pemotongan elemen oleh batas siluet.
  */
 export function radiusAtAngle(radii: number[], angle: number): number {
   const n = radii.length
@@ -198,8 +193,8 @@ export function radiusAtAngle(radii: number[], angle: number): number {
 }
 
 /**
- * Superellipse : |x/sx|^n + |y/sy|^n = 1.
- * n = 2 donne une ellipse, n ~ 4 le squircle du personnalisateur.
+ * Profil Superelips: |x/sx|^n + |y/sy|^n = 1.
+ * Nilai n = 2 menghasilkan elips murni, sedangkan n mendekati 4 menghasilkan squircle halus.
  */
 export function superellipseProfile(n: number, sx = 1, sy = 1): number[] {
   return ANGLES.map((_, i) => {
@@ -210,9 +205,9 @@ export function superellipseProfile(n: number, sx = 1, sy = 1): number[] {
 }
 
 /**
- * Profil radial de l'UNION de disques : r(theta) = la plus lointaine des
- * intersections rayon/cercle. Exact tant que l'origine est dans l'union — c'est
- * ce qui donne les bosses du nuage sans booleen de path.
+ * Profil radial penggabungan (union) beberapa lingkaran:
+ * r(theta) = titik potong terluar sinar dengan kumpulan lingkaran.
+ * Menghasilkan kontur awan atau tetesan secara analitik tanpa operasi boolean path yang berat.
  */
 export function unionOfCirclesProfile(circles: Array<{ x: number; y: number; r: number }>): number[] {
   const out = new Array<number>(PROFILE_SAMPLES).fill(0)
@@ -233,10 +228,9 @@ export function unionOfCirclesProfile(circles: Array<{ x: number; y: number; r: 
 }
 
 /**
- * Polygone a coins arrondis, par somme de Minkowski avec un disque : chaque
- * arete est poussee de `rc` vers l'exterieur, chaque sommet devient un arc de
- * rayon `rc`. Les sommets sont donc a poser au rayon voulu MOINS rc.
- * Attend un polygone en sens horaire (repere ecran, y vers le bas).
+ * Poligon dengan sudut membulat melalui penjumlahan Minkowski dengan lingkaran:
+ * Setiap rusuk digeser sejauh `rc` ke arah luar, dan setiap sudut digantikan dengan busur radius `rc`.
+ * Mengharapkan koordinat poligon searah jarum jam (sistem koordinat layar, sumbu y mengarah ke bawah).
  */
 function roundedPolygon(verts: Point[], rc: number, arcSteps = 10): Point[] {
   const n = verts.length
@@ -245,7 +239,7 @@ function roundedPolygon(verts: Point[], rc: number, arcSteps = 10): Point[] {
     const dx = b.x - a.x
     const dy = b.y - a.y
     const len = Math.hypot(dx, dy) || 1
-    // sens horaire + y vers le bas : la normale sortante est (dy, -dx)
+    // Searah jarum jam + y mengarah ke bawah: vektor normal keluar adalah (dy, -dx)
     return Math.atan2(-dx / len, dy / len)
   }
   for (let i = 0; i < n; i++) {
@@ -265,7 +259,7 @@ function roundedPolygon(verts: Point[], rc: number, arcSteps = 10): Point[] {
   return out
 }
 
-/** Polygone regulier a coins arrondis, inscrit dans `radius`. */
+/** Poligon reguler dengan sudut membulat, berada di dalam batas radius yang ditentukan. */
 export function regularPolygonProfile(
   sides: number,
   radius: number,
@@ -274,14 +268,14 @@ export function regularPolygonProfile(
 ): number[] {
   const rot = (rotationDeg * Math.PI) / 180
   const verts = Array.from({ length: sides }, (_, i) => {
-    // sens horaire a l'ecran : theta croissant avec y vers le bas
+    // Searah jarum jam pada layar: theta bertambah seiring y mengarah ke bawah
     const a = rot + (i / sides) * TAU
     return { x: Math.cos(a) * (radius - rc), y: Math.sin(a) * (radius - rc) }
   })
   return profileFromPolygon(roundedPolygon(verts, rc), 0, 0)
 }
 
-/** Polyligne fermee exacte : garde les segments droits (contrairement a closedPath). */
+/** Jalur poliline tertutup eksak: menjaga segmen garis lurus presisi. */
 export function polyPath(pts: Point[], scale = 1): string {
   if (pts.length < 3) return ''
   let d = ''
@@ -292,7 +286,7 @@ export function polyPath(pts: Point[], scale = 1): string {
   return `${d}Z`
 }
 
-/** Capsule (stade) centree sur l'origine : la forme exacte des yeux du bot. */
+/** Jalur bentuk kapsul berpusat di titik asal: geometri presisi untuk mata maskot. */
 export function capsulePath(w: number, h: number): string {
   const hw = Math.max(w, 0.01) / 2
   const hh = Math.max(h, 0.01) / 2
