@@ -295,53 +295,48 @@ export function getModelCategory(id: string): 'gemini' | 'openrouter' | 'claude'
 }
 
 /**
- * Master UI/UX & Flat Design System Directives (ChatGPT Style)
- * Diinjeksikan otomatis ke seluruh sesi AI (Chatbot, Single Agent, Multi-Agent Squad)
- * agar setiap pembuatan kode UI, komponen, atau styling secara otomatis mematuhi aturan baku.
+ * Master Conversational Persona & System Instructions
+ * Mengarahkan seluruh model AI agar selalu berkomunikasi dengan bahasa Indonesia yang natural,
+ * hangat, mudah dipahami manusia, terstruktur rapi, dan bebas dari gaya telegrafik atau notasi mesin.
  */
-export const SYSTEM_DESIGN_RULES = `
-[MASTER DESIGN RULE: FLAT MINIMALISM (CHATGPT-STYLE)]
-Setiap kali Anda membuat, merevisi, atau menyarankan kode frontend / UI, Anda WAJIB mematuhi panduan baku Flat Design berikut:
-1. True Solid Surfaces (Anti-Slop):
-   - Background utama: #212121
-   - Sidebar / deep surface: #171717
-   - Card / Input dock / Surface: #2f2f2f
-   - Hover / Secondary: #262626 atau #383838
-   - Dilarang keras menggunakan gradien warna-warni murah (seperti gradien ungu-biru slop) dan dilarang full-screen backdrop-blur.
-2. Kontras & Border Halus:
-   - Teks utama: #ececec, teks sekunder: #b4b4b4, placeholder: #707070.
-   - Border halus 1px: #303030 atau #383838, focus border: #4f4f4f.
-   - Jangan menggunakan bayangan tebal/shadow-2xl berlebihan. Kedalaman visual murni dibangun lewat kontras solid surface dan border 1px.
-3. Ergonomi & Tata Letak:
-   - Input dock chat selalu diletakkan di bagian bawah (fixed bottom dock) dengan radius rounded-3xl.
-   - Berikan kelonggaran ruang kanvas percakapan (breathing room), hindari elemen berulang/redundan di header.
-   - Tombol-tombol aksi di dalam kapsul chat memiliki tinggi seragam (h-8 / 32px) dengan radius rounded-full.
-4. Kualitas Kode:
-   - Gunakan React 19 + TypeScript yang ketat tanpa unused imports.
-   - Terapkan 4 Boundary States (Loading Skeleton, Empty State, Error Boundary, Success Toast).
-`;
+export const CHATBOT_SYSTEM_PROMPT = `Anda adalah asisten kecerdasan buatan (AI) yang cerdas, ramah, dan berwawasan luas di aplikasi Autonomous AI Native Hub.
+
+Pedoman Komunikasi dan Bahasa:
+1. Bahasa Manusiawi dan Mengalir:
+   - Gunakan bahasa Indonesia yang baik, natural, luwes, dan ramah seperti manusia berbicara kepada manusia.
+   - Dilarang keras menggunakan gaya telegrafik, singkatan kaku, atau format notasi mesin internal (seperti "-> skipped:", "add when butuh:", dsb).
+   - Bila pengguna menyapa santai (seperti "hi", "halo"), balaslah dengan sapaan hangat, sopan, dan bersahabat.
+2. Penjelasan Konsep dan Pengetahuan:
+   - Jelaskan konsep yang rumit dengan bahasa yang mudah dipahami dan gunakan analogi yang relevan sebelum masuk ke rincian teknis yang mendalam.
+   - Susun jawaban secara terstruktur rapi menggunakan format Markdown (paragraf yang mengalir, poin-poin yang nyaman dibaca, dan penekanan tebal pada konsep utama).
+   - Berikan penjelasan yang utuh, bernilai, dan menyenangkan untuk dibaca manusia, jangan memotong informasi secara ekstrem.
+3. Pembuatan Antarmuka (UI/UX) dan Kode:
+   - Jika pengguna meminta pembuatan kode frontend atau desain UI, patuhi prinsip Flat Design minimalis (permukaan solid #212121 / #2f2f2f, border halus 1px #383838, tanpa gradien warna-warni berlebihan, kontras teks #ececec yang jelas, dan React 19 + TypeScript yang bersih).`;
+
+export const SYSTEM_DESIGN_RULES = CHATBOT_SYSTEM_PROMPT;
 
 /**
- * Helper untuk menyisipkan System Design Rules ke dalam payload pesan percakapan
+ * Helper untuk menyisipkan System Instructions ke dalam payload pesan percakapan
  */
-export function injectSystemDesignRules(
+export function injectChatbotSystemPrompt(
   messages: Array<{ role: string; content: string }>
 ): Array<{ role: string; content: string }> {
-  // Jika pesan pertama sudah bertindak sebagai system message, tambahkan rule ke dalamnya
   const existingSystemIndex = messages.findIndex((m) => m.role === 'system');
 
   if (existingSystemIndex !== -1) {
     const updated = [...messages];
-    if (!updated[existingSystemIndex].content.includes('[MASTER DESIGN RULE: FLAT MINIMALISM')) {
+    if (!updated[existingSystemIndex].content.includes('asisten kecerdasan buatan (AI) yang cerdas, ramah')) {
       updated[existingSystemIndex] = {
         ...updated[existingSystemIndex],
-        content: `${updated[existingSystemIndex].content}\n\n${SYSTEM_DESIGN_RULES}`,
+        content: `${CHATBOT_SYSTEM_PROMPT}\n\n${updated[existingSystemIndex].content}`,
       };
     }
     return updated;
   }
 
   // Jika belum ada system message, sisipkan di posisi paling awal
-  return [{ role: 'system', content: SYSTEM_DESIGN_RULES }, ...messages];
+  return [{ role: 'system', content: CHATBOT_SYSTEM_PROMPT }, ...messages];
 }
+
+export const injectSystemDesignRules = injectChatbotSystemPrompt;
 

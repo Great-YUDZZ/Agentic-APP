@@ -1,5 +1,5 @@
 import { ModelOption, ChatMessage } from '../types';
-import { injectSystemDesignRules } from './api';
+import { injectChatbotSystemPrompt } from './api';
 
 /**
  * Estimasi jumlah token dari sebuah teks.
@@ -101,8 +101,8 @@ export function preparePrunedContextMessages(
   const isCompressed = prunedCount > 0;
   const usagePercent = Math.min(100, Math.round((accumulatedTokens / contextLimit) * 100));
 
-  // Sisipkan System Design Rules
-  const finalMessages = injectSystemDesignRules(retainedMessages);
+  // Sisipkan Master Conversational Persona & System Instructions
+  const finalMessages = injectChatbotSystemPrompt(retainedMessages);
 
   return {
     messages: finalMessages,
