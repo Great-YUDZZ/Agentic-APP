@@ -25,6 +25,7 @@ import {
   GitBranch,
   KeyRound,
   SlidersHorizontal,
+  Copy,
 } from 'lucide-react';
 import { useVoiceRecorder } from '../../utils/audioRecorder';
 import { useStore } from '../../store/useStore';
@@ -101,6 +102,14 @@ export const AgentWorkspace: React.FC = () => {
 
   const [taskInput, setTaskInput] = useState('');
   const [isExecuting, setIsExecuting] = useState(false);
+  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
+
+  const handleCopyMessage = (content: string, msgId: string) => {
+    if (!content) return;
+    navigator.clipboard.writeText(content);
+    setCopiedMsgId(msgId);
+    setTimeout(() => setCopiedMsgId(null), 2000);
+  };
   const [activeReasoning, setActiveReasoning] = useState<string>('');
   const [agentOutput, setAgentOutput] = useState<string>('');
   const [executionSteps, setExecutionSteps] = useState<ExecutionStep[]>([]);
@@ -946,8 +955,28 @@ ${mcpTools.length > 0 ? `\n2. Anda juga memiliki akses langsung ke perkakas ekst
                     verbose={settings?.verboseAgentChat ?? true}
                   />
                 </div>
-                {/* Fork Action Button */}
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex justify-start">
+                {/* Action Buttons (Copy & Fork) */}
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 justify-start select-none">
+                  {msg.content && (
+                    <button
+                      type="button"
+                      onClick={() => handleCopyMessage(msg.content, msg.id)}
+                      title="Salin seluruh respons ini"
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium bg-[#262626] hover:bg-[#303030] text-[#707070] hover:text-[#ececec] border border-[#303030] hover:border-[#383838] transition-colors"
+                    >
+                      {copiedMsgId === msg.id ? (
+                        <>
+                          <Check className="w-3 h-3 text-[#ececec]" />
+                          <span>Tersalin!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>Salin</span>
+                        </>
+                      )}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => activeSessionId && forkSessionFromMessage(activeSessionId, msg.id)}

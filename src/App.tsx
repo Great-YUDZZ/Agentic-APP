@@ -89,7 +89,7 @@ export const App: React.FC = () => {
 
   return (
     <ErrorBoundary fallbackTitle="Agentic Native Hub Workspace Error">
-      <div className="h-screen w-screen flex bg-[#212121] text-[#ececec] font-sans overflow-hidden select-none">
+      <div className="h-screen w-screen flex bg-[#212121] text-[#ececec] font-sans overflow-hidden">
         {/* Full-Height Modern Sidebar on the Left */}
         <Sidebar />
 

@@ -17,6 +17,9 @@ import {
   GitBranch,
   KeyRound,
   SlidersHorizontal,
+  Copy,
+  RotateCcw,
+  Pencil,
 } from 'lucide-react';
 import { useVoiceRecorder } from '../../utils/audioRecorder';
 import { useStore } from '../../store/useStore';
@@ -86,6 +89,8 @@ export const ChatContainer: React.FC = () => {
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -215,6 +220,79 @@ export const ChatContainer: React.FC = () => {
   const currentMessages = activeSessionId
     ? messages.filter((m) => m.session_id === activeSessionId)
     : [];
+
+  const handleStopGenerating = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsGenerating(false);
+    setIsStreaming(false);
+    useStore.getState().setAgentActiveEvent('default', 'on_idle');
+    addToast('info', 'Respons AI dihentikan.');
+  };
+
+  const handleCopyMessage = (content: string, msgId: string) => {
+    if (!content) return;
+    navigator.clipboard.writeText(content);
+    setCopiedMsgId(msgId);
+    setTimeout(() => setCopiedMsgId(null), 2000);
+  };
+
+  const handleRegenerate = (assistantMsgId: string) => {
+    if (isGenerating || isStreaming) return;
+    const currentMsgIndex = currentMessages.findIndex((m) => m.id === assistantMsgId);
+    if (currentMsgIndex === -1) return;
+
+    // Cari prompt pesan user sebelumnya
+    let userPrompt = '';
+    let userMsgIndex = -1;
+    for (let i = currentMsgIndex - 1; i >= 0; i--) {
+      if (currentMessages[i].role === 'user') {
+        userPrompt = currentMessages[i].content;
+        userMsgIndex = i;
+        break;
+      }
+    }
+
+    if (userMsgIndex === -1 || !userPrompt) return;
+
+    // Hapus pesan user ini beserta respons asisten setelahnya
+    const remainingMessages = currentMessages.slice(0, userMsgIndex);
+    const otherSessionMessages = messages.filter((m) => m.session_id !== activeSessionId);
+    setMessages([...otherSessionMessages, ...remainingMessages]);
+
+    // Kirim ulang prompt user tersebut
+    setTimeout(() => {
+      handleSendMessage(userPrompt);
+    }, 50);
+  };
+
+  const handleEditUserMessage = (userMsgId: string) => {
+    if (isGenerating || isStreaming) return;
+    const targetIndex = currentMessages.findIndex((m) => m.id === userMsgId);
+    if (targetIndex === -1) return;
+
+    const targetMsg = currentMessages[targetIndex];
+    // Hapus pesan user dan seluruh pesan setelahnya
+    const remainingMessages = currentMessages.slice(0, targetIndex);
+    const otherSessionMessages = messages.filter((m) => m.session_id !== activeSessionId);
+    setMessages([...otherSessionMessages, ...remainingMessages]);
+
+    setInputPrompt(targetMsg.content);
+    promptInputRef.current?.focus();
+  };
+
+  // Dengarkan tombol Esc untuk membatalkan respons AI yang sedang berjalan
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && (isGenerating || isStreaming)) {
+        handleStopGenerating();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isGenerating, isStreaming]);
 
   // Auto-fetch models on component mount if empty
   useEffect(() => {
@@ -507,6 +585,9 @@ export const ChatContainer: React.FC = () => {
       const startTimestamp = performance.now();
       let ttftRecorded = false;
 
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+
       const chatUrl = getChatEndpoint(endpointConfig.baseUrl);
       const response = await fetch(chatUrl, {
         method: 'POST',
@@ -515,6 +596,7 @@ export const ChatContainer: React.FC = () => {
           Authorization: `Bearer ${endpointConfig.apiKey}`,
         },
         body: JSON.stringify(requestPayload),
+        signal: abortController.signal,
       });
 
       if (!response.ok) {
@@ -610,6 +692,12 @@ export const ChatContainer: React.FC = () => {
         }));
       }
     } catch (err: unknown) {
+      if (abortControllerRef.current?.signal.aborted || (err instanceof Error && err.name === 'AbortError')) {
+        hasError = false;
+        useStore.getState().setAgentActiveEvent('default', 'on_idle');
+        return;
+      }
+
       hasError = true;
       useStore.getState().setAgentActiveEvent('default', 'on_error', 4000);
       const errorMsg = err instanceof Error ? err.message : String(err);
@@ -627,6 +715,7 @@ export const ChatContainer: React.FC = () => {
         ),
       }));
     } finally {
+      abortControllerRef.current = null;
       setIsGenerating(false);
       setIsStreaming(false);
       if (!hasError) {
@@ -795,51 +884,121 @@ export const ChatContainer: React.FC = () => {
                 >
                   {/* Bubble / Stream content */}
                   {isUser ? (
-                    <div className="p-3.5 px-4 rounded-2xl bg-[#2f2f2f] border border-[#383838] text-[#ececec]">
-                      <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                    <div className="p-3.5 px-4 rounded-2xl bg-[#2f2f2f] border border-[#383838] text-[#ececec] select-text">
+                      <p className="text-sm whitespace-pre-wrap leading-relaxed select-text">{msg.content}</p>
                     </div>
                   ) : (
-                    <div className="text-[#ececec] py-1">
-                      <FormattedMessage
-                        content={msg.content}
-                        reasoning={msg.reasoning}
-                        verbose={settings.verboseAgentChat}
-                      />
+                    <div className="text-[#ececec] py-1 select-text">
+                      {!msg.content && !msg.reasoning && isGenerating ? (
+                        <div className="py-2 flex items-center gap-2 text-xs text-[#b4b4b4]">
+                          <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                          <span>Memproses respons...</span>
+                        </div>
+                      ) : (
+                        <FormattedMessage
+                          content={msg.content}
+                          reasoning={msg.reasoning}
+                          verbose={settings.verboseAgentChat}
+                        />
+                      )}
                     </div>
                   )}
 
-                  {/* Fork Action Button (appears smoothly on hover) */}
-                  <div
-                    className={`opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 pt-0.5 ${
-                      isUser ? 'justify-end' : 'justify-start'
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => activeSessionId && forkSessionFromMessage(activeSessionId, msg.id)}
-                      title="Cabangkan percakapan baru dari titik pesan ini"
-                      className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium bg-[#262626] hover:bg-[#303030] text-[#707070] hover:text-[#ececec] border border-[#303030] hover:border-[#383838] transition-colors"
-                    >
-                      <GitBranch className="w-3 h-3 text-[#b4b4b4]" />
-                      <span>Cabangkan (Fork)</span>
-                    </button>
-                  </div>
+                  {/* Message Action Bar (Copy, Regenerate/Edit, Fork) */}
+                  {isUser ? (
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-end gap-1.5 pt-0.5 select-none">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyMessage(msg.content, msg.id)}
+                        title="Salin pesan ini"
+                        className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium bg-[#262626] hover:bg-[#303030] text-[#707070] hover:text-[#ececec] border border-[#303030] hover:border-[#383838] transition-colors"
+                      >
+                        {copiedMsgId === msg.id ? (
+                          <>
+                            <Check className="w-3 h-3 text-[#ececec]" />
+                            <span>Tersalin!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>Salin</span>
+                          </>
+                        )}
+                      </button>
+                      {!isGenerating && !isStreaming && (
+                        <button
+                          type="button"
+                          onClick={() => handleEditUserMessage(msg.id)}
+                          title="Edit pesan dan kirim ulang"
+                          className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium bg-[#262626] hover:bg-[#303030] text-[#707070] hover:text-[#ececec] border border-[#303030] hover:border-[#383838] transition-colors"
+                        >
+                          <Pencil className="w-3 h-3" />
+                          <span>Edit</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => activeSessionId && forkSessionFromMessage(activeSessionId, msg.id)}
+                        title="Cabangkan percakapan baru dari titik pesan ini"
+                        className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium bg-[#262626] hover:bg-[#303030] text-[#707070] hover:text-[#ececec] border border-[#303030] hover:border-[#383838] transition-colors"
+                      >
+                        <GitBranch className="w-3 h-3 text-[#b4b4b4]" />
+                        <span>Cabangkan</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 pt-1 text-xs select-none">
+                      {/* Tombol Salin Seluruh Output AI */}
+                      {msg.content && (
+                        <button
+                          type="button"
+                          onClick={() => handleCopyMessage(msg.content, msg.id)}
+                          title="Salin seluruh isi jawaban ini"
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-[#262626] hover:bg-[#303030] text-[#b4b4b4] hover:text-[#ececec] border border-[#303030] hover:border-[#383838] transition-colors"
+                        >
+                          {copiedMsgId === msg.id ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-[#ececec]" />
+                              <span>Tersalin!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" />
+                              <span>Salin</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+
+                      {/* Tombol Coba Lagi / Revert & Regenerate */}
+                      {!isGenerating && !isStreaming && (
+                        <button
+                          type="button"
+                          onClick={() => handleRegenerate(msg.id)}
+                          title="Ulangi respons untuk giliran ini"
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-[#262626] hover:bg-[#303030] text-[#b4b4b4] hover:text-[#ececec] border border-[#303030] hover:border-[#383838] transition-colors"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>Coba Lagi</span>
+                        </button>
+                      )}
+
+                      {/* Tombol Cabangkan / Fork */}
+                      <button
+                        type="button"
+                        onClick={() => activeSessionId && forkSessionFromMessage(activeSessionId, msg.id)}
+                        title="Cabangkan percakapan baru dari titik pesan ini"
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-[#262626] hover:bg-[#303030] text-[#707070] hover:text-[#ececec] border border-[#303030] hover:border-[#383838] transition-colors"
+                      >
+                        <GitBranch className="w-3.5 h-3.5 text-[#b4b4b4]" />
+                        <span>Cabangkan</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             );
           })
-        )}
-
-        {isGenerating && (
-          <div className={`flex gap-3.5 ${convWidthClass} mx-auto w-full justify-start items-center`}>
-            <div className="w-10 h-10 rounded-full bg-[#262626] border border-[#383838] flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
-              <AgentMascot roleOrId="default" size={40} />
-            </div>
-            <div className="py-2 flex items-center gap-2 text-xs text-[#b4b4b4]">
-              <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-              <span>Memproses respons...</span>
-            </div>
-          </div>
         )}
 
         {pendingPlanApproval && (
@@ -1321,23 +1480,35 @@ export const ChatContainer: React.FC = () => {
                   )}
                 </button>
 
-                {/* ChatGPT Iconic Round Arrow Send Button */}
-                <button
-                  onClick={() => handleSendMessage()}
-                  disabled={!inputPrompt.trim()}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                    inputPrompt.trim()
-                      ? 'bg-[#ececec] text-black hover:bg-white'
-                      : 'bg-[#404040] text-[#707070] cursor-not-allowed'
-                  }`}
-                  title={
-                    (isGenerating || isStreaming || isWorking) && settings.queuedMessages === 'queue'
-                      ? 'Masukkan ke antrean pesan [Enter]'
-                      : 'Kirim pesan [Enter]'
-                  }
-                >
-                  <ArrowUp className="w-4 h-4 stroke-[2.5]" />
-                </button>
+                {/* ChatGPT Iconic Round Send / Stop Button */}
+                {isGenerating || isStreaming ? (
+                  <button
+                    type="button"
+                    onClick={handleStopGenerating}
+                    className="w-8 h-8 rounded-full flex items-center justify-center transition-colors bg-[#ececec] text-black hover:bg-white cursor-pointer"
+                    title="Hentikan respons AI [Esc]"
+                  >
+                    <Square className="w-3.5 h-3.5 fill-current" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleSendMessage()}
+                    disabled={!inputPrompt.trim()}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                      inputPrompt.trim()
+                        ? 'bg-[#ececec] text-black hover:bg-white'
+                        : 'bg-[#404040] text-[#707070] cursor-not-allowed'
+                    }`}
+                    title={
+                      isWorking && settings.queuedMessages === 'queue'
+                        ? 'Masukkan ke antrean pesan [Enter]'
+                        : 'Kirim pesan [Enter]'
+                    }
+                  >
+                    <ArrowUp className="w-4 h-4 stroke-[2.5]" />
+                  </button>
+                )}
               </div>
             </div>
           </div>

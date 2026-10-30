@@ -168,7 +168,7 @@ export const FormattedMessage: React.FC<FormattedMessageProps> = ({
   };
 
   return (
-    <div className="space-y-3 leading-relaxed text-sm">
+    <div className="space-y-3 leading-relaxed text-sm select-text">
       {reasoning && (
         <details
           key={String(verbose)}
@@ -179,7 +179,7 @@ export const FormattedMessage: React.FC<FormattedMessageProps> = ({
             <ChevronRight className="w-3.5 h-3.5 transition-transform group-open:rotate-90" />
             <span>Proses Berpikir Model ({reasoning.length} karakter)</span>
           </summary>
-          <div className="mt-2 pt-2 border-t border-[#303030] text-[11px] font-mono whitespace-pre-wrap text-[#9e9ea7] max-h-48 overflow-y-auto">
+          <div className="mt-2 pt-2 border-t border-[#303030] text-[11px] font-mono whitespace-pre-wrap text-[#9e9ea7] max-h-48 overflow-y-auto select-text">
             {reasoning}
           </div>
         </details>
@@ -198,7 +198,7 @@ export const FormattedMessage: React.FC<FormattedMessageProps> = ({
               key={index}
               className="my-3 rounded-xl overflow-hidden border border-[#303030] bg-[#171717]"
             >
-              <div className="flex items-center justify-between px-3.5 py-1.5 bg-[#212121] border-b border-[#303030] text-xs">
+              <div className="flex items-center justify-between px-3.5 py-1.5 bg-[#212121] border-b border-[#303030] text-xs select-none">
                 <span className="font-mono text-[#b4b4b4] text-[11px] lowercase">
                   {lang}
                 </span>
@@ -220,18 +220,18 @@ export const FormattedMessage: React.FC<FormattedMessageProps> = ({
                     {copiedCodeIndex === index ? (
                       <>
                         <Check className="w-3.5 h-3.5 text-[#ececec]" />
-                        <span className="text-[#ececec]">Copied</span>
+                        <span className="text-[#ececec]">Tersalin</span>
                       </>
                     ) : (
                       <>
                         <Copy className="w-3.5 h-3.5" />
-                        <span>Copy</span>
+                        <span>Salin</span>
                       </>
                     )}
                   </button>
                 </div>
               </div>
-              <pre className="p-3.5 overflow-x-auto text-xs font-mono text-[#ececec] leading-relaxed bg-[#171717]">
+              <pre className="p-3.5 overflow-x-auto text-xs font-mono text-[#ececec] leading-relaxed bg-[#171717] select-text">
                 {renderCodeBlock(codeBody, lang)}
               </pre>
             </div>
@@ -239,11 +239,11 @@ export const FormattedMessage: React.FC<FormattedMessageProps> = ({
         }
 
         return (
-          <div key={index} className="space-y-2 whitespace-pre-wrap">
+          <div key={index} className="space-y-2 whitespace-pre-wrap select-text">
             {part.split('\n\n').map((paragraph, pIdx) => {
               if (!paragraph.trim()) return null;
               return (
-                <p key={pIdx} className="text-[#ececec]">
+                <p key={pIdx} className="text-[#ececec] select-text">
                   {paragraph}
                 </p>
               );

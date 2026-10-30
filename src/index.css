@@ -515,3 +515,23 @@ pre[class*="language-"] {
 .theme-light .token.operator {
   color: #000000;
 }
+
+/* Text Selection and Cursor Copying Support */
+::selection {
+  background-color: #444444;
+  color: #ffffff;
+}
+
+.theme-light ::selection {
+  background-color: #cce4ff;
+  color: #000000;
+}
+
+/* Force selectable text on content areas */
+.selectable-text,
+.select-text,
+.chat-selectable {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  cursor: text;
+}
