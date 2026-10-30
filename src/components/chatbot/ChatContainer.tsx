@@ -25,7 +25,6 @@ import { useVoiceRecorder } from '../../utils/audioRecorder';
 import { useStore } from '../../store/useStore';
 import { ChatMessage, AttachedFile, CodeChunkMatch } from '../../types';
 import { EmptyState } from '../common/EmptyState';
-import { ContextTelemetryBar } from '../common/ContextTelemetryBar';
 import { AttachmentChips } from '../common/AttachmentChips';
 import { processSelectedFiles, formatAttachedPrompt, pickNativeFiles } from '../../utils/fileUpload';
 import {
@@ -1091,12 +1090,6 @@ export const ChatContainer: React.FC = () => {
               </div>
             </div>
           )}
-
-          {/* Real-time Token Counter & Context Meter Telemetry Bar */}
-          <ContextTelemetryBar
-            draftPrompt={inputPrompt}
-            isProcessing={isGenerating || isStreaming}
-          />
 
           {/* ChatGPT Capsule Prompt Input Container with Drag-and-Drop & Attachment Chips */}
           <div

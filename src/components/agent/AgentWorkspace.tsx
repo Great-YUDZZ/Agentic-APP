@@ -33,7 +33,6 @@ import { CustomAgent, AttachedFile, ChatMessage } from '../../types';
 import { AgentCreatorModal } from './AgentCreatorModal';
 import { AttachmentChips } from '../common/AttachmentChips';
 import { FormattedMessage } from '../common/FormattedMessage';
-import { ContextTelemetryBar } from '../common/ContextTelemetryBar';
 import { processSelectedFiles, formatAttachedPrompt, pickNativeFiles } from '../../utils/fileUpload';
 import { parseRobustJson, getChatEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../../utils/api';
 import { getDailyGreeting } from '../../utils/dailyGreetings';
@@ -1255,12 +1254,6 @@ ${mcpTools.length > 0 ? `\n2. Anda juga memiliki akses langsung ke perkakas ekst
 
           {/* 2-Tier Input Dock Container */}
           <div className="space-y-2">
-            {/* Real-time Token Counter & Context Meter Telemetry Bar */}
-            <ContextTelemetryBar
-              draftPrompt={taskInput}
-              isProcessing={isExecuting || isWorking || isStreaming}
-            />
-
             {/* Top Tier: Main Input Capsule */}
             <div className="relative rounded-3xl bg-[#2f2f2f] border border-[#383838] p-2.5 px-3.5 focus-within:border-[#4f4f4f] transition-colors">
               {/* Attachment Chips Preview */}
