@@ -4,6 +4,32 @@ Semua perubahan penting pada proyek Autonomous AI Native Hub dicatat dalam dokum
 
 ---
 
+## [v0.2.7] - 2026-10-30
+
+### Fitur Baru
+- **Penghentian Aliran Respon (Stop Generating)**:
+  - Tombol stop dinamis berbentuk lingkaran dengan ikon kotak fill di dock prompt yang menggantikan tombol kirim ketika asisten sedang memproses respon teks.
+  - Penanganan pembatalan stream (AbortController) yang elegan tanpa memicu toast error atau gelembung galat palsu.
+  - Dukungan pintasan keyboard tombol Esc untuk menghentikan respon aktif seketika.
+- **Revert dan Regenerasi Percakapan (Coba Lagi dan Edit Prompt)**:
+  - Tombol aksi "Coba Lagi" di bawah pesan asisten untuk membatalkan giliran percakapan terakhir dan mengulang permintaan ke model AI.
+  - Tombol "Edit" saat mengarahkan kursor ke pesan pengguna untuk mengembalikan teks pertanyaan ke dock input dan memotong riwayat pesan setelahnya.
+- **Seleksi Teks Kursor Bebas dan Tombol Salin Cepat**:
+  - Menghapus aturan seleksi kaku sehingga teks di seluruh area chat dan editor dapat disorot menggunakan kursor mouse secara alami.
+  - Penambahan tombol "Salin" di bawah bubble output AI pada Mode 1 (Clean Chat) dan Mode 2 (Agent Workspace) lengkap dengan umpan balik visual "Tersalin!".
+- **Injeksi System Prompt Percakapan Alami Manusiawi**:
+  - Menggantikan aturan baku CSS frontend dengan persona percakapan komprehensif pada Mode 1 Chatbot.
+  - Menginstruksikan seluruh model bahasa besar untuk selalu berkomunikasi dalam bahasa Indonesia yang ramah, hangat, menggunakan format Markdown terstruktur, dan melarang notasi telegrafis mesin (seperti -> skipped: ...).
+
+### Peningkatan dan Perbaikan
+- **Penyelesaian Masalah Duplikasi Avatar Maskot**:
+  - Menghapus rendering avatar ganda saat proses pengiriman pesan.
+  - Mengintegrasikan indikator loading dan status animasi berpikir maskot langsung ke dalam gelembung pesan asisten pertama secara mulus sejak awal proses dispatch.
+- **Minimalisme Kanvas Chat dan Pembersihan Telemetri**:
+  - Menghapus bar estimasi token di atas dock input chat untuk menjaga tampilan ruang kerja tetap lapang, tenang, dan bersih sesuai filosofi flat design ChatGPT.
+
+---
+
 ## [v0.2.6] - 2026-10-30
 
 ### Fitur Baru
