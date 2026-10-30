@@ -762,7 +762,7 @@ export const ChatContainer: React.FC = () => {
 
         {currentMessages.length === 0 ? (
           <div className="my-auto flex flex-col items-center justify-center text-center p-6 space-y-4 pt-12">
-            <AgentMascot roleOrId="default" size={76} />
+            <AgentMascot roleOrId="default" size={92} />
             <EmptyState
               title="Mulai Percakapan Baru"
               description="Ketik pesan untuk berinteraksi dengan AI, atau gunakan '/' untuk melihat jalan pintas perintah."
@@ -783,8 +783,8 @@ export const ChatContainer: React.FC = () => {
                 }`}
               >
                 {!isUser && (
-                  <div className="w-7 h-7 rounded-full bg-[#2f2f2f] border border-[#383838] flex items-center justify-center text-[#ececec] shrink-0 mt-0.5 overflow-hidden">
-                    <AgentMascot roleOrId="default" size={26} />
+                  <div className="w-10 h-10 rounded-full bg-[#262626] border border-[#383838] flex items-center justify-center shrink-0 mt-0.5 overflow-hidden shadow-sm">
+                    <AgentMascot roleOrId="default" size={40} />
                   </div>
                 )}
 
@@ -832,8 +832,8 @@ export const ChatContainer: React.FC = () => {
 
         {isGenerating && (
           <div className={`flex gap-3.5 ${convWidthClass} mx-auto w-full justify-start items-center`}>
-            <div className="w-7 h-7 rounded-full bg-[#2f2f2f] border border-[#383838] flex items-center justify-center text-[#ececec] shrink-0 overflow-hidden">
-              <AgentMascot roleOrId="default" size={26} />
+            <div className="w-10 h-10 rounded-full bg-[#262626] border border-[#383838] flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
+              <AgentMascot roleOrId="default" size={40} />
             </div>
             <div className="py-2 flex items-center gap-2 text-xs text-[#b4b4b4]">
               <span className="w-2 h-2 rounded-full bg-white animate-pulse" />

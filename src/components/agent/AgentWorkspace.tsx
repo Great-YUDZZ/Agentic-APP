@@ -793,9 +793,9 @@ ${mcpTools.length > 0 ? `\n2. Anda juga memiliki akses langsung ke perkakas ekst
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-3.5 flex-1 min-w-0">
               <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 overflow-hidden bg-[#262626] border border-[#383838]"
+                className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 mt-0.5 overflow-hidden bg-[#262626] border border-[#383838]"
               >
-                <AgentMascot roleOrId={activeAgent.id || 'agent'} size={34} />
+                <AgentMascot roleOrId={activeAgent.id || 'agent'} size={46} />
               </div>
               <div className="space-y-0.5 flex-1 min-w-0">
                 <div className="flex items-center gap-2">
@@ -926,9 +926,9 @@ ${mcpTools.length > 0 ? `\n2. Anda juga memiliki akses langsung ke perkakas ekst
                   <div className="flex items-center justify-between pb-2 border-b border-[#303030]">
                     <div className="flex items-center gap-2">
                       <div
-                        className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 overflow-hidden bg-[#1f1f1f] border border-[#383838]"
+                        className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 overflow-hidden bg-[#1f1f1f] border border-[#383838]"
                       >
-                        <AgentMascot roleOrId={activeAgent?.id || 'agent'} size={24} />
+                        <AgentMascot roleOrId={activeAgent?.id || 'agent'} size={36} />
                       </div>
                       <span className="text-xs font-semibold text-[#ececec]">{activeAgent?.name || 'Agent'}</span>
                       <span className="text-[10px] text-[#b4b4b4] font-mono px-1.5 py-0.5 rounded bg-[#1f1f1f]">
