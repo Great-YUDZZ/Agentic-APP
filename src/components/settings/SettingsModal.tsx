@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import {
   X,
   Eye,
@@ -209,6 +208,16 @@ export const SettingsModal: React.FC = () => {
     }
   }, [isSettingsOpen]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isSettingsOpen) {
+        setSettingsOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSettingsOpen, setSettingsOpen]);
+
   if (!isSettingsOpen) return null;
 
   const handleTestConnection = async (provider: string, baseUrl?: string, apiKey?: string) => {
@@ -279,22 +288,32 @@ export const SettingsModal: React.FC = () => {
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-none">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.98 }}
-        transition={{ duration: 0.18 }}
-        className="w-full max-w-5xl h-[86vh] bg-[#212121] border border-[#383838] rounded-3xl flex overflow-hidden shadow-none font-sans text-[#ececec]"
-      >
-        {/* Left Sidebar Navigation */}
-        <div className="w-64 bg-[#171717] border-r border-[#303030] flex flex-col justify-between p-3 select-none shrink-0">
-          <div className="space-y-4">
-            {/* Section: Settings */}
-            <div>
-              <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#707070]">
-                Settings
-              </div>
+    <div className="fixed inset-0 z-50 bg-[#212121] flex overflow-hidden font-sans text-[#ececec]">
+      {/* Left Sidebar Navigation */}
+      <div className="w-64 bg-[#171717] border-r border-[#303030] flex flex-col justify-between p-3 select-none shrink-0 h-full">
+        <div className="space-y-3">
+          {/* Top Brand & Back to Workspace */}
+          <div className="pb-3 border-b border-[#262626] flex items-center justify-between px-1">
+            <div className="flex items-center gap-2">
+              <img src="/logo.png" alt="Hub Logo" className="w-5 h-5 rounded object-contain" />
+              <span className="text-xs font-semibold text-[#ececec]">Pengaturan</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(false)}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#212121] hover:bg-[#282828] border border-[#303030] text-[11px] text-[#b4b4b4] hover:text-[#ececec] transition-colors"
+              title="Kembali ke Workspace (Esc)"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>Tutup</span>
+            </button>
+          </div>
+
+          {/* Section: Settings */}
+          <div>
+            <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#707070]">
+              Settings
+            </div>
               <div className="space-y-0.5 mt-1">
                 <button
                   type="button"
@@ -450,28 +469,34 @@ export const SettingsModal: React.FC = () => {
         </div>
 
         {/* Right Main Content Panel */}
-        <div className="flex-1 flex flex-col min-w-0 bg-[#212121]">
+        <div className="flex-1 flex flex-col min-w-0 bg-[#212121] h-full overflow-hidden">
           {/* Top Header */}
-          <div className="flex items-center justify-between px-8 py-5 border-b border-[#2e2e2e]">
+          <div className="flex items-center justify-between px-8 py-4 border-b border-[#2e2e2e] bg-[#212121] shrink-0">
             <div>
-              <h2 className="text-xl font-semibold tracking-tight text-[#ececec]">
-                {activeSection === 'mcp' ? 'MCP Servers' : activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}
+              <h2 className="text-lg font-semibold tracking-tight text-[#ececec]">
+                {activeSection === 'mcp'
+                  ? 'MCP Servers'
+                  : activeSection === 'mascot'
+                  ? 'Maskot & Avatar'
+                  : activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}
               </h2>
-              <p className="text-xs text-[#b4b4b4] mt-0.5">
-                {activeSection === 'general' && 'Configure agent execution, queued message delivery, and permissions.'}
-                {activeSection === 'application' && 'Manage application runtime, sleep prevention, and notifications.'}
-                {activeSection === 'appearance' && "Configure the agent's visual theme and display preferences."}
-                {activeSection === 'models' && 'Manage AI endpoints, provider credentials, and model detection.'}
-                {activeSection === 'skills' && 'Explore and configure installed skills for autonomous agents.'}
-                {activeSection === 'mcp' && 'Manage external tool servers via Model Context Protocol (MCP).'}
+              <p className="text-xs text-[#707070] mt-0.5">
+                {activeSection === 'general' && 'Konfigurasi eksekusi agen, antrean pesan, dan kebijakan izin sistem.'}
+                {activeSection === 'application' && 'Pengaturan runtime aplikasi, sleep inhibitor, dan notifikasi desktop.'}
+                {activeSection === 'appearance' && 'Kustomisasi tema visual, kontras antarmuka, dan preset latar.'}
+                {activeSection === 'mascot' && 'Personalisasi bentuk visual, ekspresi, dan reaksi animasi untuk setiap peran agen.'}
+                {activeSection === 'models' && 'Kelola kredensial provider API dan konfigurasi custom endpoints.'}
+                {activeSection === 'skills' && 'Eksplorasi dan pasang skill untuk agen otonom.'}
+                {activeSection === 'mcp' && 'Kelola server perkakas eksternal via Model Context Protocol (MCP).'}
               </p>
             </div>
             <button
               onClick={() => setSettingsOpen(false)}
-              className="p-1.5 rounded-xl hover:bg-[#2f2f2f] text-[#b4b4b4] hover:text-white transition-colors"
-              aria-label="Close"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#282828] hover:bg-[#333333] border border-[#383838] text-xs font-medium text-[#ececec] transition-colors shrink-0"
+              title="Kembali ke Workspace (Esc)"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4 text-[#b4b4b4]" />
+              <span>Kembali</span>
             </button>
           </div>
 
@@ -1573,7 +1598,6 @@ export const SettingsModal: React.FC = () => {
             {activeSection === 'mascot' && <MascotSettingsTab />}
           </div>
         </div>
-      </motion.div>
 
       {/* Sub-modals */}
       <NetworkAccessRulesModal
