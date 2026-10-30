@@ -471,40 +471,43 @@ export const SettingsModal: React.FC = () => {
         {/* Right Main Content Panel */}
         <div className="flex-1 flex flex-col min-w-0 bg-[#212121] h-full overflow-hidden">
           {/* Top Header */}
-          <div className="flex items-center justify-between px-8 py-4 border-b border-[#2e2e2e] bg-[#212121] shrink-0">
-            <div>
-              <h2 className="text-lg font-semibold tracking-tight text-[#ececec]">
-                {activeSection === 'mcp'
-                  ? 'MCP Servers'
-                  : activeSection === 'mascot'
-                  ? 'Maskot & Avatar'
-                  : activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}
-              </h2>
-              <p className="text-xs text-[#707070] mt-0.5">
-                {activeSection === 'general' && 'Konfigurasi eksekusi agen, antrean pesan, dan kebijakan izin sistem.'}
-                {activeSection === 'application' && 'Pengaturan runtime aplikasi, sleep inhibitor, dan notifikasi desktop.'}
-                {activeSection === 'appearance' && 'Kustomisasi tema visual, kontras antarmuka, dan preset latar.'}
-                {activeSection === 'mascot' && 'Personalisasi bentuk visual, ekspresi, dan reaksi animasi untuk setiap peran agen.'}
-                {activeSection === 'models' && 'Kelola kredensial provider API dan konfigurasi custom endpoints.'}
-                {activeSection === 'skills' && 'Eksplorasi dan pasang skill untuk agen otonom.'}
-                {activeSection === 'mcp' && 'Kelola server perkakas eksternal via Model Context Protocol (MCP).'}
-              </p>
+          <div className="border-b border-[#2e2e2e] bg-[#212121] shrink-0 px-6 sm:px-8">
+            <div className="w-full max-w-4xl xl:max-w-5xl mx-auto py-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold tracking-tight text-[#ececec]">
+                  {activeSection === 'mcp'
+                    ? 'MCP Servers'
+                    : activeSection === 'mascot'
+                    ? 'Maskot & Avatar'
+                    : activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}
+                </h2>
+                <p className="text-xs text-[#707070] mt-0.5">
+                  {activeSection === 'general' && 'Konfigurasi eksekusi agen, antrean pesan, dan kebijakan izin sistem.'}
+                  {activeSection === 'application' && 'Pengaturan runtime aplikasi, sleep inhibitor, dan notifikasi desktop.'}
+                  {activeSection === 'appearance' && 'Kustomisasi tema visual, kontras antarmuka, dan preset latar.'}
+                  {activeSection === 'mascot' && 'Personalisasi bentuk visual, ekspresi, dan reaksi animasi untuk setiap peran agen.'}
+                  {activeSection === 'models' && 'Kelola kredensial provider API dan konfigurasi custom endpoints.'}
+                  {activeSection === 'skills' && 'Eksplorasi dan pasang skill untuk agen otonom.'}
+                  {activeSection === 'mcp' && 'Kelola server perkakas eksternal via Model Context Protocol (MCP).'}
+                </p>
+              </div>
+              <button
+                onClick={() => setSettingsOpen(false)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#282828] hover:bg-[#333333] border border-[#383838] text-xs font-medium text-[#ececec] transition-colors shrink-0"
+                title="Kembali ke Workspace (Esc)"
+              >
+                <X className="w-4 h-4 text-[#b4b4b4]" />
+                <span>Kembali</span>
+              </button>
             </div>
-            <button
-              onClick={() => setSettingsOpen(false)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#282828] hover:bg-[#333333] border border-[#383838] text-xs font-medium text-[#ececec] transition-colors shrink-0"
-              title="Kembali ke Workspace (Esc)"
-            >
-              <X className="w-4 h-4 text-[#b4b4b4]" />
-              <span>Kembali</span>
-            </button>
           </div>
 
           {/* Scrollable Content Body */}
-          <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
-            {/* 1. GENERAL TAB */}
-            {activeSection === 'general' && (
-              <div className="space-y-6 max-w-3xl">
+          <div className="flex-1 overflow-y-auto px-6 sm:px-8 py-6">
+            <div className="w-full max-w-4xl xl:max-w-5xl mx-auto space-y-6">
+              {/* 1. GENERAL TAB */}
+              {activeSection === 'general' && (
+                <div className="space-y-6">
                 {/* Execution Section */}
                 <div>
                   <h3 className="text-xs font-semibold text-[#b4b4b4] uppercase tracking-wider mb-2">
@@ -736,7 +739,7 @@ export const SettingsModal: React.FC = () => {
 
             {/* 2. APPLICATION TAB */}
             {activeSection === 'application' && (
-              <div className="space-y-6 max-w-3xl">
+              <div className="space-y-6">
                 <div>
                   <h3 className="text-xs font-semibold text-[#b4b4b4] uppercase tracking-wider mb-2">
                     General
@@ -938,7 +941,7 @@ export const SettingsModal: React.FC = () => {
 
             {/* 3. APPEARANCE TAB */}
             {activeSection === 'appearance' && (
-              <div className="space-y-6 max-w-3xl">
+              <div className="space-y-6">
                 <div>
                   <h3 className="text-xs font-semibold text-[#b4b4b4] uppercase tracking-wider mb-2">
                     Appearance
@@ -1500,7 +1503,7 @@ export const SettingsModal: React.FC = () => {
 
             {/* 5. SKILLS TAB */}
             {activeSection === 'skills' && (
-              <div className="space-y-4 max-w-3xl">
+              <div className="space-y-4">
                 <div className="flex items-center justify-between pb-2 border-b border-[#303030]">
                   <div>
                     <h3 className="text-sm font-semibold text-[#ececec]">Daftar Skills Terpasang</h3>
@@ -1596,6 +1599,7 @@ export const SettingsModal: React.FC = () => {
 
             {/* 7. MASCOT TAB */}
             {activeSection === 'mascot' && <MascotSettingsTab />}
+            </div>
           </div>
         </div>
 
