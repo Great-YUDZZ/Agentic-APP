@@ -6,9 +6,10 @@ import {
   Palette,
   Check,
   Zap,
+  MousePointer,
 } from 'lucide-react';
 import { useStore, DEFAULT_MASCOTS } from '../../store/useStore';
-import { AgentMascot } from '../mascot/AgentMascot';
+import { BloubBot } from '../mascot/BloubBot';
 import { CustomSelect, SelectOption } from '../common/CustomSelect';
 import {
   MascotShape,
@@ -16,76 +17,48 @@ import {
   MascotAnimation,
   MascotEvent,
 } from '../../types';
+import {
+  SHAPES,
+  COLORS,
+  EXPRESSIONS,
+  STATES,
+  type StateId,
+} from '../mascot/bloub';
 
-const AVAILABLE_SHAPES: MascotShape[] = [
-  'circle',
-  'squircle',
-  'pebble',
-  'capsule',
-  'triangle',
-  'hexagon',
-  'cloud',
-  'drop',
-];
+const EXPRESSION_LABELS: Record<string, string> = {
+  repos: 'Santai',
+  joyeux: 'Ceria',
+  attentif: 'Fokus',
+  endormi: 'Mengantuk',
+  curieux: 'Penasaran',
+  clin_d_oeil: 'Kedip',
+  inquiet: 'Waspada',
+  colere: 'Tegas',
+  etonne: 'Terkejut',
+  effraye: 'Kaget',
+};
 
-const PRESET_COLORS: string[] = [
-  '#ececec',
-  '#171717',
-  '#262626',
-  '#64748b',
-  '#3b82f6',
-  '#10b981',
-  '#f59e0b',
-  '#ef4444',
-  '#8b5cf6',
-  '#ec4899',
-  '#06b6d4',
-  '#f5f5f0',
-];
+const STATE_LABELS: Record<string, string> = {
+  idle: 'Idle (Santai)',
+  orbit: 'Orbit (Cincin Partikel)',
+  notify: 'Notification (Pop Pastille)',
+  alert: 'Alert (Tanda Peringatan)',
+  exclaim: 'Exclamation (Titik Seru)',
+  play: 'Play (Gerak Lincah)',
+  wink: 'Wink (Kedip Senyum)',
+  wide: 'Wide (Mata Terbelalak)',
+  sleep: 'Sleep (Tidur Tenang)',
+  swirl: 'Swirl (Putaran 360)',
+  split: 'Split (Pecah Partikel)',
+  spiral: 'Spiral (Lintasan Pusaran)',
+  scan: 'Scan (Pemindaian)',
+  bounce: 'Bounce (Lompat Membal)',
+};
 
-const AVAILABLE_EXPRESSIONS: { id: MascotExpression; name: string }[] = [
-  { id: 'neutral', name: 'Netral' },
-  { id: 'attentive', name: 'Fokus' },
-  { id: 'happy', name: 'Ceria' },
-  { id: 'curious', name: 'Penasaran' },
-  { id: 'proud', name: 'Percaya Diri' },
-  { id: 'thinking', name: 'Berpikir' },
-  { id: 'wink', name: 'Kedip' },
-  { id: 'sleepy', name: 'Santai' },
-  { id: 'angry', name: 'Tegas' },
-];
-
-interface GalleryAnimationItem {
-  id: MascotAnimation;
-  name: string;
-  duration: string;
-}
-
-const GALLERY_ANIMATIONS: GalleryAnimationItem[] = [
-  { id: 'idle', name: 'Idle', duration: '2.4s' },
-  { id: 'thinking', name: 'Thinking', duration: '2.6s' },
-  { id: 'wink', name: 'Wink', duration: '1.6s' },
-  { id: 'wide', name: 'Wide Eyes', duration: '1.8s' },
-  { id: 'alert', name: 'Alert', duration: '2.4s' },
-  { id: 'notify', name: 'Notification', duration: '2.2s' },
-  { id: 'exclaim', name: 'Exclamation', duration: '2.0s' },
-  { id: 'sleep', name: 'Sleep', duration: '2.4s' },
-  { id: 'play', name: 'Play', duration: '2.0s' },
-  { id: 'orbit', name: 'Orbit', duration: '4.0s' },
-];
-
-const ANIMATION_OPTIONS: SelectOption[] = [
-  { value: 'idle', label: 'Idle (Santai)' },
-  { value: 'thinking', label: 'Thinking (Berpikir)' },
-  { value: 'wink', label: 'Wink (Kedip Senyum)' },
-  { value: 'wide', label: 'Wide Eyes (Terbelalak)' },
-  { value: 'alert', label: 'Alert (Tanda Seru Galat)' },
-  { value: 'notify', label: 'Notification (Badge Notif)' },
-  { value: 'exclaim', label: 'Exclamation (Hentakan Antusias)' },
-  { value: 'sleep', label: 'Sleep (Tidur / Tenang)' },
-  { value: 'play', label: 'Play (Ceria / Gerak)' },
-  { value: 'orbit', label: 'Orbit (Cincin Partikel)' },
-];
+const ANIMATION_OPTIONS: SelectOption[] = STATES.map((st) => ({
+  value: st.id,
+  label: STATE_LABELS[st.id] ?? st.id,
+}));
 
 export const MascotSettingsTab: React.FC = () => {
   const {
@@ -98,7 +71,7 @@ export const MascotSettingsTab: React.FC = () => {
   } = useStore();
 
   const [selectedRole, setSelectedRole] = useState<string>('default');
-  const [previewAnimation, setPreviewAnimation] = useState<MascotAnimation>('idle');
+  const [previewAnimation, setPreviewAnimation] = useState<StateId>('idle');
   const [activeSection, setActiveSection] = useState<'appearance' | 'animations'>('appearance');
 
   // Daftar opsi agen
@@ -138,7 +111,7 @@ export const MascotSettingsTab: React.FC = () => {
 
   const handleEventChange = (eventKey: MascotEvent, anim: MascotAnimation) => {
     updateAgentMascotEvent(selectedRole, eventKey, anim);
-    setPreviewAnimation(anim);
+    setPreviewAnimation(anim as StateId);
   };
 
   const handleReset = () => {
@@ -154,10 +127,10 @@ export const MascotSettingsTab: React.FC = () => {
         <div>
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-[#ececec]" />
-            <h3 className="text-sm font-semibold text-[#ececec]">Kustomisasi Maskot Agen</h3>
+            <h3 className="text-sm font-semibold text-[#ececec]">Kustomisasi Maskot Bloub</h3>
           </div>
           <p className="text-xs text-[#707070] mt-1">
-            Personalisasi bentuk visual, ekspresi, dan reaksi animasi untuk setiap peran agen.
+            Personalisasi siluet morphing, ekspresi, dan reaksi event untuk setiap peran agen.
           </p>
         </div>
 
@@ -175,64 +148,74 @@ export const MascotSettingsTab: React.FC = () => {
         </div>
       </div>
 
-      {/* Grid Utama: Preview Interaktif di Kiri, Pengaturan di Kanan */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Kolom Kiri: Live Preview & Galeri Tombol Animasi */}
-        <div className="lg:col-span-5 p-5 rounded-2xl bg-[#282828] border border-[#383838] flex flex-col items-center">
-          <span className="text-[11px] font-mono uppercase tracking-wider text-[#707070] mb-4">
-            Live Interactive Preview
-          </span>
-
-          {/* Kanvas Lingkaran Preview */}
-          <div className="w-40 h-40 rounded-full bg-[#1e1e1e] border border-[#333333] flex items-center justify-center relative shadow-inner overflow-hidden my-2">
-            <AgentMascot
-              config={currentConfig}
-              animationOverride={previewAnimation}
-              size={100}
-              showBadge={true}
-            />
-
-            {/* Label Animasi Aktif */}
-            <div className="absolute bottom-2.5 px-2.5 py-0.5 rounded-full bg-[#141414]/90 border border-[#383838] text-[10px] font-mono text-[#b4b4b4]">
-              {previewAnimation}
-            </div>
-          </div>
-
-          <div className="text-center mt-3">
-            <h4 className="text-sm font-medium text-[#ececec]">
-              {agentOptions.find((o) => o.value === selectedRole)?.label}
-            </h4>
-            <p className="text-[11px] text-[#707070] mt-0.5 font-mono">
-              Bentuk: {currentConfig.shape} | Warna: {currentConfig.color}
-            </p>
-          </div>
-
-          {/* Galeri Animasi bloub.vercel.app */}
-          <div className="w-full mt-6 pt-5 border-t border-[#333333]">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold text-[#ececec] flex items-center gap-1.5">
-                <Film className="w-3.5 h-3.5 text-[#b4b4b4]" />
-                Galeri Animasi (Klik untuk Uji)
+      {/* Grid Utama: Preview Kiri & Kontrol Kanan */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Kolom Kiri: Live Interactive Preview & Animation Gallery */}
+        <div className="lg:col-span-5 space-y-4">
+          <div className="p-6 rounded-2xl bg-[#282828] border border-[#383838] flex flex-col items-center justify-center relative min-h-[260px] overflow-hidden group">
+            {/* Status Event Badge */}
+            <div className="absolute top-3.5 left-3.5 flex items-center gap-2">
+              <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-[#212121] text-[#ececec] border border-[#383838]">
+                {previewAnimation}
               </span>
-              <span className="text-[10px] text-[#707070]">10 variasi</span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
-              {GALLERY_ANIMATIONS.map((anim) => {
-                const isActive = previewAnimation === anim.id;
+            {/* Hint Gaze Tracking */}
+            <div className="absolute top-3.5 right-3.5 flex items-center gap-1 text-[10px] text-[#707070]">
+              <MousePointer className="w-3 h-3" />
+              <span>Gaze Active</span>
+            </div>
+
+            {/* Avatar Maskot Bloub Interaktif */}
+            <div className="py-2">
+              <BloubBot
+                size={140}
+                shape={currentConfig.shape}
+                color={currentConfig.color}
+                expression={currentConfig.expression}
+                state={previewAnimation}
+                follow={true}
+              />
+            </div>
+
+            {/* Label Peran & Info */}
+            <div className="mt-2 text-center">
+              <span className="text-xs font-semibold text-[#ececec]">
+                {agentOptions.find((o) => o.value === selectedRole)?.label}
+              </span>
+              <p className="text-[11px] text-[#707070] mt-0.5">
+                Arahkan mouse di area ini untuk melihat lirikan mata maskot.
+              </p>
+            </div>
+          </div>
+
+          {/* Galeri Pengujian 14 State Animasi Bloub */}
+          <div className="p-4 rounded-2xl bg-[#282828] border border-[#383838] space-y-3">
+            <div className="flex items-center gap-2 pb-1 border-b border-[#333333]">
+              <Film className="w-3.5 h-3.5 text-[#ececec]" />
+              <span className="text-xs font-semibold text-[#ececec]">
+                Uji Coba 14 Animasi Bawaan Bloub
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-1.5 max-h-[220px] overflow-y-auto pr-1">
+              {STATES.map((st) => {
+                const isActive = previewAnimation === st.id;
                 return (
                   <button
-                    key={anim.id}
+                    key={st.id}
                     type="button"
-                    onClick={() => setPreviewAnimation(anim.id)}
-                    className={`px-3 py-2.5 rounded-xl border text-left transition-all flex items-center justify-between ${
+                    onClick={() => setPreviewAnimation(st.id)}
+                    className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-xs transition-all ${
                       isActive
-                        ? 'bg-[#383838] border-[#555555] text-[#ececec]'
-                        : 'bg-[#212121] hover:bg-[#2e2e2e] border-[#303030] text-[#909090] hover:text-[#ececec]'
+                        ? 'bg-[#383838] border-[#ececec] text-[#ececec]'
+                        : 'bg-[#212121] hover:bg-[#282828] border-[#333333] text-[#909090] hover:text-[#ececec]'
                     }`}
                   >
-                    <span className="text-xs font-medium">{anim.name}</span>
-                    <span className="text-[10px] font-mono text-[#666666]">{anim.duration}</span>
+                    <span className="truncate">{st.id}</span>
+                    <span className="text-[10px] text-[#707070] font-mono shrink-0 ml-1">
+                      {(st.minDuration ?? st.duration).toFixed(1)}s
+                    </span>
                   </button>
                 );
               })}
@@ -282,32 +265,35 @@ export const MascotSettingsTab: React.FC = () => {
             </button>
           </div>
 
-          {/* Bagian 1: Penampilan (Bentuk, Warna, Mata) */}
+          {/* Bagian 1: Penampilan (Bentuk, Warna, Ekspresi) */}
           {activeSection === 'appearance' && (
             <div className="p-5 rounded-2xl bg-[#282828] border border-[#383838] space-y-6">
-              {/* Pilihan Bentuk Tubuh (Shapes) */}
+              {/* Pilihan 10 Bentuk Tubuh (Shapes) */}
               <div>
                 <label className="text-xs font-semibold text-[#ececec] block mb-2.5">
-                  1. Bentuk Tubuh
+                  1. Bentuk Tubuh Siluet
                 </label>
-                <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
-                  {AVAILABLE_SHAPES.map((shape) => {
-                    const isSelected = currentConfig.shape === shape;
+                <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
+                  {SHAPES.map((shape) => {
+                    const isSelected = currentConfig.shape === shape.id;
                     return (
                       <button
-                        key={shape}
+                        key={shape.id}
                         type="button"
-                        onClick={() => handleShapeSelect(shape)}
-                        className={`h-12 rounded-xl border transition-all flex items-center justify-center ${
+                        onClick={() => handleShapeSelect(shape.id as MascotShape)}
+                        className={`h-11 rounded-xl border transition-all flex items-center justify-center ${
                           isSelected
                             ? 'bg-[#383838] border-[#ececec]'
                             : 'bg-[#212121] hover:bg-[#2b2b2b] border-[#333333]'
                         }`}
-                        title={shape}
+                        title={shape.id}
                       >
-                        <AgentMascot
-                          config={{ ...currentConfig, shape, animate: false }}
+                        <BloubBot
                           size={28}
+                          shape={shape.id}
+                          color={currentConfig.color}
+                          expression={currentConfig.expression}
+                          frozenAt={0}
                         />
                       </button>
                     );
@@ -315,32 +301,32 @@ export const MascotSettingsTab: React.FC = () => {
                 </div>
               </div>
 
-              {/* Pilihan Warna Tubuh (Colors) */}
+              {/* Pilihan 12 Palet Warna Asli Bloub + Kustom */}
               <div>
                 <label className="text-xs font-semibold text-[#ececec] block mb-2.5">
-                  2. Palet Warna
+                  2. Palet Skin Warna
                 </label>
 
                 <div className="flex items-center gap-2.5 flex-wrap">
-                  {PRESET_COLORS.map((colHex) => {
-                    const isSelected = currentConfig.color.toLowerCase() === colHex.toLowerCase();
+                  {COLORS.map((col) => {
+                    const isSelected = currentConfig.color.toLowerCase() === col.hex.toLowerCase();
                     return (
                       <button
-                        key={colHex}
+                        key={col.id}
                         type="button"
-                        onClick={() => handleColorSelect(colHex)}
+                        onClick={() => handleColorSelect(col.hex)}
                         className={`w-8 h-8 rounded-full border transition-all flex items-center justify-center shrink-0 ${
                           isSelected
                             ? 'border-[#ececec] ring-2 ring-[#ececec]/30 scale-105'
                             : 'border-[#333333] hover:scale-105'
                         }`}
-                        style={{ backgroundColor: colHex }}
-                        title={colHex}
+                        style={{ backgroundColor: col.hex }}
+                        title={`${col.id} (${col.hex})`}
                       >
                         {isSelected && (
                           <Check
                             className="w-4 h-4"
-                            style={{ color: colHex === '#ececec' || colHex === '#f5f5f0' ? '#171717' : '#ffffff' }}
+                            style={{ color: col.hex === '#f5f5f0' ? '#171717' : '#ffffff' }}
                           />
                         )}
                       </button>
@@ -349,7 +335,7 @@ export const MascotSettingsTab: React.FC = () => {
 
                   <label
                     className="w-8 h-8 rounded-full border border-dashed border-[#555555] hover:border-[#ececec] flex items-center justify-center cursor-pointer transition-colors relative shrink-0 bg-[#212121]"
-                    title="Pilih warna kustom"
+                    title="Pilih warna hex kustom"
                   >
                     <Palette className="w-3.5 h-3.5 text-[#b4b4b4]" />
                     <input
@@ -362,50 +348,50 @@ export const MascotSettingsTab: React.FC = () => {
                 </div>
               </div>
 
-              {/* Pilihan Ekspresi Mata Dasar */}
+              {/* Pilihan 10 Ekspresi Wajah Asli Bloub */}
               <div>
                 <label className="text-xs font-semibold text-[#ececec] block mb-2.5">
-                  3. Ekspresi Mata
+                  3. Ekspresi Wajah
                 </label>
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                  {AVAILABLE_EXPRESSIONS.map((expr) => {
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  {EXPRESSIONS.map((expr) => {
                     const isSelected = currentConfig.expression === expr.id;
                     return (
                       <button
                         key={expr.id}
                         type="button"
-                        onClick={() => handleExpressionSelect(expr.id)}
+                        onClick={() => handleExpressionSelect(expr.id as MascotExpression)}
                         className={`px-3 py-2 rounded-xl border text-xs font-medium transition-all text-center ${
                           isSelected
                             ? 'bg-[#383838] border-[#ececec] text-[#ececec]'
                             : 'bg-[#212121] hover:bg-[#2b2b2b] border-[#333333] text-[#a0a0a0] hover:text-[#ececec]'
                         }`}
                       >
-                        {expr.name}
+                        {EXPRESSION_LABELS[expr.id] ?? expr.id}
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Opsi Toggle Animasi Hidup */}
+              {/* Opsi Toggle Gaze Tracking */}
               <div className="pt-2 border-t border-[#333333] flex items-center justify-between">
                 <div>
-                  <span className="text-xs font-medium text-[#ececec]">Animasi Gerak Hidup</span>
+                  <span className="text-xs font-medium text-[#ececec]">Interaksi Lirikan Kursor (Gaze Tracking)</span>
                   <p className="text-[11px] text-[#707070]">
-                    Aktifkan kedipan mata berkala dan gerakan nafas lembut saat idle.
+                    Mata maskot melirik dan mengikuti pergerakan kursor mouse saat aktif.
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => updateAgentMascot(selectedRole, { animate: !currentConfig.animate })}
+                  onClick={() => updateAgentMascot(selectedRole, { follow: !currentConfig.follow })}
                   className={`w-11 h-6 rounded-full transition-colors relative p-0.5 ${
-                    currentConfig.animate ? 'bg-[#ececec]' : 'bg-[#333333]'
+                    currentConfig.follow !== false ? 'bg-[#ececec]' : 'bg-[#333333]'
                   }`}
                 >
                   <div
                     className={`w-5 h-5 rounded-full transition-transform ${
-                      currentConfig.animate ? 'translate-x-5 bg-[#171717]' : 'translate-x-0 bg-[#888888]'
+                      currentConfig.follow !== false ? 'translate-x-5 bg-[#171717]' : 'translate-x-0 bg-[#888888]'
                     }`}
                   />
                 </button>
@@ -421,7 +407,7 @@ export const MascotSettingsTab: React.FC = () => {
                   Pemetaan Event Reaktif Aplikasi
                 </h4>
                 <p className="text-[11px] text-[#707070] mt-0.5">
-                  Tentukan animasi yang akan diputar oleh maskot agen saat event tertentu terjadi di sistem.
+                  Pilih salah satu dari 14 animasi bawaan Bloub untuk diputar saat event aplikasi terjadi.
                 </p>
               </div>
 
@@ -436,7 +422,7 @@ export const MascotSettingsTab: React.FC = () => {
                     value={currentConfig.events.on_idle}
                     options={ANIMATION_OPTIONS}
                     onChange={(val) => handleEventChange('on_idle', val as MascotAnimation)}
-                    className="w-44"
+                    className="w-48"
                   />
                 </div>
 
@@ -450,7 +436,7 @@ export const MascotSettingsTab: React.FC = () => {
                     value={currentConfig.events.on_thinking}
                     options={ANIMATION_OPTIONS}
                     onChange={(val) => handleEventChange('on_thinking', val as MascotAnimation)}
-                    className="w-44"
+                    className="w-48"
                   />
                 </div>
 
@@ -464,7 +450,7 @@ export const MascotSettingsTab: React.FC = () => {
                     value={currentConfig.events.on_error}
                     options={ANIMATION_OPTIONS}
                     onChange={(val) => handleEventChange('on_error', val as MascotAnimation)}
-                    className="w-44"
+                    className="w-48"
                   />
                 </div>
 
@@ -478,7 +464,7 @@ export const MascotSettingsTab: React.FC = () => {
                     value={currentConfig.events.on_notification}
                     options={ANIMATION_OPTIONS}
                     onChange={(val) => handleEventChange('on_notification', val as MascotAnimation)}
-                    className="w-44"
+                    className="w-48"
                   />
                 </div>
 
@@ -492,7 +478,7 @@ export const MascotSettingsTab: React.FC = () => {
                     value={currentConfig.events.on_success}
                     options={ANIMATION_OPTIONS}
                     onChange={(val) => handleEventChange('on_success', val as MascotAnimation)}
-                    className="w-44"
+                    className="w-48"
                   />
                 </div>
 
@@ -506,7 +492,7 @@ export const MascotSettingsTab: React.FC = () => {
                     value={currentConfig.events.on_approval}
                     options={ANIMATION_OPTIONS}
                     onChange={(val) => handleEventChange('on_approval', val as MascotAnimation)}
-                    className="w-44"
+                    className="w-48"
                   />
                 </div>
               </div>
@@ -517,3 +503,5 @@ export const MascotSettingsTab: React.FC = () => {
     </div>
   );
 };
+
+export default MascotSettingsTab;

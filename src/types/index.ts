@@ -277,20 +277,36 @@ export interface AppSettings {
 }
 
 export type MascotShape =
+  | 'cercle'
+  | 'carre_arrondi'
+  | 'galet'
+  | 'capsule'
+  | 'triangle'
+  | 'hexagone'
+  | 'nuage'
+  | 'goutte'
+  | 'pentagone'
+  | 'etoile'
   | 'circle'
   | 'squircle'
   | 'pebble'
-  | 'capsule'
-  | 'triangle'
   | 'hexagon'
   | 'cloud'
   | 'drop';
 
 export type MascotExpression =
+  | 'repos'
+  | 'joyeux'
+  | 'attentif'
+  | 'endormi'
+  | 'curieux'
+  | 'clin_d_oeil'
+  | 'inquiet'
+  | 'colere'
+  | 'etonne'
+  | 'effraye'
   | 'neutral'
-  | 'attentive'
   | 'happy'
-  | 'curious'
   | 'proud'
   | 'thinking'
   | 'wink'
@@ -299,15 +315,20 @@ export type MascotExpression =
 
 export type MascotAnimation =
   | 'idle'
-  | 'thinking'
+  | 'orbit'
+  | 'notify'
+  | 'alert'
+  | 'exclaim'
+  | 'play'
   | 'wink'
   | 'wide'
-  | 'alert'
-  | 'notify'
-  | 'exclaim'
   | 'sleep'
-  | 'play'
-  | 'orbit';
+  | 'swirl'
+  | 'split'
+  | 'spiral'
+  | 'scan'
+  | 'bounce'
+  | 'thinking';
 
 export type MascotEvent =
   | 'on_idle'
@@ -332,6 +353,7 @@ export interface MascotConfig {
   expression: MascotExpression;
   events: MascotEventMapping;
   animate: boolean;
+  follow?: boolean;
 }
 
 export interface DeleteRequest {
