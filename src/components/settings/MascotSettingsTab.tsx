@@ -163,7 +163,7 @@ export const MascotSettingsTab: React.FC = () => {
             {/* Hint Gaze Tracking */}
             <div className="absolute top-3.5 right-3.5 flex items-center gap-1 text-[10px] text-[#707070]">
               <MousePointer className="w-3 h-3" />
-              <span>Gaze Active</span>
+              <span>{currentConfig.follow !== false ? 'Gaze Aktif' : 'Gaze Nonaktif'}</span>
             </div>
 
             {/* Avatar Maskot Bloub Interaktif */}
@@ -174,7 +174,7 @@ export const MascotSettingsTab: React.FC = () => {
                 color={currentConfig.color}
                 expression={currentConfig.expression}
                 state={previewAnimation}
-                follow={true}
+                follow={currentConfig.follow !== false}
               />
             </div>
 

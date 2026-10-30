@@ -13,9 +13,7 @@ import {
   mixHex,
   NOTIF_BLUE,
   lookTarget,
-  TURN_TIME,
   clamp,
-  easings,
   type GazeScript,
   type StateId,
 } from './bloub';
@@ -169,21 +167,18 @@ export const BloubBot: React.FC<BloubBotProps> = ({
       // Pointer aim calculation
       if (follow && svgRef.current) {
         const rect = svgRef.current.getBoundingClientRect();
-        const halfW = Math.max(window.innerWidth / 2, 200);
-        const halfH = Math.max(window.innerHeight / 2, 200);
+        const reach = 220;
         const p = pointerPosRef.current;
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
 
-        const nx = p ? clamp((p.x - centerX) / halfW, -1, 1) : 0;
-        const ny = p ? clamp((p.y - centerY) / halfH, -1, 1) : 0;
-        const tour = easings.easeOutQuint(clamp((clock - turnSinceRef.current) / TURN_TIME));
+        const nx = p ? clamp((p.x - centerX) / reach, -1, 1) : 0;
+        const ny = p ? clamp((p.y - centerY) / reach, -1, 1) : 0;
 
         engine.setLook(
           lookTarget({
             nx,
             ny,
-            tour,
             pointer: p !== null,
           }),
           clock

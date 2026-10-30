@@ -16,8 +16,8 @@ export const EYE_SPLIT = 15.46
 export const EYE_W = 0.186
 export const EYE_H = 0.412
 
-/** Orientasi kepala saat diam (idle gaze) */
-export const REST_GAZE: HeadGaze = { yaw: 28.49, pitch: 28.62, roll: -13 }
+/** Orientasi kepala saat diam (idle gaze): menghadap ke depan lurus ke pengguna */
+export const REST_GAZE: HeadGaze = { yaw: 0, pitch: 0, roll: 0 }
 
 export interface EyePose {
   x: number
