@@ -162,8 +162,13 @@ impl McpClientManager {
     }
 
     fn resolve_storage_path() -> PathBuf {
+        let is_beta = std::env::var("AGENTIC_BETA").unwrap_or_default() == "1"
+            || std::env::current_exe()
+                .map(|p| p.to_string_lossy().to_lowercase().contains("beta"))
+                .unwrap_or(false);
+        let folder_name = if is_beta { "agentic_native_hub_beta" } else { "agentic_native_hub" };
         if let Some(data_dir) = dirs::data_dir() {
-            let app_dir = data_dir.join("agentic_native_hub");
+            let app_dir = data_dir.join(folder_name);
             let _ = std::fs::create_dir_all(&app_dir);
             app_dir.join("mcp_servers.json")
         } else {

@@ -9,7 +9,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "deploy:beta": "bash ./deploy-beta.sh"
   },
   "dependencies": {
     "@tauri-apps/plugin-process": "^2.2.0",

@@ -86,11 +86,23 @@ pub fn find_model_path_with_preference(prefer_fast: bool) -> Option<PathBuf> {
 
     // Prioritize high-accuracy small-q5_1, then tiny fallback
     if let Some(data_dir) = dirs::data_dir() {
-        let small_path = data_dir.join("agentic_native_hub/models/ggml-small-q5_1.bin");
+        let is_beta = std::env::var("AGENTIC_BETA").unwrap_or_default() == "1"
+            || std::env::current_exe()
+                .map(|p| p.to_string_lossy().to_lowercase().contains("beta"))
+                .unwrap_or(false);
+        let folder = if is_beta { "agentic_native_hub_beta" } else { "agentic_native_hub" };
+
+        let small_path = data_dir.join(format!("{}/models/ggml-small-q5_1.bin", folder));
         if validate_and_repair_model(&small_path) {
             return Some(small_path);
         }
-        let tiny_path = data_dir.join("agentic_native_hub/models/ggml-tiny.bin");
+        if is_beta {
+            let fallback_small = data_dir.join("agentic_native_hub/models/ggml-small-q5_1.bin");
+            if validate_and_repair_model(&fallback_small) {
+                return Some(fallback_small);
+            }
+        }
+        let tiny_path = data_dir.join(format!("{}/models/ggml-tiny.bin", folder));
         if validate_and_repair_model(&tiny_path) {
             return Some(tiny_path);
         }

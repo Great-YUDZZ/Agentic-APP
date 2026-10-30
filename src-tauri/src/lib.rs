@@ -23,7 +23,13 @@ pub fn run() {
     }
 
     let home = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
-    let db_path = home.join("agentic_native_hub").join("agentic_hub.db");
+    let is_beta = std::env::var("AGENTIC_BETA").unwrap_or_default() == "1"
+        || std::env::current_exe()
+            .map(|p| p.to_string_lossy().to_lowercase().contains("beta"))
+            .unwrap_or(false);
+    let app_dir_name = if is_beta { "agentic_native_hub_beta" } else { "agentic_native_hub" };
+    let db_name = if is_beta { "agentic_hub_beta.db" } else { "agentic_hub.db" };
+    let db_path = home.join(app_dir_name).join(db_name);
 
     let db = Database::new(db_path).unwrap_or_else(|_| {
         Database::new_in_memory().expect("Failed to initialize fallback database")
