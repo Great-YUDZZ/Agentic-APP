@@ -53,6 +53,9 @@ import {
   TilingNode,
   DraggingItem,
   ActiveDropTarget,
+  MascotConfig,
+  MascotAnimation,
+  MascotEvent,
 } from '../types';
 import { parseRobustJson, getChatEndpoint, getModelsEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../utils/api';
 import { extractCodeReviewItems } from '../utils/codeExtractor';
@@ -438,7 +441,102 @@ interface AppStore {
   closeTabInPane: (paneId: string, tabId: string) => void;
   applyPresetLayout: (preset: 'single' | 'split-horizontal' | 'split-vertical' | 'grid-2x2') => Promise<void>;
   ensureTilingInitialized: () => Promise<void>;
+
+  // Agent Mascot & Event System
+  activeAgentEvents: Record<string, MascotEvent>;
+  updateAgentMascot: (roleOrId: string, config: Partial<MascotConfig>) => void;
+  updateAgentMascotEvent: (roleOrId: string, event: MascotEvent, animation: MascotAnimation) => void;
+  resetAgentMascot: (roleOrId: string) => void;
+  setAgentActiveEvent: (roleOrId: string, event: MascotEvent, durationMs?: number) => void;
+  getAgentMascotConfig: (roleOrId?: string) => MascotConfig;
 }
+
+export const DEFAULT_MASCOTS: Record<string, MascotConfig> = {
+  default: {
+    shape: 'circle',
+    color: '#ececec',
+    expression: 'neutral',
+    events: {
+      on_idle: 'idle',
+      on_thinking: 'thinking',
+      on_error: 'alert',
+      on_notification: 'notify',
+      on_success: 'wink',
+      on_approval: 'exclaim',
+    },
+    animate: true,
+  },
+  agent: {
+    shape: 'squircle',
+    color: '#3b82f6',
+    expression: 'attentive',
+    events: {
+      on_idle: 'idle',
+      on_thinking: 'thinking',
+      on_error: 'alert',
+      on_notification: 'notify',
+      on_success: 'wink',
+      on_approval: 'exclaim',
+    },
+    animate: true,
+  },
+  lead_architect: {
+    shape: 'hexagon',
+    color: '#8b5cf6',
+    expression: 'proud',
+    events: {
+      on_idle: 'idle',
+      on_thinking: 'thinking',
+      on_error: 'alert',
+      on_notification: 'notify',
+      on_success: 'play',
+      on_approval: 'exclaim',
+    },
+    animate: true,
+  },
+  coder: {
+    shape: 'squircle',
+    color: '#10b981',
+    expression: 'thinking',
+    events: {
+      on_idle: 'idle',
+      on_thinking: 'thinking',
+      on_error: 'alert',
+      on_notification: 'notify',
+      on_success: 'wink',
+      on_approval: 'exclaim',
+    },
+    animate: true,
+  },
+  reviewer: {
+    shape: 'circle',
+    color: '#f59e0b',
+    expression: 'curious',
+    events: {
+      on_idle: 'idle',
+      on_thinking: 'thinking',
+      on_error: 'alert',
+      on_notification: 'notify',
+      on_success: 'wink',
+      on_approval: 'wide',
+    },
+    animate: true,
+  },
+  tester: {
+    shape: 'capsule',
+    color: '#ec4899',
+    expression: 'attentive',
+    events: {
+      on_idle: 'idle',
+      on_thinking: 'thinking',
+      on_error: 'alert',
+      on_notification: 'notify',
+      on_success: 'play',
+      on_approval: 'exclaim',
+    },
+    animate: true,
+  },
+};
 
 const DEFAULT_SETTINGS: AppSettings = {
   queuedMessages: 'queue',
@@ -466,6 +564,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   verboseAgentChat: true,
   conversationWidth: 'default',
   trashRetentionDays: 30,
+  agentMascots: DEFAULT_MASCOTS,
 };
 
 const loadSavedSettings = (): AppSettings => {
@@ -505,6 +604,14 @@ const loadSavedSettings = (): AppSettings => {
       }
       if (!['id', 'en', 'auto'].includes(parsed.voiceInputLanguage)) {
         parsed.voiceInputLanguage = 'id';
+      }
+      if (!parsed.agentMascots || typeof parsed.agentMascots !== 'object') {
+        parsed.agentMascots = DEFAULT_SETTINGS.agentMascots;
+      } else {
+        parsed.agentMascots = {
+          ...DEFAULT_SETTINGS.agentMascots,
+          ...parsed.agentMascots,
+        };
       }
       return { ...DEFAULT_SETTINGS, ...parsed };
     }
@@ -2843,6 +2950,69 @@ Draf tugas terperinci telah disiapkan di kartu rencana. Anda dapat meninjau dan 
       }
       return { settings: updated, isStrictApprovalMode: strictMode };
     });
+  },
+
+  // Agent Mascot & Event System
+  activeAgentEvents: {},
+  updateAgentMascot: (roleOrId, config) => {
+    const current = get().settings.agentMascots || DEFAULT_MASCOTS;
+    const base = current[roleOrId] || current['default'] || DEFAULT_MASCOTS.default;
+    const updated = {
+      ...current,
+      [roleOrId]: {
+        ...base,
+        ...config,
+      },
+    };
+    get().updateSettings({ agentMascots: updated });
+  },
+  updateAgentMascotEvent: (roleOrId, event, animation) => {
+    const current = get().settings.agentMascots || DEFAULT_MASCOTS;
+    const base = current[roleOrId] || current['default'] || DEFAULT_MASCOTS.default;
+    const updated = {
+      ...current,
+      [roleOrId]: {
+        ...base,
+        events: {
+          ...base.events,
+          [event]: animation,
+        },
+      },
+    };
+    get().updateSettings({ agentMascots: updated });
+  },
+  resetAgentMascot: (roleOrId) => {
+    const current = get().settings.agentMascots || DEFAULT_MASCOTS;
+    const defaultVal = DEFAULT_MASCOTS[roleOrId] || DEFAULT_MASCOTS.default;
+    const updated = {
+      ...current,
+      [roleOrId]: defaultVal,
+    };
+    get().updateSettings({ agentMascots: updated });
+  },
+  setAgentActiveEvent: (roleOrId, event, durationMs) => {
+    set((state) => ({
+      activeAgentEvents: {
+        ...state.activeAgentEvents,
+        [roleOrId]: event,
+      },
+    }));
+    if (durationMs && durationMs > 0) {
+      setTimeout(() => {
+        set((state) => {
+          if (state.activeAgentEvents[roleOrId] === event) {
+            const next = { ...state.activeAgentEvents };
+            delete next[roleOrId];
+            return { activeAgentEvents: next };
+          }
+          return state;
+        });
+      }, durationMs);
+    }
+  },
+  getAgentMascotConfig: (roleOrId = 'default') => {
+    const mascots = get().settings.agentMascots || DEFAULT_MASCOTS;
+    return mascots[roleOrId] || mascots['default'] || DEFAULT_MASCOTS.default;
   },
 
   // Universal Context Vault (Obsidian-Style)

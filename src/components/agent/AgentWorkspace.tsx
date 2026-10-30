@@ -39,6 +39,7 @@ import { getDailyGreeting } from '../../utils/dailyGreetings';
 import { getConversationWidthClass } from '../../utils/layout';
 import { AGENT_AVAILABLE_TOOLS, isPathExternal, convertMcpToolToDefinition } from '../../utils/tools';
 import { ExecutionStep } from '../../types';
+import { AgentMascot } from '../mascot/AgentMascot';
 
 export const AgentWorkspace: React.FC = () => {
   const {
@@ -291,7 +292,9 @@ export const AgentWorkspace: React.FC = () => {
     setIsWorking(true);
     setActiveReasoning('');
     setAgentOutput('');
-    setExecutionSteps([]);
+    const agentKey = activeAgent.id || 'agent';
+    useStore.getState().setAgentActiveEvent(agentKey, 'on_thinking');
+    let hasError = false;
 
     addLog({
       id: `task-start-${Date.now()}`,
@@ -310,12 +313,14 @@ export const AgentWorkspace: React.FC = () => {
       if (!apiKey.trim()) {
         addToast('error', 'API Key belum diatur. Buka menu Setting untuk memasukkan kredensial.');
         setIsExecuting(false);
+        useStore.getState().setAgentActiveEvent(agentKey, 'on_error', 3000);
         return;
       }
 
       if (!effectiveModel.trim()) {
         addToast('error', `Model belum dipilih untuk ${activeAgent.name}. Pastikan API Key aktif dan model terdeteksi.`);
         setIsExecuting(false);
+        useStore.getState().setAgentActiveEvent(agentKey, 'on_error', 3000);
         return;
       }
 
@@ -478,6 +483,7 @@ ${mcpTools.length > 0 ? `\n2. Anda juga memiliki akses langsung ke perkakas ekst
 
           let allowExecution = true;
           if (shouldAskClearance) {
+            useStore.getState().setAgentActiveEvent(agentKey, 'on_approval');
             setPendingToolClearance({
               id: `clearance-${Date.now()}`,
               tool_name: `${activeAgent.name} :: ${toolName}`,
@@ -495,6 +501,7 @@ ${mcpTools.length > 0 ? `\n2. Anda juga memiliki akses langsung ke perkakas ekst
               pendingClearanceResolver.current = resolve;
             });
             setPendingToolClearance(null);
+            useStore.getState().setAgentActiveEvent(agentKey, 'on_thinking');
           }
 
           if (!allowExecution) {
@@ -636,12 +643,17 @@ ${mcpTools.length > 0 ? `\n2. Anda juga memiliki akses langsung ke perkakas ekst
 
       addToast('success', `Agent ${activeAgent.name} telah menyelesaikan instruksi!`);
     } catch (err: unknown) {
+      hasError = true;
+      useStore.getState().setAgentActiveEvent(agentKey, 'on_error', 4000);
       const errMsg = err instanceof Error ? err.message : String(err);
       addToast('error', `Gagal menjalankan tugas: ${errMsg}`);
       setAgentOutput(`Kendala eksekusi: ${errMsg}`);
     } finally {
       setIsExecuting(false);
       setIsWorking(false);
+      if (!hasError) {
+        useStore.getState().setAgentActiveEvent(agentKey, 'on_success', 2500);
+      }
 
       // Check planReviewPolicy if task was a plan
       const isPlan = currentTask.startsWith('/plan');
@@ -781,10 +793,9 @@ ${mcpTools.length > 0 ? `\n2. Anda juga memiliki akses langsung ke perkakas ekst
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-3.5 flex-1 min-w-0">
               <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center text-white shrink-0 mt-0.5"
-                style={{ backgroundColor: activeAgent.avatar_color }}
+                className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 overflow-hidden bg-[#262626] border border-[#383838]"
               >
-                <Bot className="w-5 h-5" />
+                <AgentMascot roleOrId={activeAgent.id || 'agent'} size={34} />
               </div>
               <div className="space-y-0.5 flex-1 min-w-0">
                 <div className="flex items-center gap-2">
@@ -915,10 +926,9 @@ ${mcpTools.length > 0 ? `\n2. Anda juga memiliki akses langsung ke perkakas ekst
                   <div className="flex items-center justify-between pb-2 border-b border-[#303030]">
                     <div className="flex items-center gap-2">
                       <div
-                        className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0"
-                        style={{ backgroundColor: activeAgent?.avatar_color || '#737373' }}
+                        className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 overflow-hidden bg-[#1f1f1f] border border-[#383838]"
                       >
-                        <Bot className="w-3.5 h-3.5" />
+                        <AgentMascot roleOrId={activeAgent?.id || 'agent'} size={24} />
                       </div>
                       <span className="text-xs font-semibold text-[#ececec]">{activeAgent?.name || 'Agent'}</span>
                       <span className="text-[10px] text-[#b4b4b4] font-mono px-1.5 py-0.5 rounded bg-[#1f1f1f]">

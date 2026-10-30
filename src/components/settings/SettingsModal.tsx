@@ -24,6 +24,7 @@ import {
   Moon,
   ExternalLink,
   RotateCw,
+  Smile,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { CustomSelect } from '../common/CustomSelect';
@@ -32,6 +33,7 @@ import { BrowserActuationRulesModal } from './BrowserActuationRulesModal';
 import { ShortcutsModal } from './ShortcutsModal';
 import { CreateSkillModal } from './CreateSkillModal';
 import { McpServersTab } from './McpServersTab';
+import { MascotSettingsTab } from './MascotSettingsTab';
 import { getOfflineSpeechStatus, triggerVoiceModelDownload, OfflineSpeechStatus } from '../../utils/audioRecorder';
 import { checkUpdateManually } from '../../utils/updater';
 
@@ -83,7 +85,7 @@ const STANDARD_PROVIDERS: StandardProviderConfig[] = [
   },
 ];
 
-type SettingsSection = 'general' | 'application' | 'appearance' | 'models' | 'skills' | 'mcp';
+type SettingsSection = 'general' | 'application' | 'appearance' | 'mascot' | 'models' | 'skills' | 'mcp';
 
 const PERMISSION_OPTIONS = [
   { value: 'turbo', label: 'Turbo (Auto Execution)', description: 'Agen mengeksekusi semua perintah alat tanpa konfirmasi.' },
@@ -331,6 +333,19 @@ export const SettingsModal: React.FC = () => {
                 >
                   <Palette className="w-4 h-4 text-[#ececec]" />
                   <span>Appearance</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveSection('mascot')}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-colors ${
+                    activeSection === 'mascot'
+                      ? 'bg-[#262626] text-white font-semibold'
+                      : 'text-[#b4b4b4] hover:bg-[#212121] hover:text-[#ececec]'
+                  }`}
+                >
+                  <Smile className="w-4 h-4 text-[#ececec]" />
+                  <span>Maskot & Avatar</span>
                 </button>
 
                 <button
@@ -1553,6 +1568,9 @@ export const SettingsModal: React.FC = () => {
 
             {/* 6. MCP SERVERS TAB */}
             {activeSection === 'mcp' && <McpServersTab />}
+
+            {/* 7. MASCOT TAB */}
+            {activeSection === 'mascot' && <MascotSettingsTab />}
           </div>
         </div>
       </motion.div>

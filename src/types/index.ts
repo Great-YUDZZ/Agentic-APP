@@ -271,6 +271,67 @@ export interface AppSettings {
   verboseAgentChat: boolean;
   conversationWidth: 'narrow' | 'default' | 'wide';
   trashRetentionDays: number;
+
+  // Agent Mascots
+  agentMascots?: Record<string, MascotConfig>;
+}
+
+export type MascotShape =
+  | 'circle'
+  | 'squircle'
+  | 'pebble'
+  | 'capsule'
+  | 'triangle'
+  | 'hexagon'
+  | 'cloud'
+  | 'drop';
+
+export type MascotExpression =
+  | 'neutral'
+  | 'attentive'
+  | 'happy'
+  | 'curious'
+  | 'proud'
+  | 'thinking'
+  | 'wink'
+  | 'sleepy'
+  | 'angry';
+
+export type MascotAnimation =
+  | 'idle'
+  | 'thinking'
+  | 'wink'
+  | 'wide'
+  | 'alert'
+  | 'notify'
+  | 'exclaim'
+  | 'sleep'
+  | 'play'
+  | 'orbit';
+
+export type MascotEvent =
+  | 'on_idle'
+  | 'on_thinking'
+  | 'on_error'
+  | 'on_notification'
+  | 'on_success'
+  | 'on_approval';
+
+export interface MascotEventMapping {
+  on_idle: MascotAnimation;
+  on_thinking: MascotAnimation;
+  on_error: MascotAnimation;
+  on_notification: MascotAnimation;
+  on_success: MascotAnimation;
+  on_approval: MascotAnimation;
+}
+
+export interface MascotConfig {
+  shape: MascotShape;
+  color: string;
+  expression: MascotExpression;
+  events: MascotEventMapping;
+  animate: boolean;
 }
 
 export interface DeleteRequest {

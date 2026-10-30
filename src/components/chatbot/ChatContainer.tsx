@@ -4,7 +4,6 @@ import {
   Globe,
   Paperclip,
   Check,
-  Bot,
   ChevronDown,
   RotateCw,
   Search,
@@ -39,6 +38,7 @@ import { preparePrunedContextMessages } from '../../utils/contextManager';
 import { SlashCommandPopover, SLASH_COMMANDS, SlashCommandItem } from '../common/SlashCommandPopover';
 import { getConversationWidthClass } from '../../utils/layout';
 import { FormattedMessage } from '../common/FormattedMessage';
+import { AgentMascot } from '../mascot/AgentMascot';
 
 export const ChatContainer: React.FC = () => {
   const {
@@ -394,6 +394,7 @@ export const ChatContainer: React.FC = () => {
     }
     setIsGenerating(true);
     setIsStreaming(true);
+    useStore.getState().setAgentActiveEvent('default', 'on_thinking');
 
     const endpointConfig = resolveEndpointForModel(selectedModel, availableModels, apiKeys);
 
@@ -401,6 +402,7 @@ export const ChatContainer: React.FC = () => {
       addToast('error', 'API Key belum diatur. Buka menu Setting di sidebar untuk mengisi kunci.');
       setIsGenerating(false);
       setIsStreaming(false);
+      useStore.getState().setAgentActiveEvent('default', 'on_error', 3000);
       return;
     }
 
@@ -408,6 +410,7 @@ export const ChatContainer: React.FC = () => {
       addToast('error', 'Belum ada model AI yang dipilih. Pastikan API Key aktif dan pilih model di dock bawah.');
       setIsGenerating(false);
       setIsStreaming(false);
+      useStore.getState().setAgentActiveEvent('default', 'on_error', 3000);
       return;
     }
 
@@ -422,6 +425,7 @@ export const ChatContainer: React.FC = () => {
     };
     addMessage(initialAssistantMsg);
 
+    let hasError = false;
     try {
       let finalPromptForContext = userMsg.content;
 
@@ -606,6 +610,8 @@ export const ChatContainer: React.FC = () => {
         }));
       }
     } catch (err: unknown) {
+      hasError = true;
+      useStore.getState().setAgentActiveEvent('default', 'on_error', 4000);
       const errorMsg = err instanceof Error ? err.message : String(err);
       console.error('Chat error:', errorMsg);
       addToast('error', 'Gagal mendapatkan respon AI');
@@ -623,6 +629,9 @@ export const ChatContainer: React.FC = () => {
     } finally {
       setIsGenerating(false);
       setIsStreaming(false);
+      if (!hasError) {
+        useStore.getState().setAgentActiveEvent('default', 'on_success', 2500);
+      }
       // Simpan pesan asisten yang telah selesai ke database SQLite
       const finalMsg = useStore.getState().messages.find((m) => m.id === assistantMsgId);
       if (finalMsg && (finalMsg.content || finalMsg.reasoning)) {
@@ -752,13 +761,16 @@ export const ChatContainer: React.FC = () => {
         })()}
 
         {currentMessages.length === 0 ? (
-          <EmptyState
-            title="Mulai Percakapan Baru"
-            description="Ketik pesan untuk berinteraksi dengan AI, atau gunakan '/' untuk melihat jalan pintas perintah."
-            actionLabel="Buka Studio"
-            onAction={() => useStore.getState().setMode('build')}
-            className="my-auto pt-16"
-          />
+          <div className="my-auto flex flex-col items-center justify-center text-center p-6 space-y-4 pt-12">
+            <AgentMascot roleOrId="default" size={76} />
+            <EmptyState
+              title="Mulai Percakapan Baru"
+              description="Ketik pesan untuk berinteraksi dengan AI, atau gunakan '/' untuk melihat jalan pintas perintah."
+              actionLabel="Buka Studio"
+              onAction={() => useStore.getState().setMode('build')}
+              className="pt-0"
+            />
+          </div>
         ) : (
           currentMessages.map((msg) => {
             const isUser = msg.role === 'user';
@@ -771,8 +783,8 @@ export const ChatContainer: React.FC = () => {
                 }`}
               >
                 {!isUser && (
-                  <div className="w-7 h-7 rounded-full bg-[#2f2f2f] border border-[#383838] flex items-center justify-center text-[#ececec] shrink-0 mt-0.5">
-                    <Bot className="w-3.5 h-3.5" />
+                  <div className="w-7 h-7 rounded-full bg-[#2f2f2f] border border-[#383838] flex items-center justify-center text-[#ececec] shrink-0 mt-0.5 overflow-hidden">
+                    <AgentMascot roleOrId="default" size={26} />
                   </div>
                 )}
 
@@ -820,8 +832,8 @@ export const ChatContainer: React.FC = () => {
 
         {isGenerating && (
           <div className={`flex gap-3.5 ${convWidthClass} mx-auto w-full justify-start items-center`}>
-            <div className="w-7 h-7 rounded-full bg-[#2f2f2f] border border-[#383838] flex items-center justify-center text-[#ececec] shrink-0">
-              <Bot className="w-3.5 h-3.5" />
+            <div className="w-7 h-7 rounded-full bg-[#2f2f2f] border border-[#383838] flex items-center justify-center text-[#ececec] shrink-0 overflow-hidden">
+              <AgentMascot roleOrId="default" size={26} />
             </div>
             <div className="py-2 flex items-center gap-2 text-xs text-[#b4b4b4]">
               <span className="w-2 h-2 rounded-full bg-white animate-pulse" />

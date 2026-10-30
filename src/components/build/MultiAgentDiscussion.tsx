@@ -42,6 +42,7 @@ import { extractCodeReviewItems } from '../../utils/codeExtractor';
 import { getDailyGreeting } from '../../utils/dailyGreetings';
 import { getConversationWidthClass } from '../../utils/layout';
 import { FormattedMessage } from '../common/FormattedMessage';
+import { AgentMascot } from '../mascot/AgentMascot';
 
 const AgentToolStepsAccordion: React.FC<{ steps: ExecutionStep[] }> = ({ steps }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -545,10 +546,9 @@ export const MultiAgentDiscussion: React.FC = () => {
                   <div className="flex items-center justify-between pb-1.5 border-b border-[#303030] gap-4">
                     <div className="flex items-center gap-2">
                       <div
-                        className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0"
-                        style={{ backgroundColor: msg.avatar_color }}
+                        className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 overflow-hidden bg-[#1f1f1f] border border-[#383838]"
                       >
-                        <Bot className="w-3.5 h-3.5" />
+                        <AgentMascot roleOrId={msg.agent_role?.toLowerCase().replace(/\s+/g, '_') || 'default'} size={24} />
                       </div>
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-xs font-semibold text-[#ececec]">{msg.agent_name}</span>
@@ -585,8 +585,8 @@ export const MultiAgentDiscussion: React.FC = () => {
         {isOrchestratorThinking && (
           <div className="flex justify-start w-full">
             <div className="max-w-[75%] p-3.5 rounded-2xl rounded-tl-sm bg-[#262626] border border-[#383838] flex items-center gap-3 text-xs text-[#b4b4b4]">
-              <div className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-xs bg-[#2f2f2f] border border-[#383838] animate-pulse">
-                <Bot className="w-3.5 h-3.5" />
+              <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 overflow-hidden bg-[#2f2f2f] border border-[#383838]">
+                <AgentMascot roleOrId="lead_architect" size={24} />
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[#ececec] animate-ping" />
@@ -602,10 +602,9 @@ export const MultiAgentDiscussion: React.FC = () => {
           <div className="flex justify-start w-full">
             <div className="max-w-[75%] p-3.5 rounded-2xl rounded-tl-sm bg-[#262626] border border-[#383838] flex items-center gap-3 text-xs text-[#b4b4b4]">
               <div
-                className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-xs animate-pulse"
-                style={{ backgroundColor: nextAgent?.avatar_color || '#737373' }}
+                className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 overflow-hidden bg-[#2f2f2f] border border-[#383838]"
               >
-                <Bot className="w-3.5 h-3.5" />
+                <AgentMascot roleOrId={nextAgent?.role?.toLowerCase().replace(/\s+/g, '_') || nextAgent?.id || 'coder'} size={24} />
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[#ececec] animate-ping" />
