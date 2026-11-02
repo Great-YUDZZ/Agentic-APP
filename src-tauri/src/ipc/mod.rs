@@ -2896,6 +2896,48 @@ pub async fn relaunch_app(app: AppHandle) {
     app.restart();
 }
 
+#[tauri::command]
+pub async fn record_token_usage(
+    state: State<'_, AppState>,
+    provider: String,
+    model: String,
+    prompt_tokens: i64,
+    completion_tokens: i64,
+    cached_tokens: Option<i64>,
+    status: Option<String>,
+) -> Result<(), String> {
+    let stat = status.unwrap_or_else(|| "ok".to_string());
+    let cached = cached_tokens.unwrap_or(0);
+    state
+        .db
+        .record_token_usage(&provider, &model, prompt_tokens, completion_tokens, cached, &stat)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_usage_stats(
+    state: State<'_, AppState>,
+    period: Option<String>,
+) -> Result<crate::db::UsageStatsResult, String> {
+    let p = period.unwrap_or_else(|| "7d".to_string());
+    state
+        .db
+        .get_usage_statistics(&p)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_usage_chart(
+    state: State<'_, AppState>,
+    period: Option<String>,
+) -> Result<Vec<crate::db::UsageChartPoint>, String> {
+    let p = period.unwrap_or_else(|| "7d".to_string());
+    state
+        .db
+        .get_usage_chart_points(&p)
+        .map_err(|e| e.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

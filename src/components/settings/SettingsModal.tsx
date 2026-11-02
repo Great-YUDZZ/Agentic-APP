@@ -34,6 +34,7 @@ import { ShortcutsModal } from './ShortcutsModal';
 import { CreateSkillModal } from './CreateSkillModal';
 import { McpServersTab } from './McpServersTab';
 import { MascotSettingsTab } from './MascotSettingsTab';
+import { UsageAnalyticsTab } from './UsageAnalyticsTab';
 import { getOfflineSpeechStatus, triggerVoiceModelDownload, OfflineSpeechStatus } from '../../utils/audioRecorder';
 import { ttsManager } from '../../utils/textToSpeech';
 import { checkUpdateManually } from '../../utils/updater';
@@ -86,7 +87,7 @@ const STANDARD_PROVIDERS: StandardProviderConfig[] = [
   },
 ];
 
-type SettingsSection = 'general' | 'application' | 'appearance' | 'mascot' | 'models' | 'skills' | 'mcp';
+type SettingsSection = 'general' | 'application' | 'appearance' | 'mascot' | 'models' | 'skills' | 'mcp' | 'usage';
 
 const PERMISSION_OPTIONS = [
   { value: 'turbo', label: 'Turbo (Auto Execution)', description: 'Agen mengeksekusi semua perintah alat tanpa konfirmasi.' },
@@ -453,6 +454,21 @@ export const SettingsModal: React.FC = () => {
                     </span>
                   )}
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveSection('usage')}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors ${
+                    activeSection === 'usage'
+                      ? 'bg-[#262626] text-white font-semibold'
+                      : 'text-[#b4b4b4] hover:bg-[#212121] hover:text-[#ececec]'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Activity className="w-4 h-4 text-[#ececec]" />
+                    <span>Usage & Tokens</span>
+                  </div>
+                </button>
               </div>
             </div>
 
@@ -508,6 +524,8 @@ export const SettingsModal: React.FC = () => {
                     ? 'MCP Servers'
                     : activeSection === 'mascot'
                     ? 'Maskot & Avatar'
+                    : activeSection === 'usage'
+                    ? 'Usage & Analytics'
                     : activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}
                 </h2>
                 <p className="text-xs text-[#707070] mt-0.5">
@@ -518,6 +536,7 @@ export const SettingsModal: React.FC = () => {
                   {activeSection === 'models' && 'Kelola kredensial provider API dan konfigurasi custom endpoints.'}
                   {activeSection === 'skills' && 'Eksplorasi dan pasang skill untuk agen otonom.'}
                   {activeSection === 'mcp' && 'Kelola server perkakas eksternal via Model Context Protocol (MCP).'}
+                  {activeSection === 'usage' && 'Pantau penggunaan token, aktivitas model, dan topologi permintaan API.'}
                 </p>
               </div>
               <button
@@ -1737,6 +1756,9 @@ export const SettingsModal: React.FC = () => {
 
             {/* 7. MASCOT TAB */}
             {activeSection === 'mascot' && <MascotSettingsTab />}
+
+            {/* 8. USAGE & TOKENS TAB */}
+            {activeSection === 'usage' && <UsageAnalyticsTab />}
             </div>
           </div>
         </div>

@@ -4,6 +4,20 @@ Semua perubahan penting pada proyek Autonomous AI Native Hub dicatat dalam dokum
 
 ---
 
+## [v0.3.2] - 2026-11-03
+
+### Fitur Baru
+- **Pemantau Penggunaan Token & Analitik (Usage & Analytics)**:
+  - Tab baru "Usage & Tokens" di dalam modal Pengaturan dengan arsitektur dua sub-tab: Overview dan Details.
+  - Sub-tab Overview menyajikan 4 kartu metrik utama (Total Requests, Total Input Tokens, Cached Tokens, Output Tokens), Peta Topologi Provider Aktif (diagram simpul visual antar hub dan provider), serta tabel Recent Requests lengkap dengan status keberhasilan, nama model, indikator token masuk/keluar panah naik-turun, dan penghitung waktu relatif.
+  - Sub-tab Details menyajikan grafik garis/area interaktif berbasis SVG kurva halus (Bezier) dengan penyesuaian rentang waktu (Today, 24h, 7D, 30D, 60D, All), toggle metrik Tokens/Requests, serta tabel rincian konsumsi per model dengan fitur pencarian dan pengurutan multi-kolom.
+  - Arsitektur rollup harian SQLite mandiri (tabel `usage_history` dan `usage_daily`) yang terhubung langsung ke aliran streaming chat tanpa estimasi biaya uang.
+- **Background Local Engine & LFM3 Model Downloader**:
+  - Penyiapan otomatis engine Ollama lokal di latar belakang tanpa memblokir antarmuka pengguna.
+  - Pengunduh terintegrasi untuk model Liquid Foundation Model (LFM3 1.7B) dengan verifikasi hash dan peluncuran engine otomatis.
+
+---
+
 ## [v0.2.7] - 2026-10-30
 
 ### Fitur Baru

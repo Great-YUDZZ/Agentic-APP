@@ -726,6 +726,9 @@ export const ChatContainer: React.FC = () => {
       let accumulatedContent = '';
       let accumulatedReasoning = '';
       let buffer = '';
+      let streamPromptTokens = 0;
+      let streamCompletionTokens = 0;
+      let streamCachedTokens = 0;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -753,6 +756,13 @@ export const ChatContainer: React.FC = () => {
 
           try {
             const parsed = parseRobustJson(dataStr);
+            if (parsed?.usage) {
+              if (parsed.usage.prompt_tokens) streamPromptTokens = parsed.usage.prompt_tokens;
+              if (parsed.usage.completion_tokens) streamCompletionTokens = parsed.usage.completion_tokens;
+              const cached = parsed.usage.cached_tokens || parsed.usage.prompt_tokens_details?.cached_tokens || 0;
+              if (cached) streamCachedTokens = cached;
+            }
+
             const delta = parsed?.choices?.[0]?.delta;
             if (delta) {
               if (delta.reasoning_content) {
@@ -798,6 +808,24 @@ export const ChatContainer: React.FC = () => {
               : m
           ),
         }));
+      }
+
+      // Rekam konsumsi token ke database analitik
+      const finalPromptTokens = streamPromptTokens || Math.ceil((fullPrompt.length || 0) / 4) || 10;
+      const finalCompletionTokens = streamCompletionTokens || Math.ceil((accumulatedContent.length + accumulatedReasoning.length) / 4) || 1;
+      const finalCachedTokens = streamCachedTokens;
+
+      if (isTauri) {
+        import('@tauri-apps/api/core').then(({ invoke }) => {
+          invoke('record_token_usage', {
+            provider: endpointConfig.provider || 'unknown',
+            model: selectedModel,
+            promptTokens: finalPromptTokens,
+            completionTokens: finalCompletionTokens,
+            cachedTokens: finalCachedTokens,
+            status: 'ok',
+          }).catch((e) => console.warn('Gagal mencatat pemakaian token:', e));
+        }).catch(() => {});
       }
     } catch (err: unknown) {
       if (abortControllerRef.current?.signal.aborted || (err instanceof Error && err.name === 'AbortError')) {

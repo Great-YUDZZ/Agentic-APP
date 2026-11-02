@@ -629,4 +629,56 @@ export interface ActiveDropTarget {
   tabIndex?: number;
 }
 
+// Token Usage & Analytics types
+export type UsagePeriod = 'today' | '24h' | '7d' | '30d' | '60d' | 'all';
 
+export interface UsageRecord {
+  id: number;
+  timestamp: string;
+  provider: string;
+  model: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+  cached_tokens: number;
+  status: 'ok' | 'error' | string;
+}
+
+export interface ModelUsageSummary {
+  requests: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  cached_tokens: number;
+  total_tokens: number;
+  raw_model: string;
+  provider: string;
+  last_used: string;
+}
+
+export interface ProviderUsageSummary {
+  requests: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  cached_tokens: number;
+  total_tokens: number;
+  provider: string;
+}
+
+export interface UsageStatsResult {
+  total_requests: number;
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+  total_cached_tokens: number;
+  total_tokens: number;
+  by_model: Record<string, ModelUsageSummary>;
+  by_provider: Record<string, ProviderUsageSummary>;
+  recent_requests: UsageRecord[];
+}
+
+export interface UsageChartPoint {
+  label: string;
+  tokens: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  cached_tokens: number;
+  requests: number;
+}

@@ -233,6 +233,9 @@ pub fn run() {
             ipc::merge_task_worktree,
             ipc::get_hook_server_coords,
             ipc::relaunch_app,
+            ipc::record_token_usage,
+            ipc::get_usage_stats,
+            ipc::get_usage_chart,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
