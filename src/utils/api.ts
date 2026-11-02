@@ -1,3 +1,5 @@
+import { ModelOption } from '../types';
+
 /**
  * Utility helper untuk mem-parsing response dari berbagai proxy LLM lokal
  * yang mengembalikan JSON tunggal, JSON dengan trailing 'data: [DONE]',
@@ -112,6 +114,21 @@ export function resolveEndpointForModel(
 ): { baseUrl: string; apiKey: string; provider: string } {
   const matchedModel = availableModels.find((m) => m.id === modelId);
   const endpointId = matchedModel?.endpoint_id || matchedModel?.provider;
+
+  // 1. Penanganan model lokal Ollama (Zero-API Key)
+  if (
+    endpointId === 'ollama' ||
+    matchedModel?.provider === 'ollama' ||
+    modelId.startsWith('lfm3') ||
+    modelId.startsWith('ollama/')
+  ) {
+    const ollamaKey = apiKeys.find((k) => k.provider === 'ollama' && k.is_active);
+    return {
+      baseUrl: ollamaKey?.base_url || 'http://localhost:11434/v1',
+      apiKey: ollamaKey?.api_key || 'ollama',
+      provider: 'ollama',
+    };
+  }
 
   if (endpointId) {
     const matchedKey = apiKeys.find((k) => k.provider === endpointId && k.is_active);
@@ -234,7 +251,20 @@ export function formatApiErrorMessage(
     return `Server lokal atau upstream tidak merespons (HTTP ${status}). Pastikan server di localhost:20128 aktif dan stabil.`;
   }
 
-  // 6. Generic Error
+  // 6. Penanganan Model Lokal Ollama (Zero API Key)
+  if (
+    modelName &&
+    (modelName.startsWith('lfm3') || modelName.includes('ollama') || status === 0)
+  ) {
+    return `Model lokal "${modelName}" belum aktif di Ollama (localhost:11434).\n\n` +
+      `**Cara Menjalankan Model Bebas API Key:**\n` +
+      `1. Pastikan Ollama telah terpasang di komputer Anda.\n` +
+      `2. Buka terminal dan jalankan perintah:\n` +
+      `   \`ollama run ${modelName.split(' ')[0]}\`\n` +
+      `3. Setelah model terunduh, Anda dapat langsung mengobrol secara offline tanpa API key.`;
+  }
+
+  // 7. Generic Error
   return `Kendala Gateway API (${status}): ${rawMessage || 'Terjadi kesalahan saat memproses permintaan.'}`;
 }
 
@@ -287,11 +317,112 @@ export function isModelUnavailable(id: string): boolean {
 /**
  * Kategori provider model untuk filtering tab di UI
  */
-export function getModelCategory(id: string): 'gemini' | 'openrouter' | 'claude' | 'other' {
-  if (id.startsWith('ag/gemini') || id.startsWith('gc/gemini') || id.toLowerCase().includes('gemini')) return 'gemini';
+export function getModelCategory(id: string): 'gemini' | 'openrouter' | 'claude' | 'local' | 'other' {
+  const lower = id.toLowerCase();
+  if (
+    lower.startsWith('lfm3') ||
+    lower.startsWith('ollama') ||
+    lower.includes(':1.7b') ||
+    lower.includes(':2b') ||
+    lower.includes('liquidai') ||
+    lower.includes('gguf')
+  ) {
+    return 'local';
+  }
+  if (id.startsWith('ag/gemini') || id.startsWith('gc/gemini') || lower.includes('gemini')) return 'gemini';
   if (id.startsWith('openrouter/')) return 'openrouter';
-  if (id.toLowerCase().includes('claude')) return 'claude';
+  if (lower.includes('claude')) return 'claude';
   return 'other';
+}
+
+/**
+ * Cek apakah model mendukung input multimodal (gambar / vision / visual reasoning)
+ */
+export function isVisionCapableModel(modelId: string): boolean {
+  if (!modelId) return false;
+  const lower = modelId.toLowerCase();
+  return (
+    lower.includes('vl') ||
+    lower.includes('vision') ||
+    lower.includes('omni') ||
+    lower.includes('llava') ||
+    lower.includes('gemini') ||
+    lower.includes('claude') ||
+    lower.includes('gpt-4o') ||
+    lower.includes('pixtral') ||
+    lower.includes('minicpm-v')
+  );
+}
+
+/**
+ * Daftar preset model lokal keluarga Liquid AI LFM3 untuk chat tanpa API key
+ */
+export const DEFAULT_LOCAL_LFM3_MODELS: ModelOption[] = [
+  {
+    id: 'lfm3:1.7b',
+    name: 'Liquid AI LFM3 1.7B (Zero-API Key)',
+    provider: 'ollama',
+    endpoint_id: 'ollama',
+    endpoint_name: 'Lokal (Ollama)',
+    context_length: 262144,
+    is_local: true,
+  },
+  {
+    id: 'lfm3-vl:2b',
+    name: 'Liquid AI LFM3-VL 2B (Vision / Zero-API Key)',
+    provider: 'ollama',
+    endpoint_id: 'ollama',
+    endpoint_name: 'Lokal (Ollama)',
+    context_length: 131072,
+    is_local: true,
+    capabilities: { vision: true },
+  },
+  {
+    id: 'lfm3-omni:2b',
+    name: 'Liquid AI LFM3-Omni 2B (Multimodal Audio/Vision)',
+    provider: 'ollama',
+    endpoint_id: 'ollama',
+    endpoint_name: 'Lokal (Ollama)',
+    context_length: 131072,
+    is_local: true,
+    capabilities: { vision: true },
+  },
+];
+
+/**
+ * Memeriksa endpoint Ollama lokal untuk menemukan model-model yang telah terinstal
+ */
+export async function probeLocalOllamaModels(baseUrl = 'http://localhost:11434'): Promise<ModelOption[]> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1200);
+
+    const cleanBase = baseUrl.replace(/\/+$/, '');
+    const res = await fetch(`${cleanBase}/api/tags`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) return [];
+
+    const json = await res.json();
+    if (!json.models || !Array.isArray(json.models)) return [];
+
+    return json.models.map((m: any) => ({
+      id: m.name || m.model,
+      name: m.name ? `${m.name} (Lokal)` : m.model,
+      provider: 'ollama',
+      endpoint_id: 'ollama',
+      endpoint_name: 'Lokal (Ollama)',
+      context_length: m.details?.context_length || 131072,
+      is_local: true,
+      capabilities: {
+        vision: isVisionCapableModel(m.name || m.model),
+      },
+    }));
+  } catch {
+    return [];
+  }
 }
 
 /**

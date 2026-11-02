@@ -35,6 +35,7 @@ import {
   isModelUnavailable,
   getModelCategory,
   resolveEndpointForModel,
+  isVisionCapableModel,
 } from '../../utils/api';
 import { preparePrunedContextMessages } from '../../utils/contextManager';
 import { SlashCommandPopover, SLASH_COMMANDS, SlashCommandItem } from '../common/SlashCommandPopover';
@@ -162,7 +163,7 @@ export const ChatContainer: React.FC = () => {
   // Model Selector Popover State
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const [modelSearchQuery, setModelSearchQuery] = useState('');
-  const [modelCategoryFilter, setModelCategoryFilter] = useState<'all' | 'gemini' | 'claude' | 'openrouter' | 'other'>('all');
+  const [modelCategoryFilter, setModelCategoryFilter] = useState<'all' | 'local' | 'gemini' | 'claude' | 'openrouter' | 'other'>('all');
   const [expandedEndpoints, setExpandedEndpoints] = useState<Record<string, boolean>>({});
   const modelMenuRef = useRef<HTMLDivElement>(null);
 
@@ -474,8 +475,12 @@ export const ChatContainer: React.FC = () => {
     useStore.getState().setAgentActiveEvent('default', 'on_thinking');
 
     const endpointConfig = resolveEndpointForModel(selectedModel, availableModels, apiKeys);
+    const isLocalZeroKey =
+      endpointConfig.provider === 'ollama' ||
+      selectedModel.startsWith('lfm3') ||
+      selectedModel.startsWith('ollama/');
 
-    if (!endpointConfig.apiKey.trim()) {
+    if (!endpointConfig.apiKey.trim() && !isLocalZeroKey) {
       addToast('error', 'API Key belum diatur. Buka menu Setting di sidebar untuk mengisi kunci.');
       setIsGenerating(false);
       setIsStreaming(false);
@@ -574,9 +579,41 @@ export const ChatContainer: React.FC = () => {
       setContextCompressed(isCompressed);
       setContextUsagePercent(usagePercent);
 
+      // Dukungan Multimodal Vision untuk model yang mampu memproses gambar (LFM3-VL-2B, Gemini, GPT-4o, dll)
+      const imageFiles = filesToAttach.filter(
+        (f) => f.isImage && f.content && f.content.startsWith('data:image/')
+      );
+      let messagesForApi: any[] = prunedMessages;
+
+      if (imageFiles.length > 0 && isVisionCapableModel(selectedModel)) {
+        messagesForApi = prunedMessages.map((m, idx) => {
+          if (idx === prunedMessages.length - 1 && m.role === 'user') {
+            const contentParts: any[] = [
+              {
+                type: 'text',
+                text: m.content,
+              },
+            ];
+            for (const img of imageFiles) {
+              contentParts.push({
+                type: 'image_url',
+                image_url: {
+                  url: img.content,
+                },
+              });
+            }
+            return {
+              ...m,
+              content: contentParts,
+            };
+          }
+          return m;
+        });
+      }
+
       const requestPayload = {
         model: selectedModel,
-        messages: prunedMessages,
+        messages: messagesForApi,
         stream: true,
         temperature: 0.7,
       };
@@ -1227,6 +1264,7 @@ export const ChatContainer: React.FC = () => {
                       <div className="flex items-center gap-1 overflow-x-auto pb-0.5 text-[11px] no-scrollbar">
                         {[
                           { id: 'all', label: 'Semua' },
+                          { id: 'local', label: 'Lokal (Zero Key)' },
                           { id: 'gemini', label: 'Gemini' },
                           { id: 'claude', label: 'Claude' },
                           { id: 'openrouter', label: 'OpenRouter' },
@@ -1363,6 +1401,22 @@ export const ChatContainer: React.FC = () => {
                                                 >
                                                   <AlertTriangle className="w-2.5 h-2.5" />
                                                   <span>Offline</span>
+                                                </span>
+                                              )}
+                                              {(m.is_local || m.id.startsWith('lfm3') || m.provider === 'ollama') && (
+                                                <span
+                                                  className="inline-flex items-center gap-1 px-1.5 py-0.2 text-[9px] font-sans font-medium rounded-full bg-[#262626] text-[#ececec] border border-[#383838] shrink-0"
+                                                  title="Model lokal offline tanpa memerlukan API key"
+                                                >
+                                                  <span>Zero Key</span>
+                                                </span>
+                                              )}
+                                              {(m.capabilities?.vision || isVisionCapableModel(m.id)) && (
+                                                <span
+                                                  className="inline-flex items-center gap-1 px-1.5 py-0.2 text-[9px] font-sans font-medium rounded-full bg-[#262626] text-[#b4b4b4] border border-[#303030] shrink-0"
+                                                  title="Mendukung input visual gambar & dokumen"
+                                                >
+                                                  <span>Vision</span>
                                                 </span>
                                               )}
                                             </div>

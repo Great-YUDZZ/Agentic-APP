@@ -24,6 +24,7 @@ import {
   ExternalLink,
   RotateCw,
   Smile,
+  Volume2,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { CustomSelect } from '../common/CustomSelect';
@@ -34,6 +35,7 @@ import { CreateSkillModal } from './CreateSkillModal';
 import { McpServersTab } from './McpServersTab';
 import { MascotSettingsTab } from './MascotSettingsTab';
 import { getOfflineSpeechStatus, triggerVoiceModelDownload, OfflineSpeechStatus } from '../../utils/audioRecorder';
+import { ttsManager } from '../../utils/textToSpeech';
 import { checkUpdateManually } from '../../utils/updater';
 
 interface StandardProviderConfig {
@@ -207,6 +209,33 @@ export const SettingsModal: React.FC = () => {
       };
     }
   }, [isSettingsOpen]);
+
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [isTestingVoice, setIsTestingVoice] = useState(false);
+
+  useEffect(() => {
+    if (isSettingsOpen) {
+      ttsManager.getVoices().then(setAvailableVoices);
+    } else {
+      ttsManager.stop();
+      setIsTestingVoice(false);
+    }
+  }, [isSettingsOpen]);
+
+  const handleTestVoice = () => {
+    if (isTestingVoice) {
+      ttsManager.stop();
+      setIsTestingVoice(false);
+      return;
+    }
+    setIsTestingVoice(true);
+    ttsManager.speak('settings-test', 'Halo, ini adalah pengujian suara Text-to-Speech pada aplikasi Autonomous AI Native Hub.', {
+      voice: settings.ttsVoice,
+      rate: settings.ttsRate ?? 1.0,
+      onEnd: () => setIsTestingVoice(false),
+      onError: () => setIsTestingVoice(false),
+    });
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -861,6 +890,115 @@ export const SettingsModal: React.FC = () => {
                             </button>
                           </div>
                         )}
+                    </div>
+
+                    {/* Text-to-Speech (TTS Output) */}
+                    <div className="p-4 rounded-2xl bg-[#282828] border border-[#383838] space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-medium text-[#ececec]">Text-to-Speech (TTS Audio)</div>
+                          <div className="text-xs text-[#707070] mt-0.5">
+                            Mendengarkan pembacaan jawaban AI dengan suara sintetis natural tanpa dependensi eksternal.
+                          </div>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settings.ttsEnabled !== false}
+                            onChange={(e) => updateSettings({ ttsEnabled: e.target.checked })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-[#303030] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#ececec] after:border-[#383838] after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#4f4f4f]"></div>
+                        </label>
+                      </div>
+
+                      {settings.ttsEnabled !== false && (
+                        <div className="space-y-3 pt-2 border-t border-[#383838]/60">
+                          {/* Pilihan Suara */}
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-xs font-medium text-[#b4b4b4]">Karakter Suara Sintetis</div>
+                              <div className="text-[11px] text-[#707070]">
+                                {availableVoices.length > 0
+                                  ? `${availableVoices.length} suara terdeteksi di sistem operasi`
+                                  : 'Menggunakan suara bawaan sistem'}
+                              </div>
+                            </div>
+                            <div className="w-56">
+                              <CustomSelect
+                                value={settings.ttsVoice || ''}
+                                onChange={(val) => updateSettings({ ttsVoice: val })}
+                                options={[
+                                  { value: '', label: 'Default Sistem (Otomatis)' },
+                                  ...availableVoices.map((v) => ({
+                                    value: v.voiceURI || v.name,
+                                    label: `${v.name} (${v.lang})`,
+                                  })),
+                                ]}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Kecepatan Bicara */}
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-xs font-medium text-[#b4b4b4]">Kecepatan Bicara</div>
+                              <div className="text-[11px] text-[#707070]">
+                                Nilai normal 1.0x (rentang 0.5x sampai 2.0x)
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="range"
+                                min="0.5"
+                                max="2.0"
+                                step="0.1"
+                                value={settings.ttsRate ?? 1.0}
+                                onChange={(e) => updateSettings({ ttsRate: parseFloat(e.target.value) })}
+                                className="w-32 accent-[#ececec]"
+                              />
+                              <span className="text-xs font-mono text-[#ececec] w-10 text-right">
+                                {(settings.ttsRate ?? 1.0).toFixed(1)}x
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Otomatis Baca Respons Baru */}
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-xs font-medium text-[#b4b4b4]">Bacakan Otomatis Respons AI</div>
+                              <div className="text-[11px] text-[#707070]">
+                                Langsung memulai audio begitu pesan balasan selesai dibuat
+                              </div>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={!!settings.autoReadResponses}
+                                onChange={(e) => updateSettings({ autoReadResponses: e.target.checked })}
+                                className="sr-only peer"
+                              />
+                              <div className="w-9 h-5 bg-[#303030] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#ececec] after:border-[#383838] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#4f4f4f]"></div>
+                            </label>
+                          </div>
+
+                          {/* Tombol Uji Coba Suara */}
+                          <div className="pt-1 flex items-center justify-end">
+                            <button
+                              type="button"
+                              onClick={handleTestVoice}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                                isTestingVoice
+                                  ? 'bg-[#383838] text-[#ececec] border-[#4f4f4f] animate-pulse'
+                                  : 'bg-[#262626] hover:bg-[#303030] text-[#b4b4b4] hover:text-[#ececec] border-[#383838]'
+                              }`}
+                            >
+                              <Volume2 className="w-3.5 h-3.5" />
+                              <span>{isTestingVoice ? 'Hentikan Uji Coba' : 'Uji Coba Suara'}</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

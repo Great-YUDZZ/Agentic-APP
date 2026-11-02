@@ -57,7 +57,15 @@ import {
   MascotAnimation,
   MascotEvent,
 } from '../types';
-import { parseRobustJson, getChatEndpoint, getModelsEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../utils/api';
+import {
+  parseRobustJson,
+  getChatEndpoint,
+  getModelsEndpoint,
+  formatApiErrorMessage,
+  resolveEndpointForModel,
+  probeLocalOllamaModels,
+  DEFAULT_LOCAL_LFM3_MODELS,
+} from '../utils/api';
 import { extractCodeReviewItems } from '../utils/codeExtractor';
 import { AGENT_AVAILABLE_TOOLS, isPathExternal, convertMcpToolToDefinition } from '../utils/tools';
 
@@ -866,6 +874,16 @@ export const useStore = create<AppStore>((set, get) => ({
       (k) => (k.provider === 'custom' || k.provider.startsWith('custom_')) && k.is_active && k.api_key.trim().length > 0
     );
 
+    // 1. Probe model lokal Ollama (Zero API Key)
+    let localOllamaModels: ModelOption[] = [];
+    try {
+      const ollamaKey = keys.find((k) => k.provider === 'ollama');
+      const ollamaUrl = ollamaKey?.base_url || 'http://localhost:11434';
+      localOllamaModels = await probeLocalOllamaModels(ollamaUrl);
+    } catch {
+      // Abaikan jika Ollama belum aktif
+    }
+
     // Jika dipanggil dengan parameter eksplisit
     if (customUrl || customKey) {
       const url = customUrl || 'http://localhost:20128/v1';
@@ -899,17 +917,13 @@ export const useStore = create<AppStore>((set, get) => ({
       }
     }
 
-    if (activeCustoms.length === 0) {
-      set({
-        availableModels: [],
-        selectedModel: '',
-        isDetectingModels: false,
-      });
-      return 0;
-    }
-
     set({ isDetectingModels: true });
     const allModels: ModelOption[] = [];
+
+    // Sisipkan model Ollama lokal yang terdeteksi
+    if (localOllamaModels.length > 0) {
+      allModels.push(...localOllamaModels);
+    }
 
     for (const endpoint of activeCustoms) {
       const url = endpoint.base_url || 'http://localhost:20128/v1';
@@ -941,26 +955,25 @@ export const useStore = create<AppStore>((set, get) => ({
       }
     }
 
-    if (allModels.length > 0) {
-      const currentSelected = get().selectedModel;
-      const stillValid = allModels.some((d) => d.id === currentSelected);
-      const nextModel = stillValid ? currentSelected : allModels[0].id;
+    // Selalu sediakan preset model lokal Liquid AI LFM3 jika belum ada di list
+    // agar user tetap dapat berinteraksi dalam mode chat tanpa harus memasukkan API key
+    DEFAULT_LOCAL_LFM3_MODELS.forEach((lfm) => {
+      if (!allModels.some((m) => m.id === lfm.id)) {
+        allModels.push(lfm);
+      }
+    });
 
-      set({
-        availableModels: allModels,
-        selectedModel: nextModel,
-        selectedProvider: 'custom',
-        isDetectingModels: false,
-      });
-      return allModels.length;
-    }
+    const currentSelected = get().selectedModel;
+    const stillValid = allModels.some((d) => d.id === currentSelected);
+    const nextModel = stillValid ? currentSelected : allModels[0].id;
 
     set({
-      availableModels: [],
-      selectedModel: '',
+      availableModels: allModels,
+      selectedModel: nextModel,
+      selectedProvider: nextModel.startsWith('lfm3') ? 'ollama' : 'custom',
       isDetectingModels: false,
     });
-    return 0;
+    return allModels.length;
   },
 
   isSettingsOpen: false,
