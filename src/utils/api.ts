@@ -252,16 +252,23 @@ export function formatApiErrorMessage(
   }
 
   // 6. Penanganan Model Lokal Ollama (Zero API Key)
-  if (
+  const isLocalModel =
     modelName &&
-    (modelName.startsWith('lfm3') || modelName.includes('ollama') || status === 0)
-  ) {
-    return `Model lokal "${modelName}" belum aktif di Ollama (localhost:11434).\n\n` +
-      `**Cara Menjalankan Model Bebas API Key:**\n` +
-      `1. Pastikan Ollama telah terpasang di komputer Anda.\n` +
-      `2. Buka terminal dan jalankan perintah:\n` +
-      `   \`ollama run ${modelName.split(' ')[0]}\`\n` +
-      `3. Setelah model terunduh, Anda dapat langsung mengobrol secara offline tanpa API key.`;
+    (modelName.startsWith('lfm3') ||
+      modelName.includes('ollama') ||
+      modelName.includes(':1.7b') ||
+      modelName.includes(':2b'));
+
+  if (isLocalModel) {
+    const cleanId = modelName.split(' ')[0];
+    return `**Model Lokal "${modelName}" Belum Aktif di Komputer**\n\n` +
+      `Engine lokal Ollama belum terdeteksi berjalan pada port \`localhost:11434\`.\n\n` +
+      `**Langkah Mengaktifkan Obrolan Bebas API Key:**\n` +
+      `1. Pastikan **Ollama** terpasang di komputer Anda. Jika belum, pasang via terminal:\n` +
+      `   \`curl -fsSL https://ollama.com/install.sh | sh\`\n` +
+      `2. Jalankan perintah berikut di terminal untuk mengunduh model:\n` +
+      `   \`ollama run ${cleanId}\`\n` +
+      `3. Setelah model selesai diunduh oleh Ollama, klik tombol **Coba Lagi** di bawah untuk langsung mengobrol secara gratis, privat, dan offline tanpa memerlukan API key.`;
   }
 
   // 7. Generic Error

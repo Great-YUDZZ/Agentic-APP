@@ -738,14 +738,16 @@ export const ChatContainer: React.FC = () => {
       useStore.getState().setAgentActiveEvent('default', 'on_error', 4000);
       const errorMsg = err instanceof Error ? err.message : String(err);
       console.error('Chat error:', errorMsg);
-      addToast('error', 'Gagal mendapatkan respon AI');
+      addToast('error', 'Gagal memproses respons model');
+
+      const formattedErrorContent = formatApiErrorMessage(0, errorMsg, selectedModel);
 
       useStore.setState((state) => ({
         messages: state.messages.map((m) =>
           m.id === assistantMsgId
             ? {
                 ...m,
-                content: `**Terjadi kendala saat menghubungi model:**\n\n${errorMsg}`,
+                content: formattedErrorContent,
               }
             : m
         ),
