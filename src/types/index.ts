@@ -17,6 +17,8 @@ export interface ModelOption {
   endpoint_id?: string;
   endpoint_name?: string;
   context_length?: number;
+  is_local?: boolean;
+  capabilities?: { vision?: boolean };
 }
 
 export interface ChatSession {
@@ -256,6 +258,12 @@ export interface AppSettings {
 
   // Voice Input (Offline Whisper)
   voiceInputLanguage?: 'id' | 'en' | 'auto';
+
+  // Text-to-Speech (TTS)
+  ttsEnabled?: boolean;
+  ttsVoice?: string;
+  ttsRate?: number;
+  autoReadResponses?: boolean;
 
   // Application
   preventSleep: boolean;
