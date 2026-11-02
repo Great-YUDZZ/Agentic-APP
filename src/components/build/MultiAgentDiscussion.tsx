@@ -42,6 +42,7 @@ import { extractCodeReviewItems } from '../../utils/codeExtractor';
 import { getDailyGreeting } from '../../utils/dailyGreetings';
 import { getConversationWidthClass } from '../../utils/layout';
 import { FormattedMessage } from '../common/FormattedMessage';
+import { UserMessageBubble } from '../common/UserMessageBubble';
 import { AgentMascot } from '../mascot/AgentMascot';
 
 const AgentToolStepsAccordion: React.FC<{ steps: ExecutionStep[] }> = ({ steps }) => {
@@ -527,8 +528,8 @@ export const MultiAgentDiscussion: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="text-xs text-[#ececec] text-left leading-relaxed whitespace-pre-wrap font-normal">
-                      {msg.content}
+                    <div className="text-left w-full">
+                      <UserMessageBubble content={msg.content} className="p-0 bg-transparent border-none" />
                     </div>
                   </motion.div>
                 </div>

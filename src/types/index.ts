@@ -282,6 +282,26 @@ export interface AppSettings {
 
   // Agent Mascots
   agentMascots?: Record<string, MascotConfig>;
+
+  // Your AI / Customization & Memory
+  customInstructions?: string;
+  memoryEnabled?: boolean;
+  sensitiveTopicsEnabled?: boolean;
+  memories?: MemoryItem[];
+}
+
+export interface MemoryItem {
+  id: string;
+  content: string;
+  createdAt: string;
+  category?: 'general' | 'preference' | 'project';
+}
+
+export interface AiCustomizationSettings {
+  customInstructions: string;
+  memoryEnabled: boolean;
+  sensitiveTopicsEnabled: boolean;
+  memories: MemoryItem[];
 }
 
 export type MascotShape =

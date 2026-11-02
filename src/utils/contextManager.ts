@@ -63,7 +63,9 @@ export function preparePrunedContextMessages(
   historyMessages: ChatMessage[],
   newUserMessage: string,
   modelId: string,
-  availableModels: ModelOption[]
+  availableModels: ModelOption[],
+  customInstructions?: string,
+  memories?: Array<{ content: string }>
 ): PreparedContextResult {
   const contextLimit = getModelContextLimit(modelId, availableModels);
   
@@ -101,8 +103,12 @@ export function preparePrunedContextMessages(
   const isCompressed = prunedCount > 0;
   const usagePercent = Math.min(100, Math.round((accumulatedTokens / contextLimit) * 100));
 
-  // Sisipkan Master Conversational Persona & System Instructions
-  const finalMessages = injectChatbotSystemPrompt(retainedMessages);
+  // Sisipkan Master Conversational Persona, Custom Instructions, dan Memori Aktif
+  const finalMessages = injectChatbotSystemPrompt(
+    retainedMessages,
+    customInstructions,
+    memories
+  );
 
   return {
     messages: finalMessages,
@@ -112,6 +118,7 @@ export function preparePrunedContextMessages(
     prunedCount,
   };
 }
+
 
 /**
  * Menghitung metrik telemetri penggunaan konteks dan token secara real-time.

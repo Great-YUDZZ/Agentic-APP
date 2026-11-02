@@ -25,6 +25,7 @@ import {
   RotateCw,
   Smile,
   Volume2,
+  Sparkles,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { CustomSelect } from '../common/CustomSelect';
@@ -35,6 +36,7 @@ import { CreateSkillModal } from './CreateSkillModal';
 import { McpServersTab } from './McpServersTab';
 import { MascotSettingsTab } from './MascotSettingsTab';
 import { UsageAnalyticsTab } from './UsageAnalyticsTab';
+import { YourAITab } from './YourAITab';
 import { getOfflineSpeechStatus, triggerVoiceModelDownload, OfflineSpeechStatus } from '../../utils/audioRecorder';
 import { ttsManager } from '../../utils/textToSpeech';
 import { checkUpdateManually } from '../../utils/updater';
@@ -87,7 +89,8 @@ const STANDARD_PROVIDERS: StandardProviderConfig[] = [
   },
 ];
 
-type SettingsSection = 'general' | 'application' | 'appearance' | 'mascot' | 'models' | 'skills' | 'mcp' | 'usage';
+type SettingsSection = 'general' | 'application' | 'appearance' | 'your-ai' | 'mascot' | 'models' | 'skills' | 'mcp' | 'usage';
+
 
 const PERMISSION_OPTIONS = [
   { value: 'turbo', label: 'Turbo (Auto Execution)', description: 'Agen mengeksekusi semua perintah alat tanpa konfirmasi.' },
@@ -386,6 +389,26 @@ export const SettingsModal: React.FC = () => {
 
                 <button
                   type="button"
+                  onClick={() => setActiveSection('your-ai')}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors ${
+                    activeSection === 'your-ai'
+                      ? 'bg-[#262626] text-white font-semibold'
+                      : 'text-[#b4b4b4] hover:bg-[#212121] hover:text-[#ececec]'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Sparkles className="w-4 h-4 text-[#ececec]" />
+                    <span>Your AI</span>
+                  </div>
+                  {settings.memories && settings.memories.length > 0 && (
+                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-[#2f2f2f] text-[#ececec] border border-[#383838]">
+                      {settings.memories.length}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setActiveSection('mascot')}
                   className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-colors ${
                     activeSection === 'mascot'
@@ -526,12 +549,15 @@ export const SettingsModal: React.FC = () => {
                     ? 'Maskot & Avatar'
                     : activeSection === 'usage'
                     ? 'Usage & Analytics'
+                    : activeSection === 'your-ai'
+                    ? 'Your AI'
                     : activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}
                 </h2>
                 <p className="text-xs text-[#707070] mt-0.5">
                   {activeSection === 'general' && 'Konfigurasi eksekusi agen, antrean pesan, dan kebijakan izin sistem.'}
                   {activeSection === 'application' && 'Pengaturan runtime aplikasi, sleep inhibitor, dan notifikasi desktop.'}
                   {activeSection === 'appearance' && 'Kustomisasi tema visual, kontras antarmuka, dan preset latar.'}
+                  {activeSection === 'your-ai' && 'Kustomisasi instruksi peran sistem, metodologi, dan manajemen memori jangka panjang.'}
                   {activeSection === 'mascot' && 'Personalisasi bentuk visual, ekspresi, dan reaksi animasi untuk setiap peran agen.'}
                   {activeSection === 'models' && 'Kelola kredensial provider API dan konfigurasi custom endpoints.'}
                   {activeSection === 'skills' && 'Eksplorasi dan pasang skill untuk agen otonom.'}
@@ -1068,7 +1094,7 @@ export const SettingsModal: React.FC = () => {
                     <div>
                       <div className="text-sm font-medium text-[#ececec]">App Version</div>
                       <div className="text-xs font-mono text-[#b4b4b4] mt-0.5">
-                        v0.2.7
+                        v0.3.4
                       </div>
                     </div>
                     <button
@@ -1083,7 +1109,7 @@ export const SettingsModal: React.FC = () => {
                         } else if (result.error) {
                           addToast('error', `Gagal memeriksa pembaruan: ${result.error}`);
                         } else {
-                          addToast('info', 'Aplikasi sudah dalam versi terbaru (v0.2.7).');
+                          addToast('info', 'Aplikasi sudah dalam versi terbaru (v0.3.4).');
                         }
                       }}
                       className="px-3.5 py-1.5 rounded-xl bg-[#212121] hover:bg-[#303030] border border-[#383838] text-xs font-medium text-[#ececec] transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer"
@@ -1750,6 +1776,9 @@ export const SettingsModal: React.FC = () => {
                 )}
               </div>
             )}
+
+            {/* 5. YOUR AI TAB */}
+            {activeSection === 'your-ai' && <YourAITab />}
 
             {/* 6. MCP SERVERS TAB */}
             {activeSection === 'mcp' && <McpServersTab />}

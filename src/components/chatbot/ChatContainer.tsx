@@ -41,6 +41,7 @@ import { preparePrunedContextMessages } from '../../utils/contextManager';
 import { SlashCommandPopover, SLASH_COMMANDS, SlashCommandItem } from '../common/SlashCommandPopover';
 import { getConversationWidthClass } from '../../utils/layout';
 import { FormattedMessage } from '../common/FormattedMessage';
+import { UserMessageBubble } from '../common/UserMessageBubble';
 import { AgentMascot } from '../mascot/AgentMascot';
 
 export const ChatContainer: React.FC = () => {
@@ -565,6 +566,11 @@ export const ChatContainer: React.FC = () => {
         }
       }
 
+      const activeMemories =
+        settings.memoryEnabled && settings.memories && settings.memories.length > 0
+          ? settings.memories
+          : undefined;
+
       const {
         messages: prunedMessages,
         isCompressed,
@@ -573,7 +579,9 @@ export const ChatContainer: React.FC = () => {
         currentMessages,
         finalPromptForContext,
         selectedModel,
-        availableModels
+        availableModels,
+        settings.customInstructions,
+        activeMemories
       );
 
       setContextCompressed(isCompressed);
@@ -1022,9 +1030,7 @@ export const ChatContainer: React.FC = () => {
                 >
                   {/* Bubble / Stream content */}
                   {isUser ? (
-                    <div className="p-3.5 px-4 rounded-2xl bg-[#2f2f2f] border border-[#383838] text-[#ececec] select-text">
-                      <p className="text-sm whitespace-pre-wrap leading-relaxed select-text">{msg.content}</p>
-                    </div>
+                    <UserMessageBubble content={msg.content} />
                   ) : (
                     <div className="text-[#ececec] py-1 select-text">
                       {!msg.content && !msg.reasoning && isGenerating ? (

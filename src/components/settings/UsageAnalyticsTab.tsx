@@ -17,6 +17,7 @@ import {
   UsageRecord,
   ProviderUsageSummary,
 } from '../../types';
+import { ProviderLogo } from '../common/ProviderLogos';
 
 const PERIODS: { value: UsagePeriod; label: string }[] = [
   { value: 'today', label: 'Today' },
@@ -67,7 +68,7 @@ function TimeAgoItem({ timestamp }: { timestamp: string }) {
   return <>{ago}</>;
 }
 
-// Sub-komponen Topologi Provider Aktif (Flat Design)
+// Sub-komponen Topologi Provider Aktif (Flat Design dengan Logo Resmi SVG & Animated Pulse Curves)
 function ProviderTopologyMap({
   byProvider,
   recentRequests,
@@ -78,12 +79,20 @@ function ProviderTopologyMap({
   const providerKeys = useMemo(() => {
     const keys = Object.keys(byProvider);
     if (keys.length === 0) {
-      return ['gemini', 'ollama'];
+      return ['ollama', 'gemini', 'openai', 'claude'];
     }
     return keys;
   }, [byProvider]);
 
   const lastUsedProvider = recentRequests[0]?.provider?.toLowerCase() || '';
+
+  const leftProviders = useMemo(() => {
+    return providerKeys.slice(0, Math.ceil(providerKeys.length / 2));
+  }, [providerKeys]);
+
+  const rightProviders = useMemo(() => {
+    return providerKeys.slice(Math.ceil(providerKeys.length / 2));
+  }, [providerKeys]);
 
   return (
     <div className="flex flex-col h-[320px] rounded-2xl bg-[#262626] border border-[#383838] p-4 relative overflow-hidden">
@@ -100,72 +109,139 @@ function ProviderTopologyMap({
       </div>
 
       <div className="flex-1 relative flex items-center justify-center p-2">
+        {/* SVG Connecting Curves */}
+        <svg
+          className="absolute inset-0 w-full h-full pointer-events-none"
+          viewBox="0 0 400 240"
+          preserveAspectRatio="none"
+        >
+          <defs>
+            <linearGradient id="curveGradientActive" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#10b981" stopOpacity="0.8" />
+              <stop offset="50%" stopColor="#ececec" stopOpacity="0.9" />
+              <stop offset="100%" stopColor="#10b981" stopOpacity="0.8" />
+            </linearGradient>
+          </defs>
+
+          {/* Left connections (from x=110 to center x=200, y=120) */}
+          {leftProviders.map((prov, i) => {
+            const count = leftProviders.length;
+            const yStart = count === 1 ? 120 : 55 + (i / Math.max(1, count - 1)) * 130;
+            const isRecent = prov.toLowerCase() === lastUsedProvider;
+            const d = `M 110 ${yStart} C 150 ${yStart}, 160 120, 195 120`;
+            return (
+              <g key={`curve-left-${prov}`}>
+                <path
+                  d={d}
+                  fill="none"
+                  stroke={isRecent ? 'url(#curveGradientActive)' : '#333333'}
+                  strokeWidth={isRecent ? '2' : '1.2'}
+                  strokeDasharray={isRecent ? '5 4' : '3 3'}
+                  className={isRecent ? 'animate-pulse' : ''}
+                />
+              </g>
+            );
+          })}
+
+          {/* Right connections (from center x=200, y=120 to x=290) */}
+          {rightProviders.map((prov, i) => {
+            const count = rightProviders.length;
+            const yEnd = count === 1 ? 120 : 55 + (i / Math.max(1, count - 1)) * 130;
+            const isRecent = prov.toLowerCase() === lastUsedProvider;
+            const d = `M 205 120 C 240 120, 250 ${yEnd}, 290 ${yEnd}`;
+            return (
+              <g key={`curve-right-${prov}`}>
+                <path
+                  d={d}
+                  fill="none"
+                  stroke={isRecent ? 'url(#curveGradientActive)' : '#333333'}
+                  strokeWidth={isRecent ? '2' : '1.2'}
+                  strokeDasharray={isRecent ? '5 4' : '3 3'}
+                  className={isRecent ? 'animate-pulse' : ''}
+                />
+              </g>
+            );
+          })}
+        </svg>
+
         {/* Pusat Hub Node */}
         <div className="relative z-10 flex flex-col items-center justify-center w-24 h-24 rounded-2xl bg-[#171717] border-2 border-[#4f4f4f] shadow-lg text-center p-2">
-          <div className="w-7 h-7 rounded-lg bg-[#2f2f2f] flex items-center justify-center mb-1 text-[#ececec]">
-            <Cpu className="w-4 h-4" />
+          <div className="w-8 h-8 rounded-xl bg-[#2f2f2f] flex items-center justify-center mb-1 text-[#ececec] border border-[#383838]">
+            <Cpu className="w-4 h-4 text-[#ececec]" />
           </div>
           <span className="text-xs font-bold text-[#ececec]">Agentic Hub</span>
           <span className="text-[9px] text-[#707070] font-mono">Tokio Core</span>
         </div>
 
         {/* Orbit Nodes Provider */}
-        <div className="absolute inset-0 flex items-center justify-around px-2 pointer-events-none">
+        <div className="absolute inset-0 flex items-center justify-between px-3 pointer-events-none">
           {/* Kolom Kiri */}
-          <div className="flex flex-col gap-3 pointer-events-auto">
-            {providerKeys.slice(0, Math.ceil(providerKeys.length / 2)).map((prov) => {
+          <div className="flex flex-col gap-2.5 pointer-events-auto max-w-[130px]">
+            {leftProviders.map((prov) => {
               const info = byProvider[prov];
               const isRecent = prov.toLowerCase() === lastUsedProvider;
               return (
                 <div
                   key={prov}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border text-xs transition-colors ${
+                  className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border text-xs transition-all ${
                     isRecent
-                      ? 'bg-[#2f2f2f] border-[#4f4f4f] text-[#ececec]'
-                      : 'bg-[#1f1f1f] border-[#303030] text-[#b4b4b4]'
+                      ? 'bg-[#2f2f2f] border-[#4f4f4f] text-[#ececec] shadow-sm'
+                      : 'bg-[#1b1b1b] border-[#303030] text-[#b4b4b4] hover:border-[#383838]'
                   }`}
+                  title={`${prov} - ${fmtNumber(info?.requests || 0)} requests`}
                 >
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      isRecent ? 'bg-emerald-400 animate-pulse' : 'bg-[#707070]'
-                    }`}
-                  />
-                  <div className="flex flex-col min-w-[70px]">
-                    <span className="font-semibold capitalize text-[#ececec]">{prov}</span>
-                    <span className="text-[10px] text-[#707070]">
+                  <div className="w-6 h-6 rounded-lg bg-[#242424] border border-[#333333] flex items-center justify-center text-[#ececec] shrink-0">
+                    <ProviderLogo provider={prov} size={14} />
+                  </div>
+                  <div className="flex flex-col min-w-0 pr-1">
+                    <span className="font-semibold capitalize text-[#ececec] truncate text-[11px] leading-tight">
+                      {prov}
+                    </span>
+                    <span className="text-[9px] text-[#707070] leading-none mt-0.5">
                       {fmtNumber(info?.requests || 0)} req
                     </span>
                   </div>
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ml-auto shrink-0 ${
+                      isRecent ? 'bg-emerald-400 animate-pulse' : 'bg-[#555555]'
+                    }`}
+                  />
                 </div>
               );
             })}
           </div>
 
           {/* Kolom Kanan */}
-          <div className="flex flex-col gap-3 pointer-events-auto">
-            {providerKeys.slice(Math.ceil(providerKeys.length / 2)).map((prov) => {
+          <div className="flex flex-col gap-2.5 pointer-events-auto max-w-[130px]">
+            {rightProviders.map((prov) => {
               const info = byProvider[prov];
               const isRecent = prov.toLowerCase() === lastUsedProvider;
               return (
                 <div
                   key={prov}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border text-xs transition-colors ${
+                  className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border text-xs transition-all ${
                     isRecent
-                      ? 'bg-[#2f2f2f] border-[#4f4f4f] text-[#ececec]'
-                      : 'bg-[#1f1f1f] border-[#303030] text-[#b4b4b4]'
+                      ? 'bg-[#2f2f2f] border-[#4f4f4f] text-[#ececec] shadow-sm'
+                      : 'bg-[#1b1b1b] border-[#303030] text-[#b4b4b4] hover:border-[#383838]'
                   }`}
+                  title={`${prov} - ${fmtNumber(info?.requests || 0)} requests`}
                 >
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      isRecent ? 'bg-emerald-400 animate-pulse' : 'bg-[#707070]'
-                    }`}
-                  />
-                  <div className="flex flex-col min-w-[70px]">
-                    <span className="font-semibold capitalize text-[#ececec]">{prov}</span>
-                    <span className="text-[10px] text-[#707070]">
+                  <div className="w-6 h-6 rounded-lg bg-[#242424] border border-[#333333] flex items-center justify-center text-[#ececec] shrink-0">
+                    <ProviderLogo provider={prov} size={14} />
+                  </div>
+                  <div className="flex flex-col min-w-0 pr-1">
+                    <span className="font-semibold capitalize text-[#ececec] truncate text-[11px] leading-tight">
+                      {prov}
+                    </span>
+                    <span className="text-[9px] text-[#707070] leading-none mt-0.5">
                       {fmtNumber(info?.requests || 0)} req
                     </span>
                   </div>
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ml-auto shrink-0 ${
+                      isRecent ? 'bg-emerald-400 animate-pulse' : 'bg-[#555555]'
+                    }`}
+                  />
                 </div>
               );
             })}
@@ -175,6 +251,7 @@ function ProviderTopologyMap({
     </div>
   );
 }
+
 
 // Sub-komponen Tabel Recent Requests
 function RecentRequestsCard({ requests }: { requests: UsageRecord[] }) {

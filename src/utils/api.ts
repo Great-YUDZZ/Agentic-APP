@@ -446,11 +446,25 @@ Pedoman Komunikasi dan Bahasa:
 export const SYSTEM_DESIGN_RULES = CHATBOT_SYSTEM_PROMPT;
 
 /**
- * Helper untuk menyisipkan System Instructions ke dalam payload pesan percakapan
+ * Helper untuk menyisipkan System Instructions ke dalam payload pesan percakapan,
+ * termasuk instruksi kustom pengguna (Your AI) dan memori aktif jika dikonfigurasi.
  */
 export function injectChatbotSystemPrompt(
-  messages: Array<{ role: string; content: string }>
+  messages: Array<{ role: string; content: string }>,
+  customInstructions?: string,
+  memories?: Array<{ content: string }>
 ): Array<{ role: string; content: string }> {
+  let prompt = CHATBOT_SYSTEM_PROMPT;
+
+  if (customInstructions && customInstructions.trim()) {
+    prompt += `\n\n[USER CUSTOM INSTRUCTIONS]\n${customInstructions.trim()}`;
+  }
+
+  if (memories && memories.length > 0) {
+    const memoryList = memories.map((m) => `- ${m.content}`).join('\n');
+    prompt += `\n\n[SAVED USER MEMORIES & PREFERENCES]\n${memoryList}`;
+  }
+
   const existingSystemIndex = messages.findIndex((m) => m.role === 'system');
 
   if (existingSystemIndex !== -1) {
@@ -458,14 +472,14 @@ export function injectChatbotSystemPrompt(
     if (!updated[existingSystemIndex].content.includes('asisten kecerdasan buatan (AI) yang cerdas, ramah')) {
       updated[existingSystemIndex] = {
         ...updated[existingSystemIndex],
-        content: `${CHATBOT_SYSTEM_PROMPT}\n\n${updated[existingSystemIndex].content}`,
+        content: `${prompt}\n\n${updated[existingSystemIndex].content}`,
       };
     }
     return updated;
   }
 
   // Jika belum ada system message, sisipkan di posisi paling awal
-  return [{ role: 'system', content: CHATBOT_SYSTEM_PROMPT }, ...messages];
+  return [{ role: 'system', content: prompt }, ...messages];
 }
 
 export const injectSystemDesignRules = injectChatbotSystemPrompt;

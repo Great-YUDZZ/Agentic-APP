@@ -579,6 +579,10 @@ const DEFAULT_SETTINGS: AppSettings = {
   conversationWidth: 'default',
   trashRetentionDays: 30,
   agentMascots: DEFAULT_MASCOTS,
+  customInstructions: '',
+  memoryEnabled: true,
+  sensitiveTopicsEnabled: false,
+  memories: [],
 };
 
 const loadSavedSettings = (): AppSettings => {
@@ -626,6 +630,18 @@ const loadSavedSettings = (): AppSettings => {
           ...DEFAULT_SETTINGS.agentMascots,
           ...parsed.agentMascots,
         };
+      }
+      if (typeof parsed.customInstructions !== 'string') {
+        parsed.customInstructions = '';
+      }
+      if (typeof parsed.memoryEnabled !== 'boolean') {
+        parsed.memoryEnabled = true;
+      }
+      if (typeof parsed.sensitiveTopicsEnabled !== 'boolean') {
+        parsed.sensitiveTopicsEnabled = false;
+      }
+      if (!Array.isArray(parsed.memories)) {
+        parsed.memories = [];
       }
       return { ...DEFAULT_SETTINGS, ...parsed };
     }

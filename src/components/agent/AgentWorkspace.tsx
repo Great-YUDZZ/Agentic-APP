@@ -33,6 +33,7 @@ import { CustomAgent, AttachedFile, ChatMessage } from '../../types';
 import { AgentCreatorModal } from './AgentCreatorModal';
 import { AttachmentChips } from '../common/AttachmentChips';
 import { FormattedMessage } from '../common/FormattedMessage';
+import { UserMessageBubble } from '../common/UserMessageBubble';
 import { processSelectedFiles, formatAttachedPrompt, pickNativeFiles } from '../../utils/fileUpload';
 import { parseRobustJson, getChatEndpoint, formatApiErrorMessage, resolveEndpointForModel } from '../../utils/api';
 import { getDailyGreeting } from '../../utils/dailyGreetings';
@@ -903,14 +904,8 @@ ${mcpTools.length > 0 ? `\n2. Anda juga memiliki akses langsung ke perkakas ekst
             if (isUser) {
               return (
                 <div key={msg.id} className="group flex flex-col items-end w-full space-y-1">
-                  <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-[#2f2f2f] border border-[#383838] p-4 text-[#ececec] shadow-sm">
-                    <div className="flex items-center justify-end gap-2 pb-1.5 border-b border-[#383838] mb-2 text-xs">
-                      <span className="text-[10px] text-[#707070] font-mono">
-                        {msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                      </span>
-                      <span className="font-semibold text-[#ececec]">Operator</span>
-                    </div>
-                    <p className="text-xs sm:text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                  <div className="max-w-[85%]">
+                    <UserMessageBubble content={msg.content} />
                   </div>
                   {/* Fork Action Button */}
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity flex justify-end">
