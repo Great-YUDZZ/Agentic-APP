@@ -4,6 +4,28 @@ Semua perubahan penting pada proyek Autonomous AI Native Hub dicatat dalam dokum
 
 ---
 
+## [v0.3.4] - 2026-11-03
+
+### Perbaikan Bug & Peningkatan Keandalan
+- **Perbaikan Bug Upload Berkas Dokumen Word (.docx) & Pencegahan UI Freeze**:
+  - Menyelesaikan masalah layar freeze/lag dan tampilan gelembung chat yang berubah menjadi kotak abu-abu raksasa kosong saat melampirkan berkas dokumen `.docx`.
+  - Mengimplementasikan modul ekstraksi teks dokumen Word mandiri tanpa dependensi (`extractDocxText`) berbasis Web Standards (`DecompressionStream('deflate-raw')`):
+    - Membedah struktur arsip PKZip internal dokumen Word secara langsung melalui Central Directory.
+    - Mengekstrak teks murni, paragraf (`<w:p>`), pemisah baris/tab, serta tabel Word (`<w:tbl>`, `<w:tr>`, `<w:tc>`) menjadi format tabel Markdown terstruktur rapi.
+    - Menguraikan entitas XML (`&amp;`, `&lt;`, `&gt;`, `&quot;`, `&apos;`) secara akurat.
+- **Dukungan Dokumen Multi-Format Aman & Sanitasi Konten Biner**:
+  - Ekstraksi teks spreadsheet Excel (`.xlsx`) langsung dari string bersama (`xl/sharedStrings.xml`).
+  - Ekstraksi teks aman untuk dokumen PDF (`.pdf`) dari stream teks ASCII/UTF-8 tanpa menyuntikkan byte null atau data biner rusak.
+  - Pemblokiran dan isolasi cerdas berkas arsip/biner murni (`.zip`, `.tar`, `.exe`, `.bin`, `.iso`, dll.): sistem tidak lagi memuat karakter biner mentah ke prompt model, melainkan memberikan penanda metadata berkas yang aman.
+  - Pembatasan panjang karakter aman (maksimal 80.000 karakter per berkas) untuk mencegah token overflow dan lonjakan memori.
+- **Komponen Tampilan Pesan Pengguna Modern (UserMessageBubble)**:
+  - Menggantikan render teks mentah panjang dengan komponen terstruktur `UserMessageBubble`.
+  - Menampilkan teks instruksi pengguna secara bersih, diikuti kapsul badge lampiran kompak (`[📄 proposal.docx · 120 KB]`).
+  - Menyediakan tombol pratinjau teks lampiran yang dapat dilipat (*collapsible preview*) dengan area gulir terisolasi (`max-h-48`) sehingga tidak merusak tata letak gelembung chat.
+  - Diterapkan secara seragam di Mode Chatbot (`ChatContainer.tsx`), Mode Agent (`AgentWorkspace.tsx`), dan Mode Build Studio (`MultiAgentDiscussion.tsx`).
+
+---
+
 ## [v0.3.2] - 2026-11-03
 
 ### Fitur Baru
