@@ -850,7 +850,7 @@ export const ChatContainer: React.FC = () => {
 
         {currentMessages.length === 0 ? (
           <div className="my-auto flex flex-col items-center justify-center text-center p-6 space-y-4 pt-12">
-            <AgentMascot roleOrId="default" size={92} />
+            <AgentMascot roleOrId="default" size={92} autonomous interactive />
             <EmptyState
               title="Mulai Percakapan Baru"
               description="Ketik pesan untuk berinteraksi dengan AI, atau gunakan '/' untuk melihat jalan pintas perintah."

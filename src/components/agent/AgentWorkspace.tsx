@@ -803,7 +803,7 @@ ${mcpTools.length > 0 ? `\n2. Anda juga memiliki akses langsung ke perkakas ekst
               <div
                 className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 mt-0.5 overflow-hidden bg-[#262626] border border-[#383838]"
               >
-                <AgentMascot roleOrId={activeAgent.id || 'agent'} size={46} />
+                <AgentMascot roleOrId={activeAgent.id || 'agent'} size={46} autonomous interactive />
               </div>
               <div className="space-y-0.5 flex-1 min-w-0">
                 <div className="flex items-center gap-2">

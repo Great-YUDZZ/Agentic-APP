@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { useStore, DEFAULT_MASCOTS } from '../../store/useStore';
 import {
   MascotConfig,
@@ -7,6 +7,7 @@ import {
 } from '../../types';
 import { BloubBot } from './BloubBot';
 import { type StateId } from './bloub';
+import { useMascotAutonomous } from './useMascotAutonomous';
 
 interface AgentMascotProps {
   roleOrId?: string;
@@ -18,6 +19,9 @@ interface AgentMascotProps {
   showBadge?: boolean;
   follow?: boolean;
   frozenAt?: number;
+  autonomous?: boolean;
+  interactive?: boolean;
+  onClick?: () => void;
 }
 
 // Konversi nama bentuk lama ke ID bentuk resmi Bloub
@@ -86,6 +90,9 @@ export const AgentMascot: React.FC<AgentMascotProps> = ({
   showBadge = false,
   follow,
   frozenAt,
+  autonomous = false,
+  interactive = false,
+  onClick,
 }) => {
   const settings = useStore((s) => s.settings);
   const activeAgentEvents = useStore((s) => s.activeAgentEvents);
@@ -103,24 +110,59 @@ export const AgentMascot: React.FC<AgentMascotProps> = ({
     return activeAgentEvents[roleOrId] || 'on_idle';
   }, [eventOverride, activeAgentEvents, roleOrId]);
 
+  // Pemicu Otonom: inaktivitas bertingkat, tidur lelap, reaksi notifikasi, dan interaksi mouse
+  const isBusy = activeEvent !== 'on_idle' || Boolean(animationOverride);
+  const { autonomousState, triggerClick, triggerHover } = useMascotAutonomous({
+    enabled: autonomous,
+    isSystemBusy: isBusy,
+  });
+
   // Tentukan animasi / state Bloub yang harus dimainkan
   const activeAnimation: StateId = useMemo(() => {
     if (animationOverride) return mapAnimationToBloub(animationOverride);
+    if (activeEvent !== 'on_idle' && config.events && config.events[activeEvent]) {
+      return mapAnimationToBloub(config.events[activeEvent]);
+    }
+    // Jika mode otonom aktif dan terdapat pemicu otonom yang sedang berjalan
+    if (autonomous && autonomousState) {
+      return autonomousState;
+    }
     if (config.events && config.events[activeEvent]) {
       return mapAnimationToBloub(config.events[activeEvent]);
     }
     return 'idle';
-  }, [animationOverride, config.events, activeEvent]);
+  }, [animationOverride, activeEvent, config.events, autonomous, autonomousState]);
 
   const bloubShape = useMemo(() => mapShapeToBloub(config.shape), [config.shape]);
   const bloubExpression = useMemo(() => mapExpressionToBloub(config.expression), [config.expression]);
 
   const shouldFollow = follow !== undefined ? follow : (config.follow ?? false);
 
+  const handleClick = useCallback(
+    (_e: React.MouseEvent) => {
+      if (interactive) {
+        triggerClick();
+      }
+      onClick?.();
+    },
+    [interactive, triggerClick, onClick]
+  );
+
+  const handlePointerEnter = useCallback(() => {
+    if (interactive) {
+      triggerHover();
+    }
+  }, [interactive, triggerHover]);
+
   return (
     <div
-      className={`relative inline-flex items-center justify-center shrink-0 ${className}`}
+      className={`relative inline-flex items-center justify-center shrink-0 ${
+        interactive ? 'cursor-pointer select-none transition-transform active:scale-95' : ''
+      } ${className}`}
       style={{ width: size, height: size }}
+      onClick={interactive || onClick ? handleClick : undefined}
+      onPointerEnter={interactive ? handlePointerEnter : undefined}
+      title={interactive ? 'Maskot AI Interaktif' : undefined}
     >
       <BloubBot
         size={size}
