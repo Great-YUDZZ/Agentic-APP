@@ -106,6 +106,9 @@ pub fn run() {
             // Download model speech-to-text akurasi tinggi di background saat pertama kali buka
             voice::downloader::start_model_download(Some(app.handle().clone()));
 
+            // Inisialisasi engine AI lokal (Ollama + LFM3) di background secara otomatis
+            engine::local_engine::start_background_engine(Some(app.handle().clone()));
+
             // Hubungkan server-server MCP yang aktif secara asinkron di background
             tauri::async_runtime::spawn(async move {
                 mcp_runner.auto_connect_all().await;
@@ -175,6 +178,8 @@ pub fn run() {
             ipc::transcribe_offline_audio,
             ipc::get_offline_speech_status,
             ipc::trigger_voice_model_download,
+            ipc::get_local_engine_status,
+            ipc::ensure_local_engine,
             ipc::save_exported_file_dialog,
             ipc::perform_web_search,
             ipc::mcp_list_servers,

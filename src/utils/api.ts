@@ -260,15 +260,7 @@ export function formatApiErrorMessage(
       modelName.includes(':2b'));
 
   if (isLocalModel) {
-    const cleanId = modelName.split(' ')[0];
-    return `**Model Lokal "${modelName}" Belum Aktif di Komputer**\n\n` +
-      `Engine lokal Ollama belum terdeteksi berjalan pada port \`localhost:11434\`.\n\n` +
-      `**Langkah Mengaktifkan Obrolan Bebas API Key:**\n` +
-      `1. Pastikan **Ollama** terpasang di komputer Anda. Jika belum, pasang via terminal:\n` +
-      `   \`curl -fsSL https://ollama.com/install.sh | sh\`\n` +
-      `2. Jalankan perintah berikut di terminal untuk mengunduh model:\n` +
-      `   \`ollama run ${cleanId}\`\n` +
-      `3. Setelah model selesai diunduh oleh Ollama, klik tombol **Coba Lagi** di bawah untuk langsung mengobrol secara gratis, privat, dan offline tanpa memerlukan API key.`;
+    return `Model lokal "${modelName}" sedang diinisialisasi atau diunduh di background oleh aplikasi. Silakan tunggu beberapa saat hingga proses penyiapan selesai, lalu coba kirim pesan Anda kembali.`;
   }
 
   // 7. Generic Error

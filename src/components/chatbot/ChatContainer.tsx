@@ -618,11 +618,83 @@ export const ChatContainer: React.FC = () => {
         temperature: 0.7,
       };
 
-      const startTimestamp = performance.now();
-      let ttftRecorded = false;
-
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
+
+      // Jika model lokal dipilih, pastikan engine lokal telah aktif dan model telah terunduh di background
+      const isLocal =
+        selectedModel.startsWith('lfm3') ||
+        selectedModel.startsWith('ollama') ||
+        selectedModel.includes(':1.7b');
+      const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+
+      if (isLocal && isTauri) {
+        try {
+          const { invoke } = await import('@tauri-apps/api/core');
+          let status = await invoke<{
+            is_running: boolean;
+            has_model: boolean;
+            status: string;
+            progress: number;
+            message: string;
+          }>('get_local_engine_status');
+
+          if (!status.has_model || !status.is_running) {
+            await invoke('ensure_local_engine');
+
+            const maxWaitAttempts = 600;
+            for (let attempt = 0; attempt < maxWaitAttempts; attempt++) {
+              if (abortControllerRef.current?.signal.aborted) {
+                throw new Error('Dibatalkan oleh pengguna.');
+              }
+
+              status = await invoke<{
+                is_running: boolean;
+                has_model: boolean;
+                status: string;
+                progress: number;
+                message: string;
+              }>('get_local_engine_status');
+
+              if (status.status === 'ready' || status.has_model) {
+                break;
+              }
+
+              if (status.status === 'error') {
+                throw new Error(status.message || 'Kendala saat menyiapkan engine model lokal.');
+              }
+
+              const displayMsg =
+                status.message ||
+                `Sedang menyiapkan model lokal di background... (${status.progress.toFixed(0)}%)`;
+              useStore.setState((state) => ({
+                messages: state.messages.map((m) =>
+                  m.id === assistantMsgId
+                    ? {
+                        ...m,
+                        content: displayMsg,
+                      }
+                    : m
+                ),
+              }));
+
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
+
+            useStore.setState((state) => ({
+              messages: state.messages.map((m) =>
+                m.id === assistantMsgId ? { ...m, content: '' } : m
+              ),
+            }));
+          }
+        } catch (engineErr: any) {
+          if (engineErr.message?.includes('Dibatalkan')) throw engineErr;
+          console.warn('Kendala verifikasi engine lokal:', engineErr);
+        }
+      }
+
+      const startTimestamp = performance.now();
+      let ttftRecorded = false;
 
       const chatUrl = getChatEndpoint(endpointConfig.baseUrl);
       const response = await fetch(chatUrl, {

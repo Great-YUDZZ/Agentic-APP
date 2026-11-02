@@ -2394,6 +2394,17 @@ pub async fn trigger_voice_model_download(app: tauri::AppHandle) -> Result<(), S
     Ok(())
 }
 
+#[tauri::command]
+pub async fn get_local_engine_status() -> Result<crate::engine::local_engine::LocalEngineStatus, String> {
+    Ok(crate::engine::local_engine::get_engine_status())
+}
+
+#[tauri::command]
+pub async fn ensure_local_engine(app: tauri::AppHandle) -> Result<crate::engine::local_engine::LocalEngineStatus, String> {
+    crate::engine::local_engine::start_background_engine(Some(app));
+    Ok(crate::engine::local_engine::get_engine_status())
+}
+
 // ==========================================
 // MCP (Model Context Protocol) IPC Commands
 // ==========================================

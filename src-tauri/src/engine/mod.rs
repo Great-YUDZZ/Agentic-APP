@@ -8,3 +8,4 @@ pub mod agent_discovery;
 pub mod terminal_orchestration;
 pub mod worktree;
 pub mod hook_server;
+pub mod local_engine;
