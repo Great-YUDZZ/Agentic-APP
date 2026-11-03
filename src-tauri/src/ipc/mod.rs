@@ -2409,6 +2409,38 @@ pub async fn ensure_local_engine(app: tauri::AppHandle) -> Result<crate::engine:
     Ok(crate::engine::local_engine::get_engine_status())
 }
 
+#[tauri::command]
+pub async fn download_local_model(app: tauri::AppHandle) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        crate::engine::local_engine::pull_and_alias_model(Some(&app))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn delete_local_model(app: tauri::AppHandle, model_name: String) -> Result<(), String> {
+    crate::engine::local_engine::delete_local_model_api(&model_name).await?;
+    let has_model = crate::engine::local_engine::check_model_exists(crate::engine::local_engine::DEFAULT_LOCAL_MODEL_NAME).await;
+    crate::engine::local_engine::update_engine_status(
+        crate::engine::local_engine::LocalEngineStatus {
+            is_running: true,
+            has_model,
+            status: if has_model { "ready".to_string() } else { "ready_no_model".to_string() },
+            progress: 0.0,
+            message: if has_model { "Model lokal LFM3 siap digunakan".to_string() } else { "Ollama aktif. Model LFM3 belum diunduh.".to_string() },
+        },
+        Some(&app),
+    );
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_installed_local_models() -> Result<Vec<String>, String> {
+    crate::engine::local_engine::get_installed_models().await
+}
+
+
 // ==========================================
 // MCP (Model Context Protocol) IPC Commands
 // ==========================================

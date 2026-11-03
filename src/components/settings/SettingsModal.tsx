@@ -37,6 +37,7 @@ import { McpServersTab } from './McpServersTab';
 import { MascotSettingsTab } from './MascotSettingsTab';
 import { UsageAnalyticsTab } from './UsageAnalyticsTab';
 import { YourAITab } from './YourAITab';
+import { LocalModelsManager } from './LocalModelsManager';
 import { getOfflineSpeechStatus, triggerVoiceModelDownload, OfflineSpeechStatus } from '../../utils/audioRecorder';
 import { ttsManager } from '../../utils/textToSpeech';
 import { checkUpdateManually } from '../../utils/updater';
@@ -146,7 +147,7 @@ export const SettingsModal: React.FC = () => {
   } = useStore();
 
   const [activeSection, setActiveSection] = useState<SettingsSection>('general');
-  const [activeModelTab, setActiveModelTab] = useState<'custom' | 'standard'>('custom');
+  const [activeModelTab, setActiveModelTab] = useState<'custom' | 'standard' | 'local'>('custom');
 
   // Sub-modal Dialog States
   const [isNetworkModalOpen, setIsNetworkModalOpen] = useState(false);
@@ -1450,6 +1451,18 @@ export const SettingsModal: React.FC = () => {
                       <Cloud className="w-3.5 h-3.5 text-[#ececec]" />
                       <span>Standard Providers</span>
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveModelTab('local')}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+                        activeModelTab === 'local'
+                          ? 'bg-[#2f2f2f] text-white border border-[#404040]'
+                          : 'text-[#b4b4b4] hover:text-white hover:bg-[#282828]'
+                      }`}
+                    >
+                      <Cpu className="w-3.5 h-3.5 text-[#39d353]" />
+                      <span>Model Lokal (Offline)</span>
+                    </button>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -1771,6 +1784,11 @@ export const SettingsModal: React.FC = () => {
                       );
                     })}
                   </div>
+                )}
+
+                {/* Local Offline Models Sub-Tab */}
+                {activeModelTab === 'local' && (
+                  <LocalModelsManager />
                 )}
               </div>
             )}

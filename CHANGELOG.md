@@ -4,6 +4,23 @@ Semua perubahan penting pada proyek Autonomous AI Native Hub dicatat dalam dokum
 
 ---
 
+## [v0.4.2] - 2026-11-03
+
+### Peningkatan & Pengaturan Model Lokal
+- **Penghapusan Runtime Ollama Bawaan**:
+  - Aplikasi tidak lagi mengunduh atau menyertakan biner Ollama portabel secara otomatis di latar belakang.
+  - Sistem beralih sepenuhnya ke integrasi bersih dengan layanan Ollama yang telah terpasang di sistem komputer pengguna (port 11434).
+- **Menu Unduh Model Lokal Mandiri (Local Models Manager)**:
+  - Penambahan sub-tab baru "Model Lokal (Offline)" pada menu Pengaturan (tab Models).
+  - Kartu spesifikasi Liquid Foundation Model (LFM3 1.7B GGUF Q4_K_M, ~1.1 GB) dengan informasi fitur offline, penalaran, dan tanpa kunci API.
+  - Tombol pengunduhan eksplisit atas kendali penuh pengguna lengkap dengan progress bar persentase streaming real-time.
+  - Tombol penghapusan model terpasang untuk membebaskan ruang penyimpanan disk komputer secara instan.
+  - Pemindai dan penampil model lokal lain yang terpasang pada instance Ollama sistem.
+- **Perlindungan Chat dari Unduhan Latar Belakang Tanpa Izin**:
+  - Mengirim pesan dengan model lokal yang belum terinstal kini tidak lagi mengunduh model secara diam-diam, melainkan menampilkan pesan panduan agar pengguna mengunduhnya terlebih dahulu melalui menu Pengaturan.
+
+---
+
 ## [v0.4.1] - 2026-11-03
 
 ### Fitur Baru
@@ -57,7 +74,7 @@ Semua perubahan penting pada proyek Autonomous AI Native Hub dicatat dalam dokum
   - Pembatasan panjang karakter aman (maksimal 80.000 karakter per berkas) untuk mencegah token overflow dan lonjakan memori.
 - **Komponen Tampilan Pesan Pengguna Modern (UserMessageBubble)**:
   - Menggantikan render teks mentah panjang dengan komponen terstruktur `UserMessageBubble`.
-  - Menampilkan teks instruksi pengguna secara bersih, diikuti kapsul badge lampiran kompak (`[📄 proposal.docx · 120 KB]`).
+  - Menampilkan teks instruksi pengguna secara bersih, diikuti kapsul badge lampiran kompak (`[proposal.docx · 120 KB]`).
   - Menyediakan tombol pratinjau teks lampiran yang dapat dilipat (*collapsible preview*) dengan area gulir terisolasi (`max-h-48`) sehingga tidak merusak tata letak gelembung chat.
   - Diterapkan secara seragam di Mode Chatbot (`ChatContainer.tsx`), Mode Agent (`AgentWorkspace.tsx`), dan Mode Build Studio (`MultiAgentDiscussion.tsx`).
 

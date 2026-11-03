@@ -656,53 +656,12 @@ export const ChatContainer: React.FC = () => {
             message: string;
           }>('get_local_engine_status');
 
-          if (!status.has_model || !status.is_running) {
-            await invoke('ensure_local_engine');
+          if (!status.is_running) {
+            throw new Error('Layanan Ollama tidak terdeteksi pada sistem. Pastikan Ollama telah terpasang dan aktif di komputer Anda.');
+          }
 
-            const maxWaitAttempts = 600;
-            for (let attempt = 0; attempt < maxWaitAttempts; attempt++) {
-              if (abortControllerRef.current?.signal.aborted) {
-                throw new Error('Dibatalkan oleh pengguna.');
-              }
-
-              status = await invoke<{
-                is_running: boolean;
-                has_model: boolean;
-                status: string;
-                progress: number;
-                message: string;
-              }>('get_local_engine_status');
-
-              if (status.status === 'ready' || status.has_model) {
-                break;
-              }
-
-              if (status.status === 'error') {
-                throw new Error(status.message || 'Kendala saat menyiapkan engine model lokal.');
-              }
-
-              const displayMsg =
-                status.message ||
-                `Sedang menyiapkan model lokal di background... (${status.progress.toFixed(0)}%)`;
-              useStore.setState((state) => ({
-                messages: state.messages.map((m) =>
-                  m.id === assistantMsgId
-                    ? {
-                        ...m,
-                        content: displayMsg,
-                      }
-                    : m
-                ),
-              }));
-
-              await new Promise((resolve) => setTimeout(resolve, 1000));
-            }
-
-            useStore.setState((state) => ({
-              messages: state.messages.map((m) =>
-                m.id === assistantMsgId ? { ...m, content: '' } : m
-              ),
-            }));
+          if (!status.has_model) {
+            throw new Error('Model lokal LFM3 belum diunduh ke komputer ini. Silakan buka menu Pengaturan (Ctrl+,) -> Models -> Model Lokal untuk mengunduh model secara mandiri.');
           }
         } catch (engineErr: any) {
           if (engineErr.message?.includes('Dibatalkan')) throw engineErr;

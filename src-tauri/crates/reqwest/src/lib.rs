@@ -86,6 +86,10 @@ impl Client {
     pub fn post(&self, url: &str) -> RequestBuilder {
         RequestBuilder::new("POST", url, self.timeout)
     }
+
+    pub fn delete(&self, url: &str) -> RequestBuilder {
+        RequestBuilder::new("DELETE", url, self.timeout)
+    }
 }
 
 impl Default for Client {
