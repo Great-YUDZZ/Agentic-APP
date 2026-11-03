@@ -154,6 +154,69 @@ export const AGENT_AVAILABLE_TOOLS: ToolDefinition[] = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'search_vault_notes',
+      description: 'Mencari catatan yang relevan di Context Vault menggunakan pencarian semantik hybrid (judul, konten, dan tags) tanpa membaca seluruh berkas.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description: 'Kata kunci pencarian atau topik konsep untuk menemukan catatan terkait',
+          },
+          limit: {
+            type: 'number',
+            description: 'Batas maksimal catatan yang dikembalikan (default: 5)',
+          },
+        },
+        required: ['query'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_vault_note',
+      description: 'Menyimpan catatan baru ke Context Vault dengan format markdown terstruktur, tags (#tag), dan seksi Catatan Terkait berisi wikilink [[...]].',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: {
+            type: 'string',
+            description: 'Judul catatan baru (tanpa ekstensi .md)',
+          },
+          content: {
+            type: 'string',
+            description: 'Isi lengkap catatan dalam format Markdown, wajib memuat tags (#kategori) dan seksi "## Catatan Terkait" berisi tautan wikilink [[...]]',
+          },
+        },
+        required: ['title', 'content'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'append_vault_backlink',
+      description: 'Menambahkan tautan balik dua arah (backlink) secara aman ke catatan lama yang sudah ada di Vault di bawah seksi "## Catatan Terkait".',
+      parameters: {
+        type: 'object',
+        properties: {
+          target_title: {
+            type: 'string',
+            description: 'Judul catatan lama yang akan disisipi tautan balik',
+          },
+          new_note_title: {
+            type: 'string',
+            description: 'Judul catatan baru yang ditautkan',
+          },
+        },
+        required: ['target_title', 'new_note_title'],
+      },
+    },
+  },
 ];
 
 export function isPathExternal(targetPath: string, workspaceRoot: string): boolean {

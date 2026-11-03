@@ -9,6 +9,7 @@ import {
   Trash2,
   HelpCircle,
   LucideIcon,
+  BookmarkPlus,
 } from 'lucide-react';
 
 export interface SlashCommandItem {
@@ -66,6 +67,14 @@ export const SLASH_COMMANDS: SlashCommandItem[] = [
     description: 'Bersihkan riwayat percakapan saat ini.',
     icon: Trash2,
     type: 'action',
+  },
+  {
+    id: 'vault',
+    name: '/vault',
+    description: 'Catat intisari percakapan ini ke Context Vault dengan tautan dua arah.',
+    icon: BookmarkPlus,
+    type: 'template',
+    actionText: 'Tolong catat dan simpan ringkasan poin-poin utama percakapan di atas ke Context Vault lengkap dengan #tags dan tautan ke catatan terkait:',
   },
   {
     id: 'help',

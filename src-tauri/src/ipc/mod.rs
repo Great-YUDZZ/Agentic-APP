@@ -346,10 +346,96 @@ pub async fn resolve_tool_clearance(
 
 #[tauri::command]
 pub async fn execute_sandbox_tool(
+    app: AppHandle,
     state: State<'_, AppState>,
     tool_name: String,
     parameters: serde_json::Value,
 ) -> Result<ToolCallResult, String> {
+    if tool_name == "search_vault_notes" {
+        let query = parameters["query"].as_str().unwrap_or("").to_string();
+        let limit = parameters["limit"].as_u64().unwrap_or(5) as usize;
+        let results = crate::vault::semantic::search_notes_hybrid(&state.vault.graph, &query, limit);
+        let out = serde_json::to_string_pretty(&results).unwrap_or_else(|_| "[]".into());
+        return Ok(ToolCallResult {
+            id: Uuid::new_v4().to_string(),
+            success: true,
+            output: out,
+            execution_time_ms: 0,
+        });
+    } else if tool_name == "create_vault_note" {
+        let title = parameters["title"].as_str().unwrap_or("Untitled").trim().to_string();
+        let content = parameters["content"].as_str().unwrap_or("").to_string();
+        let agent_id = parameters["agent_id"].as_str().unwrap_or("assistant").to_string();
+
+        let root = state.vault.vault_root.read().map_err(|e| e.to_string())?.clone();
+        let path = root.join(format!("{}.md", title));
+        if path.exists() {
+            return Ok(ToolCallResult {
+                id: Uuid::new_v4().to_string(),
+                success: false,
+                output: format!("Catatan '{}' sudah ada di Vault. Gunakan judul unik atau hubungkan ke catatan ini.", title),
+                execution_time_ms: 0,
+            });
+        }
+        if let Err(e) = std::fs::write(&path, &content) {
+            return Ok(ToolCallResult {
+                id: Uuid::new_v4().to_string(),
+                success: false,
+                output: format!("Gagal menulis berkas catatan: {}", e),
+                execution_time_ms: 0,
+            });
+        }
+
+        state.vault.audit.append(crate::vault::AuditEntry {
+            id: Uuid::new_v4().to_string(),
+            timestamp: chrono::Utc::now().timestamp(),
+            agent_id,
+            action: "create".into(),
+            note_title: title.clone(),
+            previous_content: None,
+            diff_summary: Some(format!("Dibuat dengan {} kata", content.split_whitespace().count())),
+        });
+
+        let node = crate::vault::VaultGraph::parse_note(&path);
+        {
+            if let Ok(mut g) = state.vault.graph.write() {
+                g.upsert_note(node);
+                g.index_version += 1;
+            }
+        }
+        let _ = app.emit("vault-index-updated", &title);
+
+        return Ok(ToolCallResult {
+            id: Uuid::new_v4().to_string(),
+            success: true,
+            output: format!("Catatan '{}' berhasil disimpan ke Context Vault.", title),
+            execution_time_ms: 0,
+        });
+    } else if tool_name == "append_vault_backlink" {
+        let target_title = parameters["target_title"].as_str().unwrap_or("").trim().to_string();
+        let new_note_title = parameters["new_note_title"].as_str().unwrap_or("").trim().to_string();
+        let agent_id = parameters["agent_id"].as_str().unwrap_or("assistant").to_string();
+
+        match append_vault_backlink_internal(&state, &app, &agent_id, &target_title, &new_note_title).await {
+            Ok(_) => {
+                return Ok(ToolCallResult {
+                    id: Uuid::new_v4().to_string(),
+                    success: true,
+                    output: format!("Berhasil menambahkan tautan balik pada catatan '{}' ke '[[{}]]'.", target_title, new_note_title),
+                    execution_time_ms: 0,
+                });
+            }
+            Err(e) => {
+                return Ok(ToolCallResult {
+                    id: Uuid::new_v4().to_string(),
+                    success: false,
+                    output: format!("Gagal menambahkan tautan balik: {}", e),
+                    execution_time_ms: 0,
+                });
+            }
+        }
+    }
+
     let req = ToolCallRequest {
         id: Uuid::new_v4().to_string(),
         tool_name,
@@ -2210,6 +2296,90 @@ pub async fn edit_note(
 
     let _ = app.emit("vault-index-updated", &title);
     Ok(())
+}
+
+pub async fn append_vault_backlink_internal(
+    state: &AppState,
+    app: &AppHandle,
+    agent_id: &str,
+    target_title: &str,
+    new_note_title: &str,
+) -> Result<(), String> {
+    let clean_target = target_title.trim();
+    let clean_new = new_note_title.trim();
+    if clean_target.is_empty() || clean_new.is_empty() {
+        return Err("Judul note target dan note baru tidak boleh kosong".into());
+    }
+
+    let path = {
+        let g = state.vault.graph.read().map_err(|e| e.to_string())?;
+        g.nodes
+            .get(clean_target)
+            .ok_or_else(|| format!("Note target '{}' tidak ditemukan di Vault", clean_target))?
+            .path
+            .clone()
+    };
+
+    let lock = state.vault.locks.get_lock(&path);
+    let _guard = lock.lock().await;
+
+    let current_content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let link_token = format!("[[{}]]", clean_new);
+
+    if current_content.contains(&link_token) {
+        return Ok(());
+    }
+
+    let related_header = "## Catatan Terkait";
+    let link_line = format!("- [[{}]]", clean_new);
+    let mut new_content = current_content.clone();
+
+    if let Some(pos) = new_content.find(related_header) {
+        let after_header = pos + related_header.len();
+        let end_of_line = new_content[after_header..]
+            .find('\n')
+            .map(|idx| after_header + idx + 1)
+            .unwrap_or(new_content.len());
+        new_content.insert_str(end_of_line, &format!("{}\n", link_line));
+    } else {
+        if !new_content.ends_with('\n') {
+            new_content.push('\n');
+        }
+        new_content.push_str(&format!("\n## Catatan Terkait\n{}\n", link_line));
+    }
+
+    state.vault.audit.append(crate::vault::AuditEntry {
+        id: Uuid::new_v4().to_string(),
+        timestamp: chrono::Utc::now().timestamp(),
+        agent_id: agent_id.to_string(),
+        action: "edit".into(),
+        note_title: clean_target.to_string(),
+        previous_content: Some(current_content),
+        diff_summary: Some(format!("Menambahkan tautan balik ke [[{}]]", clean_new)),
+    });
+
+    std::fs::write(&path, &new_content).map_err(|e| e.to_string())?;
+
+    let node = crate::vault::VaultGraph::parse_note(&path);
+    {
+        let mut g = state.vault.graph.write().map_err(|e| e.to_string())?;
+        g.upsert_note(node);
+        g.index_version += 1;
+    }
+
+    let _ = app.emit("vault-index-updated", clean_target);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn append_vault_backlink(
+    state: State<'_, AppState>,
+    app: AppHandle,
+    agent_id: String,
+    target_title: String,
+    new_note_title: String,
+) -> Result<(), String> {
+    append_vault_backlink_internal(&state, &app, &agent_id, &target_title, &new_note_title).await
 }
 
 #[tauri::command]

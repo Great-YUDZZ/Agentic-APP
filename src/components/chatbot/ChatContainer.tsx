@@ -20,7 +20,9 @@ import {
   Copy,
   RotateCcw,
   Pencil,
+  BookmarkPlus,
 } from 'lucide-react';
+import { SaveToVaultModal } from '../common/SaveToVaultModal';
 import { useVoiceRecorder } from '../../utils/audioRecorder';
 import { useStore } from '../../store/useStore';
 import { ChatMessage, AttachedFile, CodeChunkMatch } from '../../types';
@@ -98,8 +100,26 @@ export const ChatContainer: React.FC = () => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
+  const [isSaveVaultModalOpen, setIsSaveVaultModalOpen] = useState(false);
+  const [vaultModalData, setVaultModalData] = useState<{ title: string; summary: string }>({
+    title: '',
+    summary: '',
+  });
   const abortControllerRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleOpenSaveToVault = (content: string, defaultTitle?: string) => {
+    let suggestedTitle = defaultTitle || '';
+    if (!suggestedTitle) {
+      const firstLine = content.split('\n')[0].replace(/^[#\s*-]+/, '').trim();
+      suggestedTitle = firstLine.slice(0, 45) || 'Catatan Konteks';
+    }
+    setVaultModalData({
+      title: suggestedTitle,
+      summary: content,
+    });
+    setIsSaveVaultModalOpen(true);
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -1116,6 +1136,19 @@ export const ChatContainer: React.FC = () => {
                         </button>
                       )}
 
+                      {/* Tombol Simpan ke Context Vault */}
+                      {msg.content && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenSaveToVault(msg.content)}
+                          title="Simpan intisari balasan ini ke Context Vault dengan tautan dua arah"
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-[#262626] hover:bg-[#303030] text-[#b4b4b4] hover:text-[#ececec] border border-[#303030] hover:border-[#383838] transition-colors"
+                        >
+                          <BookmarkPlus className="w-3.5 h-3.5 text-[#b4b4b4]" />
+                          <span>Simpan ke Vault</span>
+                        </button>
+                      )}
+
                       {/* Tombol Coba Lagi / Revert & Regenerate */}
                       {!isGenerating && !isStreaming && (
                         <button
@@ -1671,6 +1704,17 @@ export const ChatContainer: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal Dialog Simpan ke Context Vault */}
+      <SaveToVaultModal
+        isOpen={isSaveVaultModalOpen}
+        onClose={() => setIsSaveVaultModalOpen(false)}
+        initialTitle={vaultModalData.title}
+        initialSummary={vaultModalData.summary}
+        onSaved={(res) => {
+          addToast('success', res.message);
+        }}
+      />
     </div>
   );
 };

@@ -164,6 +164,7 @@ pub fn run() {
             ipc::read_note,
             ipc::create_note,
             ipc::edit_note,
+            ipc::append_vault_backlink,
             ipc::request_delete_note,
             ipc::get_pending_delete_requests,
             ipc::approve_delete_request,
