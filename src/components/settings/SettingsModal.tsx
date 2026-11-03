@@ -254,44 +254,105 @@ export const SettingsModal: React.FC = () => {
   if (!isSettingsOpen) return null;
 
   const handleTestConnection = async (provider: string, baseUrl?: string, apiKey?: string) => {
+    const trimmedKey = (apiKey || '').trim();
+    if (!trimmedKey && provider !== 'ollama') {
+      setTestingStatus((prev) => ({ ...prev, [provider]: 'failed' }));
+      setLatencies((prev) => {
+        const next = { ...prev };
+        delete next[provider];
+        return next;
+      });
+      addToast('error', `Kunci API untuk ${provider} belum diisi. Masukkan kunci API terlebih dahulu.`);
+      return;
+    }
+
     setTestingStatus((prev) => ({ ...prev, [provider]: 'testing' }));
     const startTime = Date.now();
+
+    const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+    if (isTauri) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const latency = await invoke<number>('test_provider', {
+          provider,
+          apiKey: trimmedKey,
+          baseUrl: baseUrl || null,
+          model: null,
+        });
+
+        const elapsed = Number(latency) || (Date.now() - startTime);
+        setLatencies((prev) => ({ ...prev, [provider]: elapsed }));
+        setTestingStatus((prev) => ({ ...prev, [provider]: 'success' }));
+        addToast('success', `Validasi ${provider} berhasil! Kunci API aktif (${elapsed}ms).`);
+      } catch (err: any) {
+        setTestingStatus((prev) => ({ ...prev, [provider]: 'failed' }));
+        setLatencies((prev) => {
+          const next = { ...prev };
+          delete next[provider];
+          return next;
+        });
+        const errMsg = typeof err === 'string' ? err : err?.message || 'Kunci API tidak valid atau koneksi ditolak.';
+        addToast('error', `Validasi ${provider} gagal: ${errMsg}`);
+      }
+      return;
+    }
+
+    // Fallback mode peramban (non-Tauri)
     try {
       let targetUrl = baseUrl;
+      let headers: Record<string, string> = {};
+
       if (!targetUrl) {
-        if (provider === 'gemini') targetUrl = 'https://generativelanguage.googleapis.com';
-        else if (provider === 'openai') targetUrl = 'https://api.openai.com';
-        else if (provider === 'claude') targetUrl = 'https://api.anthropic.com';
-        else if (provider === 'deepseek') targetUrl = 'https://api.deepseek.com';
-        else if (provider === 'ollama') targetUrl = 'http://localhost:11434';
-        else targetUrl = 'http://localhost:20128/v1';
+        if (provider === 'gemini') {
+          targetUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${trimmedKey}`;
+        } else if (provider === 'openai') {
+          targetUrl = 'https://api.openai.com/v1/models';
+          headers = { Authorization: `Bearer ${trimmedKey}` };
+        } else if (provider === 'claude') {
+          targetUrl = 'https://api.anthropic.com/v1/models';
+          headers = { 'x-api-key': trimmedKey, 'anthropic-version': '2023-06-01' };
+        } else if (provider === 'deepseek') {
+          targetUrl = 'https://api.deepseek.com/models';
+          headers = { Authorization: `Bearer ${trimmedKey}` };
+        } else if (provider === 'ollama') {
+          targetUrl = 'http://localhost:11434/api/tags';
+        } else {
+          targetUrl = 'http://localhost:20128/v1/models';
+          if (trimmedKey) headers = { Authorization: `Bearer ${trimmedKey}` };
+        }
       }
 
       const res = await fetch(targetUrl, {
         method: 'GET',
-        headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
-      }).catch((e) => {
-        if (e.message && e.message.includes('Failed to fetch')) {
-          return { ok: true, status: 200 } as Response;
-        }
-        throw e;
+        headers,
       });
 
       const elapsed = Date.now() - startTime;
-      setLatencies((prev) => ({ ...prev, [provider]: elapsed }));
 
-      if (res.ok || res.status < 500) {
+      if (res.ok) {
+        setLatencies((prev) => ({ ...prev, [provider]: elapsed }));
         setTestingStatus((prev) => ({ ...prev, [provider]: 'success' }));
-        addToast('success', `Koneksi ke ${provider} berhasil (${elapsed}ms)`);
+        addToast('success', `Validasi ${provider} berhasil (${elapsed}ms).`);
       } else {
         setTestingStatus((prev) => ({ ...prev, [provider]: 'failed' }));
-        addToast('error', `Koneksi gagal dengan status code ${res.status}`);
+        setLatencies((prev) => {
+          const next = { ...prev };
+          delete next[provider];
+          return next;
+        });
+        const errText = res.status === 401 || res.status === 403
+          ? 'Kunci API tidak valid'
+          : `Gagal dengan status ${res.status}`;
+        addToast('error', `Validasi ${provider} gagal: ${errText}`);
       }
-    } catch {
-      const elapsed = Date.now() - startTime;
-      setLatencies((prev) => ({ ...prev, [provider]: elapsed }));
-      setTestingStatus((prev) => ({ ...prev, [provider]: 'success' }));
-      addToast('info', `Endpoint merespons (${elapsed}ms)`);
+    } catch (e: any) {
+      setTestingStatus((prev) => ({ ...prev, [provider]: 'failed' }));
+      setLatencies((prev) => {
+        const next = { ...prev };
+        delete next[provider];
+        return next;
+      });
+      addToast('error', `Validasi ${provider} gagal: Tidak dapat terhubung ke endpoint.`);
     }
   };
 
@@ -1536,19 +1597,34 @@ export const SettingsModal: React.FC = () => {
                                       )
                                     }
                                     disabled={status === 'testing'}
-                                    className="px-2.5 py-1.5 rounded-xl bg-[#1e1e1e] hover:bg-[#282828] border border-[#383838] text-xs text-[#b4b4b4] hover:text-[#ececec] transition-colors shrink-0 flex items-center gap-1.5"
+                                    className={`px-2.5 py-1.5 rounded-xl border text-xs transition-colors shrink-0 flex items-center gap-1.5 ${
+                                      status === 'failed'
+                                        ? 'bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20'
+                                        : status === 'success'
+                                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
+                                        : 'bg-[#1e1e1e] hover:bg-[#282828] border-[#383838] text-[#b4b4b4] hover:text-[#ececec]'
+                                    }`}
+                                    title="Uji keabsahan kunci API ke endpoint"
                                   >
                                     <Activity
                                       className={`w-3.5 h-3.5 ${
-                                        status === 'testing' ? 'animate-pulse text-amber-400' : ''
-                                      } ${status === 'success' ? 'text-[#ececec]' : ''}`}
+                                        status === 'testing'
+                                          ? 'animate-pulse text-amber-400'
+                                          : status === 'success'
+                                          ? 'text-emerald-400'
+                                          : status === 'failed'
+                                          ? 'text-red-400'
+                                          : ''
+                                      }`}
                                     />
                                     <span>
                                       {status === 'testing'
-                                        ? 'Ping...'
-                                        : latency
+                                        ? 'Menguji...'
+                                        : status === 'success' && latency
                                         ? `${latency}ms`
-                                        : 'Test Ping'}
+                                        : status === 'failed'
+                                        ? 'Gagal'
+                                        : 'Tes Kunci'}
                                     </span>
                                   </button>
 
@@ -1651,19 +1727,34 @@ export const SettingsModal: React.FC = () => {
                                 )
                               }
                               disabled={status === 'testing'}
-                              className="px-2.5 py-1.5 rounded-xl bg-[#1e1e1e] hover:bg-[#282828] border border-[#383838] text-xs text-[#b4b4b4] hover:text-[#ececec] transition-colors shrink-0 flex items-center gap-1.5"
+                              className={`px-2.5 py-1.5 rounded-xl border text-xs transition-colors shrink-0 flex items-center gap-1.5 ${
+                                status === 'failed'
+                                  ? 'bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20'
+                                  : status === 'success'
+                                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
+                                  : 'bg-[#1e1e1e] hover:bg-[#282828] border-[#383838] text-[#b4b4b4] hover:text-[#ececec]'
+                              }`}
+                              title="Uji keabsahan kunci API ke server provider"
                             >
                               <Activity
                                 className={`w-3.5 h-3.5 ${
-                                  status === 'testing' ? 'animate-pulse text-amber-400' : ''
-                                } ${status === 'success' ? 'text-[#ececec]' : ''}`}
+                                  status === 'testing'
+                                    ? 'animate-pulse text-amber-400'
+                                    : status === 'success'
+                                    ? 'text-emerald-400'
+                                    : status === 'failed'
+                                    ? 'text-red-400'
+                                    : ''
+                                }`}
                               />
                               <span>
                                 {status === 'testing'
-                                  ? 'Ping...'
-                                  : latency
+                                  ? 'Menguji...'
+                                  : status === 'success' && latency
                                   ? `${latency}ms`
-                                  : 'Test Ping'}
+                                  : status === 'failed'
+                                  ? 'Gagal'
+                                  : 'Tes Kunci'}
                               </span>
                             </button>
 

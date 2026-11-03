@@ -95,6 +95,10 @@ pub async fn test_provider(
     base_url: Option<String>,
     model: Option<String>,
 ) -> Result<u128, String> {
+    if api_key.trim().is_empty() && provider != "ollama" {
+        return Err("Kunci API belum diisi. Silakan masukkan kunci API terlebih dahulu.".to_string());
+    }
+
     match provider.as_str() {
         "gemini" => {
             let client = GeminiProvider::new(api_key, model);

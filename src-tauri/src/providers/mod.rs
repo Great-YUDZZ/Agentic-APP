@@ -98,6 +98,9 @@ impl ProviderClient for GeminiProvider {
     }
 
     async fn test_connection(&self) -> anyhow::Result<u128> {
+        if self.api_key.trim().is_empty() {
+            return Err(anyhow::anyhow!("Kunci API Gemini belum diisi."));
+        }
         let start = std::time::Instant::now();
         let url = format!(
             "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
@@ -110,7 +113,12 @@ impl ProviderClient for GeminiProvider {
         if res.status().is_success() {
             Ok(start.elapsed().as_millis())
         } else {
-            Err(anyhow::anyhow!("Status code: {}", res.status()))
+            let code = res.status().as_u16();
+            if code == 400 || code == 401 || code == 403 {
+                Err(anyhow::anyhow!("Kunci API tidak valid (HTTP {})", code))
+            } else {
+                Err(anyhow::anyhow!("Koneksi ditolak (HTTP {})", code))
+            }
         }
     }
 }
@@ -197,6 +205,9 @@ impl ProviderClient for OpenAiProvider {
     }
 
     async fn test_connection(&self) -> anyhow::Result<u128> {
+        if self.api_key.trim().is_empty() {
+            return Err(anyhow::anyhow!("Kunci API belum diisi."));
+        }
         let start = std::time::Instant::now();
         let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
         let body = serde_json::json!({
@@ -204,15 +215,21 @@ impl ProviderClient for OpenAiProvider {
             "messages": [{ "role": "user", "content": "ping" }],
             "max_tokens": 5
         });
-        let mut req = self.client.post(&url).json(&body);
-        if !self.api_key.is_empty() {
-            req = req.header("Authorization", format!("Bearer {}", self.api_key));
-        }
+        let req = self
+            .client
+            .post(&url)
+            .json(&body)
+            .header("Authorization", format!("Bearer {}", self.api_key));
         let res = req.send().await?;
         if res.status().is_success() {
             Ok(start.elapsed().as_millis())
         } else {
-            Err(anyhow::anyhow!("Status code: {}", res.status()))
+            let code = res.status().as_u16();
+            if code == 400 || code == 401 || code == 403 {
+                Err(anyhow::anyhow!("Kunci API tidak valid (HTTP {})", code))
+            } else {
+                Err(anyhow::anyhow!("Koneksi ditolak (HTTP {})", code))
+            }
         }
     }
 }
@@ -293,6 +310,9 @@ impl ProviderClient for ClaudeProvider {
     }
 
     async fn test_connection(&self) -> anyhow::Result<u128> {
+        if self.api_key.trim().is_empty() {
+            return Err(anyhow::anyhow!("Kunci API Claude belum diisi."));
+        }
         let start = std::time::Instant::now();
         let url = format!("{}/messages", self.base_url.trim_end_matches('/'));
         let body = serde_json::json!({
@@ -300,8 +320,10 @@ impl ProviderClient for ClaudeProvider {
             "max_tokens": 5,
             "messages": [{ "role": "user", "content": "ping" }]
         });
-        let mut req = self.client.post(&url).json(&body);
-        req = req
+        let req = self
+            .client
+            .post(&url)
+            .json(&body)
             .header("x-api-key", &self.api_key)
             .header("anthropic-version", "2023-06-01");
 
@@ -309,7 +331,12 @@ impl ProviderClient for ClaudeProvider {
         if res.status().is_success() {
             Ok(start.elapsed().as_millis())
         } else {
-            Err(anyhow::anyhow!("Status code: {}", res.status()))
+            let code = res.status().as_u16();
+            if code == 400 || code == 401 || code == 403 {
+                Err(anyhow::anyhow!("Kunci API tidak valid (HTTP {})", code))
+            } else {
+                Err(anyhow::anyhow!("Koneksi ditolak (HTTP {})", code))
+            }
         }
     }
 }
@@ -394,6 +421,9 @@ impl ProviderClient for DeepSeekProvider {
     }
 
     async fn test_connection(&self) -> anyhow::Result<u128> {
+        if self.api_key.trim().is_empty() {
+            return Err(anyhow::anyhow!("Kunci API DeepSeek belum diisi."));
+        }
         let start = std::time::Instant::now();
         let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
         let body = serde_json::json!({
@@ -401,15 +431,21 @@ impl ProviderClient for DeepSeekProvider {
             "messages": [{ "role": "user", "content": "ping" }],
             "max_tokens": 5
         });
-        let mut req = self.client.post(&url).json(&body);
-        if !self.api_key.is_empty() {
-            req = req.header("Authorization", format!("Bearer {}", self.api_key));
-        }
+        let req = self
+            .client
+            .post(&url)
+            .json(&body)
+            .header("Authorization", format!("Bearer {}", self.api_key));
         let res = req.send().await?;
         if res.status().is_success() {
             Ok(start.elapsed().as_millis())
         } else {
-            Err(anyhow::anyhow!("Status code: {}", res.status()))
+            let code = res.status().as_u16();
+            if code == 400 || code == 401 || code == 403 {
+                Err(anyhow::anyhow!("Kunci API tidak valid (HTTP {})", code))
+            } else {
+                Err(anyhow::anyhow!("Koneksi ditolak (HTTP {})", code))
+            }
         }
     }
 }
