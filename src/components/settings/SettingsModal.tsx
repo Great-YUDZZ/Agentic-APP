@@ -1094,7 +1094,7 @@ export const SettingsModal: React.FC = () => {
                     <div>
                       <div className="text-sm font-medium text-[#ececec]">App Version</div>
                       <div className="text-xs font-mono text-[#b4b4b4] mt-0.5">
-                        v0.3.4
+                        v0.3.5
                       </div>
                     </div>
                     <button
@@ -1109,7 +1109,7 @@ export const SettingsModal: React.FC = () => {
                         } else if (result.error) {
                           addToast('error', `Gagal memeriksa pembaruan: ${result.error}`);
                         } else {
-                          addToast('info', 'Aplikasi sudah dalam versi terbaru (v0.3.4).');
+                          addToast('info', 'Aplikasi sudah dalam versi terbaru (v0.3.5).');
                         }
                       }}
                       className="px-3.5 py-1.5 rounded-xl bg-[#212121] hover:bg-[#303030] border border-[#383838] text-xs font-medium text-[#ececec] transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer"
