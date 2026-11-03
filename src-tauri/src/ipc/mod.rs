@@ -2909,12 +2909,32 @@ pub async fn record_token_usage(
     completion_tokens: i64,
     cached_tokens: Option<i64>,
     status: Option<String>,
+    request_id: Option<String>,
+    session_id: Option<String>,
+    agent_role: Option<String>,
+    cache_creation_tokens: Option<i64>,
+    cache_read_tokens: Option<i64>,
+    is_local: Option<bool>,
 ) -> Result<(), String> {
     let stat = status.unwrap_or_else(|| "ok".to_string());
     let cached = cached_tokens.unwrap_or(0);
+    let is_local_val = is_local.unwrap_or(false);
     state
         .db
-        .record_token_usage(&provider, &model, prompt_tokens, completion_tokens, cached, &stat)
+        .record_token_usage(
+            &provider,
+            &model,
+            prompt_tokens,
+            completion_tokens,
+            cached,
+            &stat,
+            request_id.as_deref(),
+            session_id.as_deref(),
+            agent_role.as_deref(),
+            cache_creation_tokens,
+            cache_read_tokens,
+            is_local_val,
+        )
         .map_err(|e| e.to_string())
 }
 

@@ -41,6 +41,13 @@ import { getConversationWidthClass } from '../../utils/layout';
 import { AGENT_AVAILABLE_TOOLS, isPathExternal, convertMcpToolToDefinition } from '../../utils/tools';
 import { ExecutionStep } from '../../types';
 import { AgentMascot } from '../mascot/AgentMascot';
+import {
+  extractStreamUsage,
+  estimatePayloadTokens,
+  estimateOutputTokens,
+  recordUnifiedTokenUsage,
+  generateRequestId,
+} from '../../utils/tokenTracker';
 
 export const AgentWorkspace: React.FC = () => {
   const {
@@ -425,6 +432,36 @@ ${mcpTools.length > 0 ? `\n2. Anda juga memiliki akses langsung ke perkakas ekst
           finalReasoning = reasoning;
           setActiveReasoning(reasoning);
         }
+
+        // Rekam penggunaan token pada turn eksekusi agen ini
+        const stepRequestId = generateRequestId();
+        const extracted = extractStreamUsage(data);
+        const fallbackPrompt = estimatePayloadTokens({
+          messages: messagesHistory,
+          tools: combinedTools,
+        });
+        const turnPromptTokens = extracted?.promptTokens || fallbackPrompt;
+        const turnCompletionTokens =
+          extracted?.completionTokens || estimateOutputTokens(msgContent + reasoning);
+        const turnCachedTokens = extracted?.cachedTokens || 0;
+
+        recordUnifiedTokenUsage({
+          provider: endpointConfig.provider || 'unknown',
+          model: effectiveModel,
+          promptTokens: turnPromptTokens,
+          completionTokens: turnCompletionTokens,
+          cachedTokens: turnCachedTokens,
+          cacheCreationTokens: extracted?.cacheCreationTokens,
+          cacheReadTokens: extracted?.cacheReadTokens,
+          requestId: stepRequestId,
+          sessionId: targetSessionId,
+          agentRole: activeAgent.name || 'Agent',
+          isLocal:
+            effectiveModel.startsWith('lfm3') ||
+            effectiveModel.startsWith('ollama') ||
+            effectiveModel.includes(':1.7b'),
+          status: 'ok',
+        }).catch((e) => console.warn('Gagal mencatat pemakaian token agent:', e));
 
         if (!toolCalls || toolCalls.length === 0) {
           finalContent = msgContent;

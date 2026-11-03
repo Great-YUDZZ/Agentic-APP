@@ -77,6 +77,12 @@ pub struct UsageRecord {
     pub completion_tokens: i64,
     pub cached_tokens: i64,
     pub status: String,
+    pub request_id: Option<String>,
+    pub session_id: Option<String>,
+    pub agent_role: Option<String>,
+    pub cache_creation_tokens: Option<i64>,
+    pub cache_read_tokens: Option<i64>,
+    pub is_local: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -229,17 +235,24 @@ impl Database {
 
             CREATE TABLE IF NOT EXISTS usage_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                request_id TEXT UNIQUE,
+                session_id TEXT,
+                agent_role TEXT,
                 timestamp TEXT NOT NULL,
                 provider TEXT NOT NULL,
                 model TEXT NOT NULL,
                 prompt_tokens INTEGER NOT NULL DEFAULT 0,
                 completion_tokens INTEGER NOT NULL DEFAULT 0,
                 cached_tokens INTEGER NOT NULL DEFAULT 0,
+                cache_creation_tokens INTEGER DEFAULT 0,
+                cache_read_tokens INTEGER DEFAULT 0,
+                is_local INTEGER NOT NULL DEFAULT 0,
                 status TEXT NOT NULL DEFAULT 'ok'
             );
 
             CREATE INDEX IF NOT EXISTS idx_usage_history_ts ON usage_history(timestamp DESC);
             CREATE INDEX IF NOT EXISTS idx_usage_history_model ON usage_history(model);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_usage_history_req_id ON usage_history(request_id) WHERE request_id IS NOT NULL;
 
             CREATE TABLE IF NOT EXISTS usage_daily (
                 date_key TEXT PRIMARY KEY,
@@ -256,6 +269,15 @@ impl Database {
             "ALTER TABLE chat_sessions ADD COLUMN mode TEXT DEFAULT 'chatbot'",
             params![],
         ).ok();
+
+        // Migrasi aman jika kolom tambahan belum ada di tabel usage_history lama
+        conn.execute("ALTER TABLE usage_history ADD COLUMN request_id TEXT", params![]).ok();
+        conn.execute("ALTER TABLE usage_history ADD COLUMN session_id TEXT", params![]).ok();
+        conn.execute("ALTER TABLE usage_history ADD COLUMN agent_role TEXT", params![]).ok();
+        conn.execute("ALTER TABLE usage_history ADD COLUMN cache_creation_tokens INTEGER DEFAULT 0", params![]).ok();
+        conn.execute("ALTER TABLE usage_history ADD COLUMN cache_read_tokens INTEGER DEFAULT 0", params![]).ok();
+        conn.execute("ALTER TABLE usage_history ADD COLUMN is_local INTEGER DEFAULT 0", params![]).ok();
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_usage_history_req_id ON usage_history(request_id) WHERE request_id IS NOT NULL", params![]).ok();
 
         Ok(())
     }
@@ -499,15 +521,48 @@ impl Database {
         completion_tokens: i64,
         cached_tokens: i64,
         status: &str,
+        request_id: Option<&str>,
+        session_id: Option<&str>,
+        agent_role: Option<&str>,
+        cache_creation_tokens: Option<i64>,
+        cache_read_tokens: Option<i64>,
+        is_local: bool,
     ) -> Result<()> {
         let conn = self.conn.lock().unwrap();
+
+        // Idempotency check jika request_id disertakan
+        if let Some(req_id) = request_id {
+            if !req_id.trim().is_empty() {
+                let mut check_req = conn.prepare("SELECT 1 FROM usage_history WHERE request_id = ?1 LIMIT 1")?;
+                let exists = check_req
+                    .query_map(params![req_id.trim()], |_| Ok(()))?
+                    .into_iter()
+                    .next()
+                    .is_some();
+                if exists {
+                    return Ok(());
+                }
+            }
+        }
+
         let now_utc = chrono::Utc::now().to_rfc3339();
         let date_key = chrono::Local::now().format("%Y-%m-%d").to_string();
+        let req_id_clean = request_id.map(|s| s.trim()).filter(|s| !s.is_empty());
+        let sess_id_clean = session_id.map(|s| s.trim()).filter(|s| !s.is_empty());
+        let role_clean = agent_role.map(|s| s.trim()).filter(|s| !s.is_empty());
+        let cache_create_val = cache_creation_tokens.unwrap_or(0);
+        let cache_read_val = cache_read_tokens.unwrap_or(0);
+        let is_local_int: i64 = if is_local { 1 } else { 0 };
 
         conn.execute(
-            "INSERT INTO usage_history (timestamp, provider, model, prompt_tokens, completion_tokens, cached_tokens, status)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![now_utc, provider, model, prompt_tokens, completion_tokens, cached_tokens, status],
+            "INSERT INTO usage_history (
+                timestamp, provider, model, prompt_tokens, completion_tokens, cached_tokens, status,
+                request_id, session_id, agent_role, cache_creation_tokens, cache_read_tokens, is_local
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+            params![
+                now_utc, provider, model, prompt_tokens, completion_tokens, cached_tokens, status,
+                req_id_clean, sess_id_clean, role_clean, cache_create_val, cache_read_val, is_local_int
+            ],
         )?;
 
         let mut check_stmt = conn.prepare("SELECT data FROM usage_daily WHERE date_key = ?1")?;
@@ -646,7 +701,8 @@ impl Database {
             // "24h"
             let since = (chrono::Utc::now() - chrono::Duration::hours(24)).to_rfc3339();
             let mut stmt = conn.prepare(
-                "SELECT id, timestamp, provider, model, prompt_tokens, completion_tokens, cached_tokens, status
+                "SELECT id, timestamp, provider, model, prompt_tokens, completion_tokens, cached_tokens, status,
+                        request_id, session_id, agent_role, cache_creation_tokens, cache_read_tokens, is_local
                  FROM usage_history WHERE timestamp >= ?1 ORDER BY id ASC",
             )?;
             let rows = stmt.query_map(params![since], |row| {
@@ -659,6 +715,12 @@ impl Database {
                     completion_tokens: row.get(5)?,
                     cached_tokens: row.get(6)?,
                     status: row.get(7)?,
+                    request_id: row.get(8)?,
+                    session_id: row.get(9)?,
+                    agent_role: row.get(10)?,
+                    cache_creation_tokens: row.get(11)?,
+                    cache_read_tokens: row.get(12)?,
+                    is_local: row.get::<_, Option<i64>>(13).unwrap_or(Some(0)).unwrap_or(0) != 0,
                 })
             })?;
 
@@ -701,7 +763,8 @@ impl Database {
         stats.total_tokens = stats.total_prompt_tokens + stats.total_completion_tokens;
 
         let mut rec_stmt = conn.prepare(
-            "SELECT id, timestamp, provider, model, prompt_tokens, completion_tokens, cached_tokens, status
+            "SELECT id, timestamp, provider, model, prompt_tokens, completion_tokens, cached_tokens, status,
+                    request_id, session_id, agent_role, cache_creation_tokens, cache_read_tokens, is_local
              FROM usage_history ORDER BY id DESC LIMIT 20",
         )?;
         let rec_rows = rec_stmt.query_map(params![], |row| {
@@ -714,6 +777,12 @@ impl Database {
                 completion_tokens: row.get(5)?,
                 cached_tokens: row.get(6)?,
                 status: row.get(7)?,
+                request_id: row.get(8)?,
+                session_id: row.get(9)?,
+                agent_role: row.get(10)?,
+                cache_creation_tokens: row.get(11)?,
+                cache_read_tokens: row.get(12)?,
+                is_local: row.get::<_, Option<i64>>(13).unwrap_or(Some(0)).unwrap_or(0) != 0,
             })
         })?;
 
@@ -1040,11 +1109,57 @@ mod tests {
     fn test_sqlite_usage_tracking_and_analytics() {
         let db = Database::new_in_memory().expect("Failed to create in-memory db");
 
-        // Record 2 usage entries
-        db.record_token_usage("gemini", "gemini-2.5-flash", 800, 150, 50, "ok")
-            .expect("Failed to record usage 1");
-        db.record_token_usage("ollama", "lfm3:1.7b", 400, 80, 0, "ok")
-            .expect("Failed to record usage 2");
+        // Record usage 1 with request_id
+        let req_id = "req-uuid-1234";
+        db.record_token_usage(
+            "gemini",
+            "gemini-2.5-flash",
+            800,
+            150,
+            50,
+            "ok",
+            Some(req_id),
+            Some("session-1"),
+            Some("Chatbot"),
+            Some(10),
+            Some(40),
+            false,
+        )
+        .expect("Failed to record usage 1");
+
+        // Duplicate call with same request_id should be idempotent and ignored
+        db.record_token_usage(
+            "gemini",
+            "gemini-2.5-flash",
+            800,
+            150,
+            50,
+            "ok",
+            Some(req_id),
+            Some("session-1"),
+            Some("Chatbot"),
+            Some(10),
+            Some(40),
+            false,
+        )
+        .expect("Failed to record usage duplicate");
+
+        // Record usage 2 with different request_id
+        db.record_token_usage(
+            "ollama",
+            "lfm3:1.7b",
+            400,
+            80,
+            0,
+            "ok",
+            Some("req-uuid-5678"),
+            Some("session-2"),
+            Some("Lead Architect"),
+            None,
+            None,
+            true,
+        )
+        .expect("Failed to record usage 2");
 
         let stats_today = db.get_usage_statistics("today").expect("Failed to get today stats");
         assert_eq!(stats_today.total_requests, 2);
@@ -1055,6 +1170,16 @@ mod tests {
         assert_eq!(stats_today.recent_requests.len(), 2);
         assert!(stats_today.by_provider.contains_key("gemini"));
         assert!(stats_today.by_provider.contains_key("ollama"));
+
+        let rec_gemini = stats_today.recent_requests.iter().find(|r| r.provider == "gemini").unwrap();
+        assert_eq!(rec_gemini.request_id.as_deref(), Some("req-uuid-1234"));
+        assert_eq!(rec_gemini.agent_role.as_deref(), Some("Chatbot"));
+        assert!(!rec_gemini.is_local);
+
+        let rec_ollama = stats_today.recent_requests.iter().find(|r| r.provider == "ollama").unwrap();
+        assert_eq!(rec_ollama.request_id.as_deref(), Some("req-uuid-5678"));
+        assert_eq!(rec_ollama.agent_role.as_deref(), Some("Lead Architect"));
+        assert!(rec_ollama.is_local);
 
         let chart_points = db.get_usage_chart_points("7d").expect("Failed to get chart points");
         assert_eq!(chart_points.len(), 7);

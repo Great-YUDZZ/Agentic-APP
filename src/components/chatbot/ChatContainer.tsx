@@ -43,6 +43,13 @@ import { getConversationWidthClass } from '../../utils/layout';
 import { FormattedMessage } from '../common/FormattedMessage';
 import { UserMessageBubble } from '../common/UserMessageBubble';
 import { AgentMascot } from '../mascot/AgentMascot';
+import {
+  extractStreamUsage,
+  estimatePayloadTokens,
+  estimateOutputTokens,
+  recordUnifiedTokenUsage,
+  generateRequestId,
+} from '../../utils/tokenTracker';
 
 export const ChatContainer: React.FC = () => {
   const {
@@ -619,11 +626,13 @@ export const ChatContainer: React.FC = () => {
         });
       }
 
-      const requestPayload = {
+      const currentRequestId = generateRequestId();
+      const requestPayload: Record<string, unknown> = {
         model: selectedModel,
         messages: messagesForApi,
         stream: true,
         temperature: 0.7,
+        stream_options: { include_usage: true },
       };
 
       const abortController = new AbortController();
@@ -737,6 +746,8 @@ export const ChatContainer: React.FC = () => {
       let streamPromptTokens = 0;
       let streamCompletionTokens = 0;
       let streamCachedTokens = 0;
+      let streamCacheCreationTokens = 0;
+      let streamCacheReadTokens = 0;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -764,11 +775,13 @@ export const ChatContainer: React.FC = () => {
 
           try {
             const parsed = parseRobustJson(dataStr);
-            if (parsed?.usage) {
-              if (parsed.usage.prompt_tokens) streamPromptTokens = parsed.usage.prompt_tokens;
-              if (parsed.usage.completion_tokens) streamCompletionTokens = parsed.usage.completion_tokens;
-              const cached = parsed.usage.cached_tokens || parsed.usage.prompt_tokens_details?.cached_tokens || 0;
-              if (cached) streamCachedTokens = cached;
+            const extracted = extractStreamUsage(parsed);
+            if (extracted) {
+              if (extracted.promptTokens !== undefined) streamPromptTokens = extracted.promptTokens;
+              if (extracted.completionTokens !== undefined) streamCompletionTokens = extracted.completionTokens;
+              if (extracted.cachedTokens !== undefined) streamCachedTokens = extracted.cachedTokens;
+              if (extracted.cacheCreationTokens !== undefined) streamCacheCreationTokens = extracted.cacheCreationTokens;
+              if (extracted.cacheReadTokens !== undefined) streamCacheReadTokens = extracted.cacheReadTokens;
             }
 
             const delta = parsed?.choices?.[0]?.delta;
@@ -794,7 +807,7 @@ export const ChatContainer: React.FC = () => {
                         content: accumulatedContent,
                         reasoning: accumulatedReasoning,
                         token_count: Math.ceil(
-                          (accumulatedContent.length + accumulatedReasoning.length) / 4
+                          (accumulatedContent.length + accumulatedReasoning.length) / 3.5
                         ),
                       }
                     : m
@@ -842,23 +855,29 @@ export const ChatContainer: React.FC = () => {
         }));
       }
 
-      // Rekam konsumsi token ke database analitik
-      const finalPromptTokens = streamPromptTokens || Math.ceil((fullPrompt.length || 0) / 4) || 10;
-      const finalCompletionTokens = streamCompletionTokens || Math.ceil((accumulatedContent.length + accumulatedReasoning.length) / 4) || 1;
+      // Rekam konsumsi token ke database analitik dengan ground truth atau estimasi full payload
+      const fallbackPromptTokens = estimatePayloadTokens({
+        messages: messagesForApi as any,
+        extraContext: finalPromptForContext,
+      });
+      const finalPromptTokens = streamPromptTokens || fallbackPromptTokens;
+      const finalCompletionTokens = streamCompletionTokens || estimateOutputTokens(accumulatedContent + accumulatedReasoning);
       const finalCachedTokens = streamCachedTokens;
 
-      if (isTauri) {
-        import('@tauri-apps/api/core').then(({ invoke }) => {
-          invoke('record_token_usage', {
-            provider: endpointConfig.provider || 'unknown',
-            model: selectedModel,
-            promptTokens: finalPromptTokens,
-            completionTokens: finalCompletionTokens,
-            cachedTokens: finalCachedTokens,
-            status: 'ok',
-          }).catch((e) => console.warn('Gagal mencatat pemakaian token:', e));
-        }).catch(() => {});
-      }
+      recordUnifiedTokenUsage({
+        provider: endpointConfig.provider || 'unknown',
+        model: selectedModel,
+        promptTokens: finalPromptTokens,
+        completionTokens: finalCompletionTokens,
+        cachedTokens: finalCachedTokens,
+        cacheCreationTokens: streamCacheCreationTokens,
+        cacheReadTokens: streamCacheReadTokens,
+        requestId: currentRequestId,
+        sessionId: activeSessionId || undefined,
+        agentRole: 'Chatbot',
+        isLocal,
+        status: 'ok',
+      }).catch((e) => console.warn('Gagal mencatat pemakaian token:', e));
     } catch (err: unknown) {
       if (abortControllerRef.current?.signal.aborted || (err instanceof Error && err.name === 'AbortError')) {
         hasError = false;

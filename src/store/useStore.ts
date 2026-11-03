@@ -68,6 +68,13 @@ import {
 } from '../utils/api';
 import { extractCodeReviewItems } from '../utils/codeExtractor';
 import { AGENT_AVAILABLE_TOOLS, isPathExternal, convertMcpToolToDefinition } from '../utils/tools';
+import {
+  extractStreamUsage,
+  estimatePayloadTokens,
+  estimateOutputTokens,
+  recordUnifiedTokenUsage,
+  generateRequestId,
+} from '../utils/tokenTracker';
 
 export const BUILTIN_LEAD_ORCHESTRATOR = {
   id: 'builtin-lead-orchestrator',
@@ -1730,6 +1737,36 @@ ATURAN KOMUNIKASI & EKSEKUSI TOOL:
         const toolCalls = choice.tool_calls;
         const msgContent = choice.content || '';
 
+        // Rekam penggunaan token pada turn subagent ini
+        const stepRequestId = generateRequestId();
+        const extracted = extractStreamUsage(data);
+        const fallbackPrompt = estimatePayloadTokens({
+          messages: messagesHistory,
+          tools: combinedTools,
+        });
+        const turnPromptTokens = extracted?.promptTokens || fallbackPrompt;
+        const turnCompletionTokens =
+          extracted?.completionTokens ||
+          estimateOutputTokens(
+            msgContent + (choice.reasoning_content || choice.thought || choice.thinking || '')
+          );
+        const turnCachedTokens = extracted?.cachedTokens || 0;
+
+        recordUnifiedTokenUsage({
+          provider: endpointConfig.provider || 'unknown',
+          model,
+          promptTokens: turnPromptTokens,
+          completionTokens: turnCompletionTokens,
+          cachedTokens: turnCachedTokens,
+          cacheCreationTokens: extracted?.cacheCreationTokens,
+          cacheReadTokens: extracted?.cacheReadTokens,
+          requestId: stepRequestId,
+          sessionId: session.id,
+          agentRole: currentAgent.name || currentAgent.role || 'Squad Agent',
+          isLocal: model.startsWith('lfm3') || model.startsWith('ollama') || model.includes(':1.7b'),
+          status: 'ok',
+        }).catch((e) => console.warn('Gagal mencatat pemakaian token squad agent:', e));
+
         if (!toolCalls || toolCalls.length === 0) {
           finalContent = msgContent || `${currentAgent.name} telah menyelesaikan gilirannya.`;
           break;
@@ -2313,6 +2350,35 @@ Penting: Di akhir balasan, sertakan blok kode JSON valid seperti format berikut 
           const rawText = await res.text();
           const json = parseRobustJson<any>(rawText);
           replyContent = json.choices?.[0]?.message?.content || '';
+
+          // Rekam konsumsi token Lead Architect
+          const planRequestId = generateRequestId();
+          const extracted = extractStreamUsage(json);
+          const fallbackPrompt = estimatePayloadTokens({
+            systemPrompt,
+            messages: updatedPlanningMessages.slice(-6).map((m) => ({
+              role: m.agent_id === 'operator' ? 'user' : 'assistant',
+              content: m.content,
+            })),
+          });
+          const planPromptTokens = extracted?.promptTokens || fallbackPrompt;
+          const planCompletionTokens =
+            extracted?.completionTokens || estimateOutputTokens(replyContent);
+
+          recordUnifiedTokenUsage({
+            provider: endpointConfig.provider || 'unknown',
+            model,
+            promptTokens: planPromptTokens,
+            completionTokens: planCompletionTokens,
+            cachedTokens: extracted?.cachedTokens || 0,
+            cacheCreationTokens: extracted?.cacheCreationTokens,
+            cacheReadTokens: extracted?.cacheReadTokens,
+            requestId: planRequestId,
+            sessionId: targetSessionId,
+            agentRole: 'Lead Architect',
+            isLocal: model.startsWith('lfm3') || model.startsWith('ollama') || model.includes(':1.7b'),
+            status: 'ok',
+          }).catch((e) => console.warn('Gagal mencatat pemakaian token Lead Architect:', e));
 
           const jsonMatch = replyContent.match(/```json\s*([\s\S]*?)\s*```/);
           if (jsonMatch && jsonMatch[1]) {
