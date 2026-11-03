@@ -4,6 +4,19 @@ Semua perubahan penting pada proyek Autonomous AI Native Hub dicatat dalam dokum
 
 ---
 
+## [v0.4.5] - 2026-11-03
+
+### Perbaikan Tampilan & Retensi Scroll Pengaturan
+- **Perbaikan Retensi Posisi Scroll Tab Pengaturan (Scroll Reset & Remount)**:
+  - Menyelesaikan masalah visual di mana konten bagian atas terpotong atau terdorong ke atas saat berpindah antar-tab di menu Pengaturan.
+  - Menambahkan pengaturan ulang posisi scroll otomatis (`scrollTop = 0`) melalui ref kontainer setiap kali tab utama atau sub-tab model berganti.
+  - Menerapkan kunci dinamis React (`key`) pada kontainer scroll agar komponen melakukan remounting bersih, memaksa engine WebKitGTK merender ulang seluruh layout kanvas tanpa menyisakan ruang kosong hitam.
+  - Menetapkan warna latar belakang kanvas eksplisit (`bg-[#212121]`) pada kontainer scroll untuk mencegah tembus pandang kontras saat tema OLED aktif.
+- **Sinkronisasi Versi Rilis Lengkap**:
+  - Memperbarui seluruh konfigurasi paket instalasi, metadata Tauri, fallback UI, serta tautan rilis ke versi resmi v0.4.5.
+
+---
+
 ## [v0.4.3] - 2026-11-03
 
 ### Perbaikan & Penyesuaian Dinamis
