@@ -62,9 +62,10 @@ fi
 # 7. Siapkan paket portabel .zip
 echo "7. Membuat arsip portabel .zip..."
 BIN_SOURCE="$CACHE_TARGET/release/agentic_native_hub"
+APP_VERSION=$(node -p "require('$SRC_DIR/package.json').version")
 if [ -f "$BIN_SOURCE" ]; then
     TEMP_ZIP_DIR=$(mktemp -d -t agentic-zip-XXXXXX)
-    PACKAGE_ROOT="$TEMP_ZIP_DIR/agentic-native-hub-v0.2.3-linux-x86_64"
+    PACKAGE_ROOT="$TEMP_ZIP_DIR/agentic-native-hub-v${APP_VERSION}-linux-x86_64"
     mkdir -p "$PACKAGE_ROOT"
 
     cp "$BIN_SOURCE" "$PACKAGE_ROOT/agentic-native-hub"
@@ -79,8 +80,8 @@ exec "$SCRIPT_DIR/agentic-native-hub" "$@"
 EOF
     chmod +x "$PACKAGE_ROOT/run.sh"
 
-    cat << 'EOF' > "$PACKAGE_ROOT/README.txt"
-Agentic Native Hub - Portable Release (v0.2.3)
+    cat << EOF > "$PACKAGE_ROOT/README.txt"
+Agentic Native Hub - Portable Release (v${APP_VERSION})
 ==============================================
 
 Cara Menjalankan:
@@ -97,8 +98,8 @@ Integrasi Desktop Menu (Opsional):
 EOF
 
     cd "$TEMP_ZIP_DIR"
-    ZIP_NAME="agentic-native-hub-v0.2.3-linux-x86_64.zip"
-    zip -r "$ZIP_NAME" "agentic-native-hub-v0.2.3-linux-x86_64"
+    ZIP_NAME="agentic-native-hub-v${APP_VERSION}-linux-x86_64.zip"
+    zip -r "$ZIP_NAME" "agentic-native-hub-v${APP_VERSION}-linux-x86_64"
 
     cp "$ZIP_NAME" "$RELEASE_DIR/"
     cp "$ZIP_NAME" "$MIRROR_RELEASE_DIR/"
