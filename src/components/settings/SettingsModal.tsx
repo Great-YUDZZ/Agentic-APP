@@ -41,6 +41,7 @@ import { LocalModelsManager } from './LocalModelsManager';
 import { getOfflineSpeechStatus, triggerVoiceModelDownload, OfflineSpeechStatus } from '../../utils/audioRecorder';
 import { ttsManager } from '../../utils/textToSpeech';
 import { checkUpdateManually } from '../../utils/updater';
+import { getVersion } from '@tauri-apps/api/app';
 
 interface StandardProviderConfig {
   id: string;
@@ -163,6 +164,19 @@ export const SettingsModal: React.FC = () => {
   const [testingStatus, setTestingStatus] = useState<Record<string, 'testing' | 'success' | 'failed'>>({});
   const [latencies, setLatencies] = useState<Record<string, number>>({});
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [appVersion, setAppVersion] = useState<string>(
+    typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.4.3'
+  );
+
+  useEffect(() => {
+    getVersion()
+      .then((ver) => {
+        if (ver) setAppVersion(ver);
+      })
+      .catch(() => {
+        // Fallback default is already set
+      });
+  }, []);
 
   useEffect(() => {
     const kMap: Record<string, string> = {};
@@ -1156,7 +1170,7 @@ export const SettingsModal: React.FC = () => {
                     <div>
                       <div className="text-sm font-medium text-[#ececec]">App Version</div>
                       <div className="text-xs font-mono text-[#b4b4b4] mt-0.5">
-                        v0.3.5
+                        v{appVersion}
                       </div>
                     </div>
                     <button
@@ -1171,7 +1185,7 @@ export const SettingsModal: React.FC = () => {
                         } else if (result.error) {
                           addToast('error', `Gagal memeriksa pembaruan: ${result.error}`);
                         } else {
-                          addToast('info', 'Aplikasi sudah dalam versi terbaru (v0.3.5).');
+                          addToast('info', `Aplikasi sudah dalam versi terbaru (v${appVersion}).`);
                         }
                       }}
                       className="px-3.5 py-1.5 rounded-xl bg-[#212121] hover:bg-[#303030] border border-[#383838] text-xs font-medium text-[#ececec] transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer"

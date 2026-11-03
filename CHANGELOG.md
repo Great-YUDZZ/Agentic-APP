@@ -4,6 +4,16 @@ Semua perubahan penting pada proyek Autonomous AI Native Hub dicatat dalam dokum
 
 ---
 
+## [v0.4.3] - 2026-11-03
+
+### Perbaikan & Penyesuaian Dinamis
+- **Pembacaan Versi Aplikasi Dinamis (Dynamic App Version)**:
+  - Menggantikan string statis pada menu Pengaturan (sub-menu Application) dengan pemanggilan dinamis API resmi Tauri `getVersion()`.
+  - Mengintegrasikan konstanta kompilasi `__APP_VERSION__` melalui Vite define dari `package.json` untuk inisialisasi instan sebelum pemanggilan asinkron selesai.
+  - Memastikan teks versi dan notifikasi pengecekan pembaruan selalu akurat dan sinkron otomatis dengan versi rilis aplikasi tanpa risiko kelupaan edit manual.
+
+---
+
 ## [v0.4.2] - 2026-11-03
 
 ### Peningkatan & Pengaturan Model Lokal

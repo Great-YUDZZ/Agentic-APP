@@ -16,23 +16,23 @@
 
 ---
 
-## Unduh dan Rilis Siap Pakai (v0.4.2)
+## Unduh dan Rilis Siap Pakai (v0.4.3)
 
 Paket instalasi dan berkas binari mandiri untuk Linux dan Windows tersedia secara langsung pada rilis resmi. Anda dapat mengunduh berkas yang sesuai dengan sistem operasi yang digunakan:
 
 | Sistem Operasi | Tipe Berkas | Deskripsi | Tautan Unduh |
 | :--- | :--- | :--- | :--- |
-| **Linux (Debian/Ubuntu/Mint)** | `.deb` | Paket instalasi native berbasis Debian (6.5 MB) | [Unduh .deb](https://github.com/Great-YUDZZ/Agentic-APP/releases/download/v0.4.2/Agentic.Native.Hub_0.4.2_amd64.deb) |
-| **Linux (Universal Portable)** | `.AppImage` | Berkas mandiri tanpa perlu instalasi, langsung jalan (84.6 MB) | [Unduh .AppImage](https://github.com/Great-YUDZZ/Agentic-APP/releases/download/v0.4.2/Agentic.Native.Hub_0.4.2_amd64.AppImage) |
-| **Windows (x64)** | `.exe` | Installer wizard mandiri berbasis NSIS (4.7 MB) | [Unduh .exe](https://github.com/Great-YUDZZ/Agentic-APP/releases/download/v0.4.2/Agentic.Native.Hub_0.4.2_x64-setup.exe) |
-| **Semua Platform** | GitHub Releases | Halaman daftar rilis lengkap dengan catatan versi | [Buka Rilis v0.4.2](https://github.com/Great-YUDZZ/Agentic-APP/releases/tag/v0.4.2) |
+| **Linux (Debian/Ubuntu/Mint)** | `.deb` | Paket instalasi native berbasis Debian (6.5 MB) | [Unduh .deb](https://github.com/Great-YUDZZ/Agentic-APP/releases/download/v0.4.3/Agentic.Native.Hub_0.4.3_amd64.deb) |
+| **Linux (Universal Portable)** | `.AppImage` | Berkas mandiri tanpa perlu instalasi, langsung jalan (84.6 MB) | [Unduh .AppImage](https://github.com/Great-YUDZZ/Agentic-APP/releases/download/v0.4.3/Agentic.Native.Hub_0.4.3_amd64.AppImage) |
+| **Windows (x64)** | `.exe` | Installer wizard mandiri berbasis NSIS (4.7 MB) | [Unduh .exe](https://github.com/Great-YUDZZ/Agentic-APP/releases/download/v0.4.3/Agentic.Native.Hub_0.4.3_x64-setup.exe) |
+| **Semua Platform** | GitHub Releases | Halaman daftar rilis lengkap dengan catatan versi | [Buka Rilis v0.4.3](https://github.com/Great-YUDZZ/Agentic-APP/releases/tag/v0.4.3) |
 
 ### Petunjuk Instalasi dan Menjalankan
 
 #### 1. Linux Debian / Ubuntu / Mint (.deb)
 ```bash
 # Instal paket deb menggunakan dpkg
-sudo dpkg -i Agentic.Native.Hub_0.4.2_amd64.deb
+sudo dpkg -i Agentic.Native.Hub_0.4.3_amd64.deb
 
 # Jika ada dependensi sistem yang belum terpenuhi, perbaiki dengan perintah berikut:
 sudo apt-get install -f
@@ -41,14 +41,14 @@ sudo apt-get install -f
 #### 2. Linux AppImage (Portabel Universal)
 ```bash
 # Berikan izin eksekusi pada berkas AppImage
-chmod +x Agentic.Native.Hub_0.4.2_amd64.AppImage
+chmod +x Agentic.Native.Hub_0.4.3_amd64.AppImage
 
 # Jalankan aplikasi langsung
-./Agentic.Native.Hub_0.4.2_amd64.AppImage
+./Agentic.Native.Hub_0.4.3_amd64.AppImage
 ```
 
 #### 3. Windows Installer (.exe)
-Unduh berkas `Agentic.Native.Hub_0.4.2_x64-setup.exe`, klik dua kali untuk membuka wizard instalasi, lalu ikuti petunjuk pemasangan hingga selesai.
+Unduh berkas `Agentic.Native.Hub_0.4.3_x64-setup.exe`, klik dua kali untuk membuka wizard instalasi, lalu ikuti petunjuk pemasangan hingga selesai.
 
 ### Verifikasi Integritas Berkas (SHA-256)
 
