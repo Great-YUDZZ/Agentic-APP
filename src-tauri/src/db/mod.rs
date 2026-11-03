@@ -1,3 +1,4 @@
+use chrono::Datelike;
 use rusqlite::{params, Connection, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -128,6 +129,41 @@ pub struct UsageChartPoint {
     pub cached_tokens: i64,
     pub requests: i64,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HeatmapDay {
+    pub date: String,
+    pub tokens: i64,
+    pub requests: i64,
+    pub level: u8,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TeammateUsage {
+    pub name: String,
+    pub role: String,
+    pub tokens: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ActivityHeatmapResult {
+    pub days: Vec<HeatmapDay>,
+    pub total_tokens_year: i64,
+    pub total_requests_year: i64,
+    pub active_days_count: i64,
+    pub peak_day_date: Option<String>,
+    pub peak_day_tokens: i64,
+    pub current_streak_days: i64,
+    pub current_streak_start: Option<String>,
+    pub longest_streak_days: i64,
+    pub longest_streak_start: Option<String>,
+    pub longest_streak_end: Option<String>,
+    pub top_provider: Option<(String, f64)>,
+    pub top_model: Option<String>,
+    pub busiest_day_of_week: Option<String>,
+    pub teammates: Vec<TeammateUsage>,
+}
+
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DailyRollupData {
@@ -955,6 +991,251 @@ impl Database {
             Ok(result)
         }
     }
+
+    pub fn get_activity_heatmap_data(&self) -> Result<ActivityHeatmapResult> {
+        let conn = self.conn.lock().unwrap();
+        let today_local = chrono::Local::now().date_naive();
+
+        let mut day_keys: Vec<String> = Vec::with_capacity(365);
+        let mut day_date_map: HashMap<String, (i64, i64, chrono::NaiveDate)> = HashMap::with_capacity(365);
+
+        for i in (0..365).rev() {
+            let d = today_local - chrono::Duration::days(i);
+            let key = d.format("%Y-%m-%d").to_string();
+            day_keys.push(key.clone());
+            day_date_map.insert(key, (0, 0, d));
+        }
+
+        let oldest_date = day_keys.first().cloned().unwrap_or_default();
+
+        let mut stmt = conn.prepare(
+            "SELECT date_key, data FROM usage_daily WHERE date_key >= ?1 ORDER BY date_key ASC",
+        )?;
+        let rows = stmt.query_map(params![oldest_date], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?;
+
+        let mut provider_totals: HashMap<String, i64> = HashMap::new();
+        let mut model_totals: HashMap<String, i64> = HashMap::new();
+        let mut weekday_totals: [i64; 7] = [0; 7];
+
+        for r in rows {
+            if let Ok((date_key, json_str)) = r {
+                if let Ok(day) = serde_json::from_str::<DailyRollupData>(&json_str) {
+                    let total_tok = day.prompt_tokens + day.completion_tokens;
+                    if let Some(entry) = day_date_map.get_mut(&date_key) {
+                        entry.0 = total_tok;
+                        entry.1 = day.requests;
+
+                        let w_idx = entry.2.weekday().num_days_from_monday() as usize;
+                        if w_idx < 7 {
+                            weekday_totals[w_idx] += total_tok;
+                        }
+                    }
+
+                    for (prov, p_data) in day.by_provider {
+                        *provider_totals.entry(prov).or_default() += p_data.total_tokens;
+                    }
+                    for (model, m_data) in day.by_model {
+                        let raw_model = if m_data.raw_model.is_empty() {
+                            model.split('|').next().unwrap_or(&model).to_string()
+                        } else {
+                            m_data.raw_model
+                        };
+                        *model_totals.entry(raw_model).or_default() += m_data.total_tokens;
+                    }
+                }
+            }
+        }
+
+        let mut non_zero_tokens: Vec<i64> = day_keys
+            .iter()
+            .filter_map(|k| {
+                let tok = day_date_map.get(k).map(|(t, _, _)| *t).unwrap_or(0);
+                if tok > 0 { Some(tok) } else { None }
+            })
+            .collect();
+        non_zero_tokens.sort_unstable();
+
+        let (q1, q2, q3) = if non_zero_tokens.is_empty() {
+            (0, 0, 0)
+        } else {
+            let n = non_zero_tokens.len();
+            let q1_val = non_zero_tokens[n / 4];
+            let q2_val = non_zero_tokens[n / 2];
+            let q3_val = non_zero_tokens[(3 * n) / 4];
+            (q1_val, q2_val, q3_val)
+        };
+
+        let mut heatmap_days: Vec<HeatmapDay> = Vec::with_capacity(365);
+        let mut total_tokens_year: i64 = 0;
+        let mut total_requests_year: i64 = 0;
+        let mut active_days_count: i64 = 0;
+        let mut peak_day_date: Option<String> = None;
+        let mut peak_day_tokens: i64 = 0;
+
+        for k in &day_keys {
+            let (tokens, reqs, _) = day_date_map.get(k).cloned().unwrap_or((0, 0, today_local));
+            total_tokens_year += tokens;
+            total_requests_year += reqs;
+            if tokens > 0 {
+                active_days_count += 1;
+                if tokens > peak_day_tokens {
+                    peak_day_tokens = tokens;
+                    peak_day_date = Some(k.clone());
+                }
+            }
+
+            let level = if tokens == 0 {
+                0
+            } else if non_zero_tokens.len() <= 4 {
+                if tokens == peak_day_tokens {
+                    4
+                } else if tokens > q2 {
+                    3
+                } else if tokens > q1 {
+                    2
+                } else {
+                    1
+                }
+            } else if tokens <= q1 {
+                1
+            } else if tokens <= q2 {
+                2
+            } else if tokens <= q3 {
+                3
+            } else {
+                4
+            };
+
+            heatmap_days.push(HeatmapDay {
+                date: k.clone(),
+                tokens,
+                requests: reqs,
+                level,
+            });
+        }
+
+        let mut longest_streak_days: i64 = 0;
+        let mut longest_streak_start: Option<String> = None;
+        let mut longest_streak_end: Option<String> = None;
+
+        let mut curr_streak_len: i64 = 0;
+        let mut curr_streak_start: Option<String> = None;
+
+        for day in &heatmap_days {
+            if day.tokens > 0 {
+                if curr_streak_len == 0 {
+                    curr_streak_start = Some(day.date.clone());
+                }
+                curr_streak_len += 1;
+                if curr_streak_len > longest_streak_days {
+                    longest_streak_days = curr_streak_len;
+                    longest_streak_start = curr_streak_start.clone();
+                    longest_streak_end = Some(day.date.clone());
+                }
+            } else {
+                curr_streak_len = 0;
+                curr_streak_start = None;
+            }
+        }
+
+        let mut current_streak_days: i64 = 0;
+        let mut current_streak_start: Option<String> = None;
+
+        let today_idx = heatmap_days.len().saturating_sub(1);
+        let start_scan_idx = if heatmap_days.get(today_idx).map(|d| d.tokens > 0).unwrap_or(false) {
+            Some(today_idx)
+        } else if today_idx > 0 && heatmap_days.get(today_idx - 1).map(|d| d.tokens > 0).unwrap_or(false) {
+            Some(today_idx - 1)
+        } else {
+            None
+        };
+
+        if let Some(mut idx) = start_scan_idx {
+            loop {
+                if heatmap_days[idx].tokens > 0 {
+                    current_streak_days += 1;
+                    current_streak_start = Some(heatmap_days[idx].date.clone());
+                    if idx == 0 {
+                        break;
+                    }
+                    idx -= 1;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        let top_provider = provider_totals
+            .into_iter()
+            .max_by_key(|(_, tok)| *tok)
+            .map(|(p, tok)| {
+                let pct = if total_tokens_year > 0 {
+                    (tok as f64 / total_tokens_year as f64) * 100.0
+                } else {
+                    0.0
+                };
+                (p, (pct * 10.0).round() / 10.0)
+            });
+
+        let top_model = model_totals
+            .into_iter()
+            .max_by_key(|(_, tok)| *tok)
+            .map(|(m, _)| m);
+
+        let weekday_names = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
+        let busiest_day_of_week = weekday_totals
+            .iter()
+            .enumerate()
+            .max_by_key(|(_, &tok)| tok)
+            .filter(|(_, &tok)| tok > 0)
+            .map(|(idx, _)| weekday_names[idx].to_string());
+
+        let mut teammate_stmt = conn.prepare(
+            "SELECT COALESCE(agent_role, 'Chatbot') as role, SUM(prompt_tokens + completion_tokens) as total
+             FROM usage_history
+             WHERE timestamp >= ?1
+             GROUP BY role
+             ORDER BY total DESC",
+        )?;
+
+        let year_ago_iso = format!("{}T00:00:00", oldest_date);
+        let teammate_rows = teammate_stmt.query_map(params![year_ago_iso], |row| {
+            let role: String = row.get(0)?;
+            let tokens: i64 = row.get(1)?;
+            Ok(TeammateUsage {
+                name: role.clone(),
+                role,
+                tokens,
+            })
+        })?;
+
+        let mut teammates = Vec::new();
+        for r in teammate_rows {
+            if let Ok(t) = r {
+                teammates.push(t);
+            }
+        }
+
+        Ok(ActivityHeatmapResult {
+            days: heatmap_days,
+            total_tokens_year,
+            total_requests_year,
+            active_days_count,
+            peak_day_date,
+            peak_day_tokens,
+            current_streak_days,
+            current_streak_start,
+            longest_streak_days,
+            longest_streak_start,
+            longest_streak_end,
+            top_provider,
+            top_model,
+            busiest_day_of_week,
+            teammates,
+        })
+    }
 }
 
 #[cfg(test)]
@@ -1186,5 +1467,20 @@ mod tests {
         let today_point = chart_points.last().unwrap();
         assert_eq!(today_point.requests, 2);
         assert_eq!(today_point.tokens, 1430);
+
+        // Test activity heatmap calculation
+        let heatmap = db.get_activity_heatmap_data().expect("Failed to get activity heatmap data");
+        assert_eq!(heatmap.days.len(), 365);
+        assert_eq!(heatmap.total_tokens_year, 1430);
+        assert_eq!(heatmap.total_requests_year, 2);
+        assert_eq!(heatmap.active_days_count, 1);
+        assert_eq!(heatmap.current_streak_days, 1);
+        assert_eq!(heatmap.longest_streak_days, 1);
+        assert_eq!(heatmap.peak_day_tokens, 1430);
+        assert!(heatmap.peak_day_date.is_some());
+        assert!(heatmap.top_provider.is_some());
+        assert!(heatmap.top_model.is_some());
+        assert_eq!(heatmap.teammates.len(), 2);
     }
 }
+

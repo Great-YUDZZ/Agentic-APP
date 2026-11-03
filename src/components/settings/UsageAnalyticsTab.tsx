@@ -7,7 +7,6 @@ import {
   Layers,
   Clock,
   BarChart3,
-  TrendingUp,
   Cpu,
 } from 'lucide-react';
 import {
@@ -18,6 +17,7 @@ import {
   ProviderUsageSummary,
 } from '../../types';
 import { ProviderLogo } from '../common/ProviderLogos';
+import { ActivityHeatmap } from './ActivityHeatmap';
 
 const PERIODS: { value: UsagePeriod; label: string }[] = [
   { value: 'today', label: 'Today' },
@@ -828,32 +828,8 @@ export function UsageAnalyticsTab() {
             <RecentRequestsCard requests={stats?.recent_requests || []} />
           </div>
 
-          {/* Quick Line Chart Summary */}
-          <div className="p-5 rounded-2xl bg-[#262626] border border-[#383838] space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-[#ececec]" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-[#ececec]">
-                  Aktivitas Token ({period.toUpperCase()})
-                </span>
-              </div>
-              <span className="text-xs font-mono text-[#b4b4b4]">
-                Total: <strong className="text-[#ececec]">{fmtNumber(stats?.total_tokens)}</strong> tokens
-              </span>
-            </div>
-
-            {loading ? (
-              <div className="h-[220px] flex items-center justify-center text-xs text-[#707070]">
-                Memuat grafik tren token...
-              </div>
-            ) : chartData.length === 0 ? (
-              <div className="h-[220px] flex items-center justify-center text-xs text-[#707070]">
-                Tidak ada data aktivitas untuk periode ini.
-              </div>
-            ) : (
-              <TokenUsageSvgChart data={chartData} viewMetric="tokens" />
-            )}
-          </div>
+          {/* Developer Activity Heatmap (GitHub Style) */}
+          <ActivityHeatmap />
         </div>
       )}
 

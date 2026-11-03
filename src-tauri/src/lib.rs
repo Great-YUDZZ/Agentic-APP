@@ -236,6 +236,7 @@ pub fn run() {
             ipc::record_token_usage,
             ipc::get_usage_stats,
             ipc::get_usage_chart,
+            ipc::get_activity_heatmap,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

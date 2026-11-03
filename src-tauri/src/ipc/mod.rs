@@ -2962,6 +2962,17 @@ pub async fn get_usage_chart(
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+pub async fn get_activity_heatmap(
+    state: State<'_, AppState>,
+) -> Result<crate::db::ActivityHeatmapResult, String> {
+    state
+        .db
+        .get_activity_heatmap_data()
+        .map_err(|e| e.to_string())
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;

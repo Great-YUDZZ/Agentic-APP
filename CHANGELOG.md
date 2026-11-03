@@ -4,6 +4,43 @@ Semua perubahan penting pada proyek Autonomous AI Native Hub dicatat dalam dokum
 
 ---
 
+## [v0.4.1] - 2026-11-03
+
+### Fitur Baru
+- **Developer Activity Heatmap & Profile Statistics (GitHub Classic Green)**:
+  - Menggantikan kurva garis ringkasan pada sub-tab Overview di menu Pengaturan (Usage & Analytics) dengan visualisasi kontribusi harian 365 hari bergaya GitHub.
+  - Kisi matriks kontribusi 52 minggu x 7 hari yang responsif dengan palet hijau otentik GitHub (`#21262d`, `#0e4429`, `#006d32`, `#26a641`, `#39d353`), label bulan dinamis, indikator hari dalam seminggu (Sen, Rab, Jum), serta legenda Less hingga More.
+  - Floating hover tooltip yang menyajikan jumlah token, jumlah permintaan, dan tanggal lengkap secara interaktif.
+  - 5 Kartu Statistik Utama di bagian atas:
+    - Total Tokens dalam setahun terakhir (format ringkas rb/jt).
+    - Peak Day (rekor token tertinggi harian beserta tanggal kejadiannya).
+    - Messages (total request dan interaksi percakapan setahun terakhir).
+    - Current Streak (jumlah hari aktif berturut-turut saat ini beserta tanggal mulai).
+    - Longest Streak (rekor rentang hari aktif berturut-turut terpanjang).
+  - Bagian Insights & Most Active Teammates:
+    - Insights: provider paling sering digunakan beserta persentase kontribusinya, model terfavorit, serta hari tersibuk dalam seminggu.
+    - Most active teammates: papan peringkat konsumsi token per peran agen (Chatbot, Lead Architect, Coder Agent, dsb.) dengan badge inisial dan format token bersih.
+- **Overhaul Pelacakan Penggunaan Token Menyeluruh (Unified Token Tracking)**:
+  - Mengatasi keterbatasan penghitung token parsial dengan estimasi payload lengkap yang mencakup system prompt, riwayat percakapan, berkas lampiran, memori kontekstual, dan skema deklarasi tools.
+  - Ekstraksi penggunaan token resmi (*ground truth*) dari objek respon streaming provider (Gemini usageMetadata, OpenAI/Ollama usage).
+  - Skema SQLite `usage_history` diperluas dengan field `request_id`, `session_id`, `agent_role`, `cache_creation_tokens`, `cache_read_tokens`, dan `is_local`.
+  - Penjaminan idempoten pencatatan token via `request_id` untuk mencegah penghitungan ganda saat terjadi retry.
+- **Validasi Kunci API Nyata (Real API Key Ping & Validation)**:
+  - Pengujian koneksi API key tidak lagi mengandalkan ping domain kosong.
+  - Setiap provider (Gemini, OpenAI, Claude, DeepSeek, Groq, Mistral, OpenRouter, Ollama) diverifikasi secara nyata ke endpoint autentikasi resmi masing-masing.
+
+---
+
+## [v0.3.5] - 2026-11-03
+
+### Perbaikan Bug & Peningkatan
+- **Pembersihan Render Markdown AST**:
+  - Penguraian token Markdown komprehensif pada gelembung percakapan (`FormattedMessage.tsx`) untuk mencegah bocornya karakter format mentah.
+- **Penanganan Model Penalaran Lokal (Thinking Models)**:
+  - Penangkapan multi-delta blok penalaran (`thinking` / `reasoning_content`) serta penyelesaian loop berpikir tanpa hang pada model lokal.
+
+---
+
 ## [v0.3.4] - 2026-11-03
 
 ### Perbaikan Bug & Peningkatan Keandalan

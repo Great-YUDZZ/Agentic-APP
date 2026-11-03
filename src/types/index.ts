@@ -702,3 +702,35 @@ export interface UsageChartPoint {
   cached_tokens: number;
   requests: number;
 }
+
+export interface HeatmapDay {
+  date: string;
+  tokens: number;
+  requests: number;
+  level: number;
+}
+
+export interface TeammateUsage {
+  name: string;
+  role: string;
+  tokens: number;
+}
+
+export interface ActivityHeatmapResult {
+  days: HeatmapDay[];
+  total_tokens_year: number;
+  total_requests_year: number;
+  active_days_count: number;
+  peak_day_date: string | null;
+  peak_day_tokens: number;
+  current_streak_days: number;
+  current_streak_start: string | null;
+  longest_streak_days: number;
+  longest_streak_start: string | null;
+  longest_streak_end: string | null;
+  top_provider: [string, number] | null;
+  top_model: string | null;
+  busiest_day_of_week: string | null;
+  teammates: TeammateUsage[];
+}
+
