@@ -33,11 +33,13 @@ export function parseRobustJson<T = any>(rawText: string): T {
         const delta = chunk.choices?.[0]?.delta;
         if (delta) {
           if (delta.content) fullContent += delta.content;
-          if (delta.reasoning_content) fullReasoning += delta.reasoning_content;
+          const r = delta.reasoning_content || delta.reasoning || delta.thought || delta.thinking;
+          if (r) fullReasoning += r;
         } else {
           const msg = chunk.choices?.[0]?.message;
           if (msg?.content) fullContent += msg.content;
-          if (msg?.reasoning_content) fullReasoning += msg.reasoning_content;
+          const r = msg?.reasoning_content || msg?.reasoning || msg?.thought || msg?.thinking;
+          if (r) fullReasoning += r;
         }
       } catch {
         // Skip malformed chunk
@@ -447,7 +449,10 @@ Pedoman Komunikasi dan Bahasa:
    - Dilarang menggunakan em dash (simbol tanda pisah panjang). Gunakan tanda baca biasa seperti koma, titik dua, atau tanda hubung biasa.
    - Dilarang menyisipkan emoji di dalam teks balasan.
 4. Pembuatan Antarmuka (UI/UX) dan Kode:
-   - Jika pengguna meminta pembuatan kode frontend atau desain UI, patuhi prinsip Flat Design minimalis (permukaan solid #212121 / #2f2f2f, border halus 1px #383838, tanpa gradien warna-warni berlebihan, kontras teks #ececec yang jelas, dan React 19 + TypeScript yang bersih).`;
+   - Jika pengguna meminta pembuatan kode frontend atau desain UI, patuhi prinsip Flat Design minimalis (permukaan solid #212121 / #2f2f2f, border halus 1px #383838, tanpa gradien warna-warni berlebihan, kontras teks #ececec yang jelas, dan React 19 + TypeScript yang bersih).
+5. Penyelesaian Penalaran dan Perhitungan (Thinking Models):
+   - Jika Anda memproses soal matematika, logika, atau tugas bertahap, batasi proses penalaran dalam pikiran (internal reasoning) dan segera tuliskan penjelasan langkah demi langkah yang lengkap beserta jawaban akhir secara langsung kepada pengguna.
+   - Dilarang mengulang-ulang proses penalaran dalam pikiran tanpa menuliskan respons teks final kepada pengguna.`;
 
 export const SYSTEM_DESIGN_RULES = CHATBOT_SYSTEM_PROMPT;
 

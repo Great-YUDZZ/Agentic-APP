@@ -415,7 +415,12 @@ ${mcpTools.length > 0 ? `\n2. Anda juga memiliki akses langsung ke perkakas ekst
 
         const toolCalls = choice.tool_calls;
         const msgContent = choice.content || '';
-        const reasoning = choice.reasoning_content || '';
+        const reasoning =
+          choice.reasoning_content ||
+          choice.reasoning ||
+          choice.thought ||
+          choice.thinking ||
+          '';
         if (reasoning) {
           finalReasoning = reasoning;
           setActiveReasoning(reasoning);

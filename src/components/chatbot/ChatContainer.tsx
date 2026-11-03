@@ -773,8 +773,14 @@ export const ChatContainer: React.FC = () => {
 
             const delta = parsed?.choices?.[0]?.delta;
             if (delta) {
-              if (delta.reasoning_content) {
-                accumulatedReasoning += delta.reasoning_content;
+              const reasoningDelta =
+                delta.reasoning_content ||
+                delta.reasoning ||
+                delta.thought ||
+                delta.thinking ||
+                '';
+              if (reasoningDelta) {
+                accumulatedReasoning += reasoningDelta;
               }
               if (delta.content) {
                 accumulatedContent += delta.content;
@@ -807,12 +813,30 @@ export const ChatContainer: React.FC = () => {
         totalLatencyMs,
       });
 
-      if (!accumulatedContent && !accumulatedReasoning) {
-        accumulatedContent = 'Respons selesai tanpa konten tertulis.';
+      if (!accumulatedContent) {
+        if (accumulatedReasoning) {
+          // Cari apakah di dalam penalaran sudah ditemukan jawaban akhir
+          const conclusionMatch = accumulatedReasoning.match(
+            /(?:kesimpulan|hasil akhir|final result|jadi hasilnya|jawaban(?:nya)?(?:\s+adalah)?)\s*[:=]?\s*([^\n\r]+)/i
+          );
+          if (conclusionMatch && conclusionMatch[1]?.trim()) {
+            accumulatedContent = `Berdasarkan langkah perhitungan:\n\n**Hasil:** ${conclusionMatch[1].trim()}\n\n*(Rincian langkah dapat dilihat pada Proses Berpikir Model di atas)*`;
+          } else {
+            accumulatedContent =
+              'Model telah menyelesaikan langkah penalaran pada kotak pemikiran di atas, namun batas token tercapai sebelum menuliskan teks ringkasan akhir. Silakan buka menu "Proses Berpikir Model" di atas untuk melihat detail perhitungannya.';
+          }
+        } else {
+          accumulatedContent = 'Respons selesai tanpa konten tertulis.';
+        }
+
         useStore.setState((state) => ({
           messages: state.messages.map((m) =>
             m.id === assistantMsgId
-              ? { ...m, content: accumulatedContent }
+              ? {
+                  ...m,
+                  content: accumulatedContent,
+                  reasoning: accumulatedReasoning,
+                }
               : m
           ),
         }));
