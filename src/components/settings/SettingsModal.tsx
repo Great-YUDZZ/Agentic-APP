@@ -178,6 +178,14 @@ export const SettingsModal: React.FC = () => {
       });
   }, []);
 
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+  }, [activeSection, activeModelTab]);
+
   useEffect(() => {
     const kMap: Record<string, string> = {};
     const uMap: Record<string, string> = {};
@@ -653,7 +661,11 @@ export const SettingsModal: React.FC = () => {
           </div>
 
           {/* Scrollable Content Body */}
-          <div className="flex-1 overflow-y-auto px-6 sm:px-8 py-6">
+          <div
+            key={`${activeSection}-${activeSection === 'models' ? activeModelTab : ''}`}
+            ref={scrollContainerRef}
+            className="flex-1 overflow-y-auto px-6 sm:px-8 py-6 bg-[#212121]"
+          >
             <div className="w-full max-w-4xl xl:max-w-5xl mx-auto space-y-6">
               {/* 1. GENERAL TAB */}
               {activeSection === 'general' && (
