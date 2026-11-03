@@ -88,7 +88,7 @@ export const App: React.FC = () => {
   }, [loadApiKeysFromDb, loadSessionsFromDb, fetchMcpServers, fetchMcpTools, refreshWorktrees, initHookTelemetryListener]);
 
   return (
-    <ErrorBoundary fallbackTitle="Agentic Native Hub Workspace Error">
+    <ErrorBoundary fallbackTitle="Nodra Workspace Error">
       <div className="h-screen w-screen flex bg-[#212121] text-[#ececec] font-sans overflow-hidden">
         {/* Full-Height Modern Sidebar on the Left */}
         <Sidebar />

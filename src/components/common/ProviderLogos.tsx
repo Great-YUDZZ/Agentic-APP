@@ -7,7 +7,7 @@ export interface ProviderLogoProps {
 }
 
 /**
- * Logo Resmi Vektor SVG untuk Provider AI & Hub
+ * Logo Resmi Vektor SVG untuk Provider AI, Local Runner & Hub
  * Didesain presisi, tajam, dan selaras dengan tema gelap solid.
  */
 export const ProviderLogo: React.FC<ProviderLogoProps> = ({
@@ -28,7 +28,7 @@ export const ProviderLogo: React.FC<ProviderLogoProps> = ({
         className={className}
         aria-label="Google Gemini"
       >
-        <path d="M12 24C12 17.3726 6.62742 12 0 12C6.62742 12 12 6.62742 12 0C12 6.62742 17.3726 12 24 12C17.3726 12 12 17.3726 12 24Z" />
+        <path d="M11.04 1.48C11.38.7 12.62.7 12.96 1.48l1.77 4.09a10.93 10.93 0 0 0 5.7 5.7l4.09 1.77c.78.34.78 1.58 0 1.92l-4.09 1.77a10.93 10.93 0 0 0-5.7 5.7l-1.77 4.09c-.34.78-1.58.78-1.92 0l-1.77-4.09a10.93 10.93 0 0 0-5.7-5.7L1.48 14.96c-.78-.34-.78-1.58 0-1.92l4.09-1.77a10.93 10.93 0 0 0 5.7-5.7l1.77-4.09z" />
       </svg>
     );
   }
@@ -44,7 +44,7 @@ export const ProviderLogo: React.FC<ProviderLogoProps> = ({
         className={className}
         aria-label="Anthropic Claude"
       >
-        <path d="M13.8 2.5a1.2 1.2 0 0 0-1.8 0L9.8 4.7a1.2 1.2 0 0 1-1.3.2L5.8 3.8a1.2 1.2 0 0 0-1.5 1.1L4.1 7.7a1.2 1.2 0 0 1-.7 1.1L1 10.3a1.2 1.2 0 0 0-.5 1.7l1.7 2.4a1.2 1.2 0 0 1 .1 1.3L1.2 18a1.2 1.2 0 0 0 .9 1.6l2.8.7a1.2 1.2 0 0 1 1 .9l.9 2.8a1.2 1.2 0 0 0 1.6.8l2.6-1.3a1.2 1.2 0 0 1 1.3.1l2.4 1.7a1.2 1.2 0 0 0 1.7-.5l1.5-2.5a1.2 1.2 0 0 1 1.1-.7l2.8-.2a1.2 1.2 0 0 0 1.1-1.5l-1.1-2.7a1.2 1.2 0 0 1 .2-1.3l2.2-2.2a1.2 1.2 0 0 0 0-1.8l-2.2-2.2a1.2 1.2 0 0 1-.2-1.3l1.1-2.7a1.2 1.2 0 0 0-1.1-1.5l-2.8-.2a1.2 1.2 0 0 1-1.1-.7l-1.5-2.5z" />
+        <path d="M4.7 12.7c-.5 0-.9-.3-1-.8-.1-.6.2-1.1.7-1.3l3.6-1.1-2-3.2c-.3-.5-.2-1.1.2-1.4.5-.4 1.1-.3 1.5.1l2.4 2.9.7-3.7c.1-.5.6-.9 1.1-.9.6 0 1 .4 1.1.9l.7 3.7 2.4-2.9c.4-.4 1-.5 1.5-.1.4.3.5.9.2 1.4l-2 3.2 3.6 1.1c.5.2.8.7.7 1.3-.1.5-.5.8-1 .8l-3.7-.4 1.6 3.4c.3.5.1 1.1-.3 1.4-.4.4-1.1.3-1.4-.1l-2.1-3.1-1.3 3.5c-.2.5-.7.8-1.3.8-.5 0-1-.3-1.2-.8l-1.3-3.5-2.1 3.1c-.4.4-1 .5-1.4.1-.4-.3-.6-.9-.3-1.4l1.6-3.4-3.7.4z" />
       </svg>
     );
   }
@@ -56,26 +56,32 @@ export const ProviderLogo: React.FC<ProviderLogoProps> = ({
         width={size}
         height={size}
         viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        fill="currentColor"
         className={className}
         aria-label="OpenAI"
       >
-        <path d="M20.5 10.2A5.6 5.6 0 0 0 19 4.3a5.7 5.7 0 0 0-6.7-.4 5.6 5.6 0 0 0-4.3-2 5.7 5.7 0 0 0-5.3 3.6 5.6 5.6 0 0 0-1.4 5.9 5.7 5.7 0 0 0 1.5 5.9 5.6 5.6 0 0 0 4.3 2 5.7 5.7 0 0 0 5.3-3.6 5.6 5.6 0 0 0 1.4-5.9 5.7 5.7 0 0 0-1.5-5.9" />
-        <path d="M12 12l4-2.3" />
-        <path d="M12 12v4.6" />
-        <path d="M12 12L8 9.7" />
-        <path d="M12 12l-4 2.3" />
-        <path d="M12 12V7.4" />
-        <path d="M12 12l4 2.3" />
+        <path d="M22.28 9.87a5.98 5.98 0 0 0-.52-4.91 6.05 6.05 0 0 0-6.52-2.82A6.07 6.07 0 0 0 10.8.34a6.03 6.03 0 0 0-5.77 4.2A6.03 6.03 0 0 0 .94 7.6a6.05 6.05 0 0 0 .52 7.03 5.98 5.98 0 0 0 .52 4.9 6.05 6.05 0 0 0 6.52 2.83 6.07 6.07 0 0 0 4.44 1.8 6.03 6.03 0 0 0 5.77-4.2 6.03 6.03 0 0 0 4.09-3.06 6.05 6.05 0 0 0-.52-7.03zM13.2 22.46a4.52 4.52 0 0 1-2.92-1.06l.14-.08 4.86-2.81a.78.78 0 0 0 .39-.68v-6.85l2.06 1.19a.07.07 0 0 1 .04.05v5.82a4.55 4.55 0 0 1-4.57 4.42zm-8.8-3.72a4.51 4.51 0 0 1-.54-3.06l.14.09 4.86 2.8a.78.78 0 0 0 .78 0l5.93-3.43v2.38a.07.07 0 0 1-.03.06l-5.04 2.91a4.55 4.55 0 0 1-6.14-1.75zM2.87 8.28a4.52 4.52 0 0 1 2.38-2l-.14.09v5.62a.78.78 0 0 0 .39.68l5.93 3.42-2.06 1.19a.07.07 0 0 1-.07 0L4.26 14.37a4.55 4.55 0 0 1-1.39-6.09zm15.42 4.22l-5.93-3.42 2.06-1.19a.07.07 0 0 1 .07 0l5.04 2.91a4.54 4.54 0 0 1-.99 8.16v-5.78a.78.78 0 0 0-.39-.68h.14zm2.84-4.5l-.14-.09-4.86-2.8a.78.78 0 0 0-.78 0L9.48 9.52V7.14a.07.07 0 0 1 .03-.06l5.04-2.91a4.55 4.55 0 0 1 6.68 4.81v.8zm-8.86 3.12l-2.38-1.38 2.38-1.37 2.38 1.37-2.38 1.38zm-1.84-9.36a4.52 4.52 0 0 1 2.92 1.06l-.14.08-4.86 2.81a.78.78 0 0 0-.39.68v6.85L5.96 11.2a.07.07 0 0 1-.04-.05V5.33a4.55 4.55 0 0 1 4.56-4.42z" />
       </svg>
     );
   }
 
-  // 4. Ollama
+  // 4. LM Studio
+  if (norm.includes('lmstudio') || norm.includes('lm studio') || norm.includes('lms')) {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        className={className}
+        aria-label="LM Studio"
+      >
+        <path d="M12 2L3 7v10l9 5 9-5V7l-9-5zm0 2.2l6.9 3.8-3.4 1.9-6.9-3.8 3.4-1.9zM5.1 8.8l6 3.3v6.7l-6-3.3V8.8zm7.8 10V12.1l6-3.3v6.7l-6 3.3z" />
+      </svg>
+    );
+  }
+
+  // 5. Ollama
   if (norm.includes('ollama')) {
     return (
       <svg
@@ -91,7 +97,7 @@ export const ProviderLogo: React.FC<ProviderLogoProps> = ({
     );
   }
 
-  // 5. DeepSeek
+  // 6. DeepSeek
   if (norm.includes('deepseek')) {
     return (
       <svg
@@ -102,33 +108,28 @@ export const ProviderLogo: React.FC<ProviderLogoProps> = ({
         className={className}
         aria-label="DeepSeek"
       >
-        <path d="M21.5 14.2c-.4-.1-.8-.3-1.2-.4-1.2-1.8-3.3-3.1-5.7-3.4-.3-1.2-1-2.3-2-3-1.5-1.1-3.4-1.4-5.2-.8-.4.1-.7.4-.8.8-.1.4.1.8.5 1 1.4.5 2.8.7 4.2.5.3.6.8 1.1 1.4 1.5-2.8.5-5.3 2.1-6.8 4.5-1.3 2.1-1.6 4.6-.8 6.9.1.4.5.7.9.7.4 0 .8-.2.9-.6.2-.6.5-1.2.9-1.7 1.8 1.1 3.9 1.6 6 1.4 3.7-.4 6.8-2.8 8.1-6.2.2-.2.1-.5-.2-.7zm-11-2.2c-.6 0-1-.4-1-1s.4-1 1-1 1 .4 1 1-.4 1-1 1z" />
+        <path d="M22 13.8c-.5-.1-1-.4-1.5-.5-1.5-2.2-4.1-3.8-7.1-4.2-.4-1.5-1.3-2.9-2.5-3.8-1.9-1.4-4.3-1.8-6.5-1-.5.1-.9.5-1 1-.1.5.1 1 .6 1.2 1.8.6 3.5.9 5.3.6.4.8 1 1.4 1.8 1.9-3.5.6-6.6 2.6-8.5 5.6-1.6 2.6-2 5.8-1 8.6.1.5.6.9 1.1.9.5 0 1-.3 1.1-.8.3-.8.6-1.5 1.1-2.1 2.3 1.4 4.9 2 7.5 1.8 4.6-.5 8.5-3.5 10.1-7.8.3-.3.1-.6-.3-.9zm-13.8-2.8c-.8 0-1.3-.5-1.3-1.3s.5-1.3 1.3-1.3 1.3.5 1.3 1.3-.5 1.3-1.3 1.3z" />
       </svg>
     );
   }
 
-  // 6. Groq
+  // 7. Groq
   if (norm.includes('groq')) {
     return (
       <svg
         width={size}
         height={size}
         viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        fill="currentColor"
         className={className}
         aria-label="Groq"
       >
-        <path d="M12 3a9 9 0 1 0 9 9h-9V8" />
-        <circle cx="12" cy="12" r="3" fill="currentColor" />
+        <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 14.5a4.5 4.5 0 1 1 4.5-4.5v1.5h-3v-1.5a1.5 1.5 0 1 0-1.5 1.5z" />
       </svg>
     );
   }
 
-  // 7. OpenRouter
+  // 8. OpenRouter
   if (norm.includes('openrouter')) {
     return (
       <svg
@@ -143,18 +144,13 @@ export const ProviderLogo: React.FC<ProviderLogoProps> = ({
         className={className}
         aria-label="OpenRouter"
       >
-        <circle cx="12" cy="12" r="3" />
-        <path d="M12 2v7" />
-        <path d="M12 15v7" />
-        <path d="M2 12h7" />
-        <path d="M15 12h7" />
-        <path d="M4.9 4.9l5 5" />
-        <path d="M14.1 14.1l5 5" />
+        <circle cx="12" cy="12" r="3.5" />
+        <path d="M12 2v6.5M12 15.5V22M2 12h6.5M15.5 12H22M4.93 4.93l4.6 4.6M14.47 14.47l4.6 4.6M19.07 4.93l-4.6 4.6M9.53 14.47l-4.6 4.6" />
       </svg>
     );
   }
 
-  // 8. Mistral
+  // 9. Mistral
   if (norm.includes('mistral')) {
     return (
       <svg

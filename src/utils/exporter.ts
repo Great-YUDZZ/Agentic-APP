@@ -219,7 +219,7 @@ export const exportProjectReport = async (
   }
 
   lines.push('---');
-  lines.push('*Laporan ini dibuat otomatis oleh Agentic Native Hub untuk konsumsi AI & dokumentasi tim.*');
+  lines.push('*Laporan ini dibuat otomatis oleh Nodra untuk konsumsi AI & dokumentasi tim.*');
 
   const cleanGoal = sanitizeFileName(discussion.project_goal || 'projek');
   const filename = `laporan-projek-${cleanGoal}-${fileDate}.md`;

@@ -1,7 +1,7 @@
 [package]
 name = "agentic_native_hub"
-version = "0.4.5"
-description = "Autonomous AI Native Hub for Desktop (Windows & Linux)"
+version = "0.4.6"
+description = "Nodra Desktop Multi-Agent Studio and Coding Assistant"
 authors = ["Autonomous Team"]
 license = "MIT"
 edition = "2021"

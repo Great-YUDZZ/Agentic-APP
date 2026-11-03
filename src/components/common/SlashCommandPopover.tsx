@@ -73,7 +73,7 @@ export const SLASH_COMMANDS: SlashCommandItem[] = [
     description: 'Tampilkan panduan penggunaan perintah dan mode hub.',
     icon: HelpCircle,
     type: 'template',
-    actionText: 'Tolong jelaskan fitur utama yang tersedia di Agentic Native Hub dan cara menggunakannya.',
+    actionText: 'Tolong jelaskan fitur utama yang tersedia di Nodra dan cara menggunakannya.',
   },
 ];
 

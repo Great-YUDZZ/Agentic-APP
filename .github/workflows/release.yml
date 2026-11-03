@@ -1,4 +1,4 @@
-name: Release Agentic Native Hub
+name: Release Nodra
 
 on:
   push:
@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Tag name for release (e.g. v0.4.5)'
+        description: 'Tag name for release (e.g. v0.4.6)'
         required: false
-        default: 'v0.4.5'
+        default: 'v0.4.6'
 
 permissions:
   contents: write

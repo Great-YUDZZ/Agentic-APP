@@ -4,6 +4,26 @@ Semua perubahan penting pada proyek Autonomous AI Native Hub dicatat dalam dokum
 
 ---
 
+## [v0.4.6] - 2026-11-03
+
+### Rebranding, Universal Model Endpoints & Visual Updates
+- **Rebranding Aplikasi Menjadi Nodra**:
+  - Memperbarui identitas nama produk menjadi Nodra pada level desktop window title, konfigurasi paket, boundaries antarmuka, dan dokumentasi resmi.
+- **Ikon Peluncur Desktop Baru**:
+  - Memperbarui seluruh bundel resolusi ikon aplikasi desktop (Linux PNG, Windows ICO, Appx, dan macOS ICNS) dengan gambar Capybara bersudut lengkung halus (anti-aliased squircle).
+- **Universal Custom Endpoints (Dukungan LM Studio & Runner Lokal Bebas)**:
+  - Menyederhanakan sub-tab Pengaturan Models menjadi 2 sub-tab bersih: *Custom Endpoints* dan *Standard Providers*.
+  - Menghapus sub-tab kaku Ollama bawaan agar pengguna bebas menghubungkan runner lokal pilihan seperti LM Studio (`http://localhost:1234/v1`), Ollama mandiri, llama.cpp, atau vLLM.
+  - Mengosongkan nilai default Base URL saat membuat endpoint baru (tidak lagi terisi nilai dummy) dan menambahkan contoh placeholder serta banner petunjuk port runner populer.
+- **Provider Topology Map Dinamis & Empty State Akurat**:
+  - Menghapus tampilan 4 provider statis palsu saat belum ada API key atau request yang tercatat.
+  - Menerapkan deteksi provider aktif secara langsung dari profil kunci tersimpan dan riwayat permintaan riil.
+  - Menyediakan tampilan *Empty State* elegan ("Belum Ada Provider Terhubung") jika belum ada provider yang dikonfigurasi.
+- **Pembaruan Logo Vektor Resmi Provider**:
+  - Memperbarui aset SVG dengan geometri resmi berpresisi tinggi untuk Google Gemini, OpenAI, Anthropic Claude, LM Studio, Ollama, DeepSeek, Groq, dan OpenRouter.
+
+---
+
 ## [v0.4.5] - 2026-11-03
 
 ### Perbaikan Tampilan & Retensi Scroll Pengaturan

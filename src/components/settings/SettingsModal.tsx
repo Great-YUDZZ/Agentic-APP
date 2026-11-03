@@ -37,7 +37,6 @@ import { McpServersTab } from './McpServersTab';
 import { MascotSettingsTab } from './MascotSettingsTab';
 import { UsageAnalyticsTab } from './UsageAnalyticsTab';
 import { YourAITab } from './YourAITab';
-import { LocalModelsManager } from './LocalModelsManager';
 import { getOfflineSpeechStatus, triggerVoiceModelDownload, OfflineSpeechStatus } from '../../utils/audioRecorder';
 import { ttsManager } from '../../utils/textToSpeech';
 import { checkUpdateManually } from '../../utils/updater';
@@ -148,7 +147,7 @@ export const SettingsModal: React.FC = () => {
   } = useStore();
 
   const [activeSection, setActiveSection] = useState<SettingsSection>('general');
-  const [activeModelTab, setActiveModelTab] = useState<'custom' | 'standard' | 'local'>('custom');
+  const [activeModelTab, setActiveModelTab] = useState<'custom' | 'standard'>('custom');
 
   // Sub-modal Dialog States
   const [isNetworkModalOpen, setIsNetworkModalOpen] = useState(false);
@@ -165,7 +164,7 @@ export const SettingsModal: React.FC = () => {
   const [latencies, setLatencies] = useState<Record<string, number>>({});
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [appVersion, setAppVersion] = useState<string>(
-    typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.4.5'
+    typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.4.6'
   );
 
   useEffect(() => {
@@ -391,7 +390,7 @@ export const SettingsModal: React.FC = () => {
   const handleAddNewCustomEndpoint = async () => {
     const newId = `custom_${Date.now()}`;
     const defaultName = `Custom Endpoint ${customEndpoints.length + 1}`;
-    await saveApiKey(newId, '', 'http://localhost:20128/v1', defaultName);
+    await saveApiKey(newId, '', '', defaultName);
     addToast('info', `Custom endpoint baru ditambahkan: ${defaultName}`);
   };
 
@@ -1152,13 +1151,13 @@ export const SettingsModal: React.FC = () => {
                       onClick={() => {
                         if (typeof window !== 'undefined' && 'Notification' in window) {
                           if (Notification.permission === 'granted') {
-                            new Notification('Agentic Native Hub', {
+                            new Notification('Nodra', {
                               body: 'Desktop notifications are working correctly.',
                             });
                           } else if (Notification.permission !== 'denied') {
                             Notification.requestPermission().then((permission) => {
                               if (permission === 'granted') {
-                                new Notification('Agentic Native Hub', {
+                                new Notification('Nodra', {
                                   body: 'Desktop notifications are working correctly.',
                                 });
                               }
@@ -1477,18 +1476,6 @@ export const SettingsModal: React.FC = () => {
                       <Cloud className="w-3.5 h-3.5 text-[#ececec]" />
                       <span>Standard Providers</span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setActiveModelTab('local')}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
-                        activeModelTab === 'local'
-                          ? 'bg-[#2f2f2f] text-white border border-[#404040]'
-                          : 'text-[#b4b4b4] hover:text-white hover:bg-[#282828]'
-                      }`}
-                    >
-                      <Cpu className="w-3.5 h-3.5 text-[#39d353]" />
-                      <span>Model Lokal (Offline)</span>
-                    </button>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -1519,6 +1506,24 @@ export const SettingsModal: React.FC = () => {
                 {/* Custom Endpoints Sub-Tab */}
                 {activeModelTab === 'custom' && (
                   <div className="space-y-4">
+                    {/* Helper Banner for LM Studio and Local Runners */}
+                    <div className="p-3.5 rounded-2xl bg-[#1e1e1e] border border-[#303030] flex items-start gap-3">
+                      <div className="w-7 h-7 rounded-xl bg-[#282828] border border-[#383838] flex items-center justify-center shrink-0 text-[#ececec] mt-0.5">
+                        <Server className="w-4 h-4" />
+                      </div>
+                      <div className="text-xs space-y-1">
+                        <span className="font-semibold text-[#ececec]">Koneksi Model Lokal & Proxy Universal</span>
+                        <p className="text-[#8e8e8e] leading-relaxed">
+                          Hubungkan runner lokal atau proxy favorit Anda yang mendukung format OpenAI-compatible. Cukup jalankan aplikasi lokal (seperti LM Studio), lalu salin Base URL server lokalnya ke profil di bawah:
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-mono text-[#b4b4b4]">
+                          <span className="px-2 py-0.5 rounded-md bg-[#282828] border border-[#383838]">LM Studio: http://localhost:1234/v1</span>
+                          <span className="px-2 py-0.5 rounded-md bg-[#282828] border border-[#383838]">Ollama: http://localhost:11434/v1</span>
+                          <span className="px-2 py-0.5 rounded-md bg-[#282828] border border-[#383838]">LocalAI: http://localhost:8080/v1</span>
+                        </div>
+                      </div>
+                    </div>
+
                     {customEndpoints.length === 0 ? (
                       <div className="p-8 text-center border border-dashed border-[#383838] rounded-2xl text-xs text-[#707070]">
                         Belum ada profil custom endpoint. Klik &quot;Tambah Endpoint&quot; untuk menambahkan endpoint lokal atau proxy.
@@ -1589,7 +1594,7 @@ export const SettingsModal: React.FC = () => {
                                         [k.provider]: e.target.value,
                                       })
                                     }
-                                    placeholder="http://localhost:20128/v1"
+                                    placeholder="Contoh: http://localhost:1234/v1 (LM Studio) atau http://localhost:11434/v1 (Ollama)"
                                     className="flex-1 bg-[#1e1e1e] border border-[#383838] rounded-xl px-3 py-1.5 text-xs text-[#ececec] font-mono focus:outline-none focus:border-[#4f4f4f]"
                                   />
                                 </div>
@@ -1810,11 +1815,6 @@ export const SettingsModal: React.FC = () => {
                       );
                     })}
                   </div>
-                )}
-
-                {/* Local Offline Models Sub-Tab */}
-                {activeModelTab === 'local' && (
-                  <LocalModelsManager />
                 )}
               </div>
             )}
