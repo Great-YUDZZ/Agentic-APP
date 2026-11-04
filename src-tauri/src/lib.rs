@@ -241,6 +241,10 @@ pub fn run() {
             ipc::get_usage_stats,
             ipc::get_usage_chart,
             ipc::get_activity_heatmap,
+            ipc::app_minimize,
+            ipc::app_toggle_maximize,
+            ipc::app_close,
+            ipc::app_is_maximized,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

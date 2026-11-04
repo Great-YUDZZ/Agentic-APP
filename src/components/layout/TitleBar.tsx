@@ -21,6 +21,7 @@ import {
   Copy,
   X,
 } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 import { useStore } from '../../store/useStore';
 import { AppMode, StudioTab } from '../../types';
 import { exportConversationSession } from '../../utils/exporter';
@@ -75,11 +76,21 @@ export const TitleBar: React.FC = () => {
     let unlisten: (() => void) | undefined;
     (async () => {
       try {
+        const max = await invoke<boolean>('app_is_maximized');
+        setIsMaximized(max);
+      } catch {
+        // Fallback
+      }
+      try {
         const { getCurrentWindow } = await import('@tauri-apps/api/window');
         const win = getCurrentWindow();
-        setIsMaximized(await win.isMaximized());
         const unsub = await win.onResized(async () => {
-          setIsMaximized(await win.isMaximized());
+          try {
+            const max = await invoke<boolean>('app_is_maximized');
+            setIsMaximized(max);
+          } catch {
+            setIsMaximized(await win.isMaximized());
+          }
         });
         unlisten = unsub;
       } catch {
@@ -91,32 +102,49 @@ export const TitleBar: React.FC = () => {
     };
   }, []);
 
-  const handleMinimize = async () => {
+  const handleMinimize = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      await getCurrentWindow().minimize();
-    } catch (err) {
-      console.warn('Minimize failed:', err);
+      await invoke('app_minimize');
+    } catch {
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        await getCurrentWindow().minimize();
+      } catch (err) {
+        console.warn('Minimize failed:', err);
+      }
     }
   };
 
-  const handleToggleMaximize = async () => {
+  const handleToggleMaximize = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      const win = getCurrentWindow();
-      await win.toggleMaximize();
-      setIsMaximized(await win.isMaximized());
-    } catch (err) {
-      console.warn('Toggle maximize failed:', err);
+      await invoke('app_toggle_maximize');
+      const max = await invoke<boolean>('app_is_maximized');
+      setIsMaximized(max);
+    } catch {
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        const win = getCurrentWindow();
+        await win.toggleMaximize();
+        setIsMaximized(await win.isMaximized());
+      } catch (err) {
+        console.warn('Toggle maximize failed:', err);
+      }
     }
   };
 
-  const handleClose = async () => {
+  const handleClose = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      await getCurrentWindow().close();
-    } catch (err) {
-      console.warn('Close failed:', err);
+      await invoke('app_close');
+    } catch {
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        await getCurrentWindow().close();
+      } catch (err) {
+        console.warn('Close failed:', err);
+      }
     }
   };
 
@@ -196,13 +224,13 @@ export const TitleBar: React.FC = () => {
   };
 
   return (
-    <header
-      data-tauri-drag-region
-      onDoubleClick={handleToggleMaximize}
-      className="grid grid-cols-[1fr_auto_1fr] items-center h-12 w-full bg-[#171717] border-b border-[#262626] px-4 select-none z-30 shrink-0"
-    >
+    <header className="grid grid-cols-[1fr_auto_1fr] items-center h-12 w-full bg-[#171717] border-b border-[#262626] px-4 select-none z-30 shrink-0">
       {/* Left: Balanced spacer with drag region */}
-      <div data-tauri-drag-region className="flex items-center justify-start gap-2 min-w-0 h-full" />
+      <div
+        data-tauri-drag-region
+        onDoubleClick={handleToggleMaximize}
+        className="flex items-center justify-start gap-2 min-w-0 h-full cursor-default"
+      />
 
       {/* Center: Flat Segmented Capsule Pill Switcher (Exact 50% Horizontal Center, hidden in Vault) */}
       <div className="flex items-center justify-center shrink-0">
@@ -391,10 +419,14 @@ export const TitleBar: React.FC = () => {
         )}
 
         {/* Window Controls (Minimize, Maximize/Restore, Close) */}
-        <div className="flex items-center gap-1 pl-1.5 ml-1 border-l border-[#262626]">
+        <div
+          className="flex items-center gap-1 pl-1.5 ml-1 border-l border-[#262626] shrink-0"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
           <button
             type="button"
             onClick={handleMinimize}
+            onMouseDown={(e) => e.stopPropagation()}
             title="Minimalkan"
             className="w-7 h-7 flex items-center justify-center rounded-lg text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#282828] transition-colors cursor-pointer"
           >
@@ -403,6 +435,7 @@ export const TitleBar: React.FC = () => {
           <button
             type="button"
             onClick={handleToggleMaximize}
+            onMouseDown={(e) => e.stopPropagation()}
             title={isMaximized ? 'Pulihkan' : 'Maksimalkan'}
             className="w-7 h-7 flex items-center justify-center rounded-lg text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#282828] transition-colors cursor-pointer"
           >
@@ -415,6 +448,7 @@ export const TitleBar: React.FC = () => {
           <button
             type="button"
             onClick={handleClose}
+            onMouseDown={(e) => e.stopPropagation()}
             title="Tutup"
             className="w-7 h-7 flex items-center justify-center rounded-lg text-[#b4b4b4] hover:text-white hover:bg-[#e11d48] transition-colors cursor-pointer"
           >
