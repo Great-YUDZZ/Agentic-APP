@@ -95,7 +95,15 @@ pub async fn test_provider(
     base_url: Option<String>,
     model: Option<String>,
 ) -> Result<u128, String> {
-    if api_key.trim().is_empty() && provider != "ollama" {
+    let is_custom_or_local = provider == "ollama"
+        || provider == "lmstudio"
+        || provider == "custom"
+        || provider.starts_with("custom_")
+        || base_url
+            .as_deref()
+            .map(|u| u.contains("localhost") || u.contains("127.0.0.1"))
+            .unwrap_or(false);
+    if api_key.trim().is_empty() && !is_custom_or_local {
         return Err("Kunci API belum diisi. Silakan masukkan kunci API terlebih dahulu.".to_string());
     }
 

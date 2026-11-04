@@ -105,19 +105,45 @@ export function getModelsEndpoint(customBaseUrl?: string): string {
   return `${base}/models`;
 }
 
+export function isLocalBaseUrl(url?: string): boolean {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  return (
+    lower.includes('localhost') ||
+    lower.includes('127.0.0.1') ||
+    lower.includes('0.0.0.0') ||
+    lower.includes('192.168.') ||
+    lower.includes('10.')
+  );
+}
+
 /**
  * Resolves the appropriate base URL and API Key for a selected model
- * across multiple custom endpoints and standard providers.
+ * across multiple custom endpoints, LM Studio, and standard providers.
  */
 export function resolveEndpointForModel(
   modelId: string,
-  availableModels: Array<{ id: string; endpoint_id?: string; provider?: string }>,
-  apiKeys: Array<{ provider: string; api_key: string; base_url?: string; is_active: boolean }>
+  availableModels: Array<{ id: string; endpoint_id?: string; provider?: string; endpoint_name?: string; is_local?: boolean }>,
+  apiKeys: Array<{ provider: string; name?: string; api_key: string; base_url?: string; is_active: boolean }>
 ): { baseUrl: string; apiKey: string; provider: string } {
   const matchedModel = availableModels.find((m) => m.id === modelId);
   const endpointId = matchedModel?.endpoint_id || matchedModel?.provider;
 
-  // 1. Penanganan model lokal Ollama (Zero-API Key)
+  // 1. Penanganan model lokal LM Studio (Zero-API Key)
+  if (endpointId === 'lmstudio' || matchedModel?.provider === 'lmstudio') {
+    const customLmKey = apiKeys.find(
+      (k) =>
+        k.is_active &&
+        (k.base_url?.includes(':1234') || k.name?.toLowerCase().includes('lm studio'))
+    );
+    return {
+      baseUrl: customLmKey?.base_url || 'http://localhost:1234/v1',
+      apiKey: customLmKey?.api_key?.trim() || 'lm-studio',
+      provider: customLmKey?.name?.trim() || 'LM Studio',
+    };
+  }
+
+  // 2. Penanganan model lokal Ollama (Zero-API Key)
   if (
     endpointId === 'ollama' ||
     matchedModel?.provider === 'ollama' ||
@@ -134,33 +160,35 @@ export function resolveEndpointForModel(
 
   if (endpointId) {
     const matchedKey = apiKeys.find((k) => k.provider === endpointId && k.is_active);
-    if (matchedKey && matchedKey.api_key.trim()) {
+    if (matchedKey && (matchedKey.api_key.trim() || isLocalBaseUrl(matchedKey.base_url) || matchedKey.provider.startsWith('custom'))) {
       return {
-        baseUrl: matchedKey.base_url || 'http://localhost:20128/v1',
-        apiKey: matchedKey.api_key,
-        provider: matchedKey.provider,
+        baseUrl: matchedKey.base_url || 'http://localhost:1234/v1',
+        apiKey: matchedKey.api_key.trim() || 'local',
+        provider: matchedKey.name?.trim() || matchedKey.provider,
       };
     }
   }
 
-  // Fallback ke endpoint custom pertama yang aktif
+  // Fallback ke endpoint custom pertama yang aktif (termasuk endpoint lokal tanpa API key)
   const firstActiveCustom = apiKeys.find(
-    (k) => (k.provider === 'custom' || k.provider.startsWith('custom_')) && k.is_active && k.api_key.trim().length > 0
+    (k) =>
+      (k.provider === 'custom' || k.provider.startsWith('custom_')) &&
+      k.is_active &&
+      (k.api_key.trim().length > 0 || (k.base_url && k.base_url.trim().length > 0))
   );
   if (firstActiveCustom) {
     return {
-      baseUrl: firstActiveCustom.base_url || 'http://localhost:20128/v1',
-      apiKey: firstActiveCustom.api_key,
-      provider: firstActiveCustom.provider,
+      baseUrl: firstActiveCustom.base_url || 'http://localhost:1234/v1',
+      apiKey: firstActiveCustom.api_key.trim() || 'local',
+      provider: firstActiveCustom.name?.trim() || firstActiveCustom.provider,
     };
   }
 
-  // Fallback default
-  const defaultKey = apiKeys.find((k) => k.provider === 'custom');
+  // Fallback default ke LM Studio lokal jika aktif
   return {
-    baseUrl: defaultKey?.base_url || 'http://localhost:20128/v1',
-    apiKey: defaultKey?.api_key || '',
-    provider: 'custom',
+    baseUrl: 'http://localhost:1234/v1',
+    apiKey: 'lm-studio',
+    provider: 'LM Studio',
   };
 }
 
@@ -318,7 +346,19 @@ export function isModelUnavailable(id: string): boolean {
 /**
  * Kategori provider model untuk filtering tab di UI
  */
-export function getModelCategory(id: string): 'gemini' | 'openrouter' | 'claude' | 'local' | 'other' {
+export function getModelCategory(
+  id: string,
+  modelObj?: { is_local?: boolean; provider?: string; endpoint_name?: string }
+): 'gemini' | 'openrouter' | 'claude' | 'local' | 'other' {
+  if (
+    modelObj?.is_local ||
+    modelObj?.provider === 'lmstudio' ||
+    modelObj?.provider === 'ollama' ||
+    modelObj?.endpoint_name?.toLowerCase().includes('lm studio') ||
+    modelObj?.endpoint_name?.toLowerCase().includes('lokal')
+  ) {
+    return 'local';
+  }
   const lower = id.toLowerCase();
   if (
     lower.startsWith('lfm3') ||
@@ -356,39 +396,50 @@ export function isVisionCapableModel(modelId: string): boolean {
 }
 
 /**
- * Daftar preset model lokal keluarga Liquid AI LFM3 untuk chat tanpa API key
+ * Daftar preset model lokal keluarga Liquid AI LFM3 (hanya jika diaktifkan eksplisit)
  */
-export const DEFAULT_LOCAL_LFM3_MODELS: ModelOption[] = [
-  {
-    id: 'lfm3:1.7b',
-    name: 'Liquid AI LFM3 1.7B (Zero-API Key)',
-    provider: 'ollama',
-    endpoint_id: 'ollama',
-    endpoint_name: 'Lokal (Ollama)',
-    context_length: 262144,
-    is_local: true,
-  },
-  {
-    id: 'lfm3-vl:2b',
-    name: 'Liquid AI LFM3-VL 2B (Vision / Zero-API Key)',
-    provider: 'ollama',
-    endpoint_id: 'ollama',
-    endpoint_name: 'Lokal (Ollama)',
-    context_length: 131072,
-    is_local: true,
-    capabilities: { vision: true },
-  },
-  {
-    id: 'lfm3-omni:2b',
-    name: 'Liquid AI LFM3-Omni 2B (Multimodal Audio/Vision)',
-    provider: 'ollama',
-    endpoint_id: 'ollama',
-    endpoint_name: 'Lokal (Ollama)',
-    context_length: 131072,
-    is_local: true,
-    capabilities: { vision: true },
-  },
-];
+export const DEFAULT_LOCAL_LFM3_MODELS: ModelOption[] = [];
+
+/**
+ * Memeriksa endpoint LM Studio lokal (port default 1234) untuk menemukan model yang sedang aktif tanpa API key
+ */
+export async function probeLocalLmStudioModels(baseUrl = 'http://localhost:1234/v1'): Promise<ModelOption[]> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1500);
+
+    const cleanBase = baseUrl.replace(/\/+$/, '');
+    const modelsUrl = cleanBase.endsWith('/v1') ? `${cleanBase}/models` : `${cleanBase}/v1/models`;
+
+    const res = await fetch(modelsUrl, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) return [];
+
+    const json = await res.json();
+    const rawList = Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
+    if (rawList.length === 0) return [];
+
+    return rawList
+      .filter((m: any) => m && m.id && !String(m.id).toLowerCase().includes('embedding'))
+      .map((m: any) => ({
+        id: m.id,
+        name: m.id,
+        provider: 'lmstudio',
+        endpoint_id: 'lmstudio',
+        endpoint_name: 'Lokal (LM Studio)',
+        context_length: m.context_length || m.max_context_length || 32768,
+        is_local: true,
+        capabilities: {
+          vision: isVisionCapableModel(m.id),
+        },
+      }));
+  } catch {
+    return [];
+  }
+}
 
 /**
  * Memeriksa endpoint Ollama lokal untuk menemukan model-model yang telah terinstal

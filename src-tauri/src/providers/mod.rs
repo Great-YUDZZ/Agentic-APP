@@ -205,21 +205,16 @@ impl ProviderClient for OpenAiProvider {
     }
 
     async fn test_connection(&self) -> anyhow::Result<u128> {
-        if self.api_key.trim().is_empty() {
+        let is_local = self.base_url.contains("localhost") || self.base_url.contains("127.0.0.1");
+        if self.api_key.trim().is_empty() && !is_local && self.base_url.contains("api.openai.com") {
             return Err(anyhow::anyhow!("Kunci API belum diisi."));
         }
         let start = std::time::Instant::now();
-        let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
-        let body = serde_json::json!({
-            "model": self.model,
-            "messages": [{ "role": "user", "content": "ping" }],
-            "max_tokens": 5
-        });
-        let req = self
-            .client
-            .post(&url)
-            .json(&body)
-            .header("Authorization", format!("Bearer {}", self.api_key));
+        let models_url = format!("{}/models", self.base_url.trim_end_matches('/'));
+        let mut req = self.client.get(&models_url);
+        if !self.api_key.trim().is_empty() {
+            req = req.header("Authorization", format!("Bearer {}", self.api_key.trim()));
+        }
         let res = req.send().await?;
         if res.status().is_success() {
             Ok(start.elapsed().as_millis())

@@ -63,8 +63,10 @@ import {
   getModelsEndpoint,
   formatApiErrorMessage,
   resolveEndpointForModel,
+  probeLocalLmStudioModels,
   probeLocalOllamaModels,
-  DEFAULT_LOCAL_LFM3_MODELS,
+  isLocalBaseUrl,
+  isVisionCapableModel,
 } from '../utils/api';
 import { extractCodeReviewItems } from '../utils/codeExtractor';
 import { AGENT_AVAILABLE_TOOLS, isPathExternal, convertMcpToolToDefinition } from '../utils/tools';
@@ -896,42 +898,62 @@ export const useStore = create<AppStore>((set, get) => ({
   fetchAvailableModels: async (customUrl, customKey) => {
     const keys = get().apiKeys;
     const activeCustoms = keys.filter(
-      (k) => (k.provider === 'custom' || k.provider.startsWith('custom_')) && k.is_active && k.api_key.trim().length > 0
+      (k) =>
+        (k.provider === 'custom' || k.provider.startsWith('custom_')) &&
+        k.is_active &&
+        (k.api_key.trim().length > 0 || (k.base_url && k.base_url.trim().length > 0))
     );
 
-    // 1. Probe model lokal Ollama (Zero API Key)
+    // 1. Probe model lokal LM Studio (Zero API Key, port default 1234)
+    let localLmStudioModels: ModelOption[] = [];
+    try {
+      const customLm = activeCustoms.find(
+        (k) => k.base_url?.includes(':1234') || k.name?.toLowerCase().includes('lm studio')
+      );
+      const lmUrl = customLm?.base_url || 'http://localhost:1234/v1';
+      localLmStudioModels = await probeLocalLmStudioModels(lmUrl);
+    } catch {
+      // Abaikan jika LM Studio belum aktif
+    }
+
+    // 2. Probe model lokal Ollama hanya jika diaktifkan eksplisit oleh pengguna
     let localOllamaModels: ModelOption[] = [];
     try {
-      const ollamaKey = keys.find((k) => k.provider === 'ollama');
-      const ollamaUrl = ollamaKey?.base_url || 'http://localhost:11434';
-      localOllamaModels = await probeLocalOllamaModels(ollamaUrl);
+      const ollamaKey = keys.find((k) => k.provider === 'ollama' && k.is_active);
+      if (ollamaKey) {
+        const ollamaUrl = ollamaKey.base_url || 'http://localhost:11434';
+        localOllamaModels = await probeLocalOllamaModels(ollamaUrl);
+      }
     } catch {
-      // Abaikan jika Ollama belum aktif
+      // Abaikan jika Ollama tidak aktif
     }
 
     // Jika dipanggil dengan parameter eksplisit
     if (customUrl || customKey) {
-      const url = customUrl || 'http://localhost:20128/v1';
+      const url = customUrl || 'http://localhost:1234/v1';
       const key = customKey || '';
-      if (!key.trim()) return 0;
 
       set({ isDetectingModels: true });
       try {
         const targetModelsUrl = getModelsEndpoint(url);
-        const res = await fetch(targetModelsUrl, {
-          headers: { Authorization: `Bearer ${key.trim()}` },
-        });
+        const headers: Record<string, string> = {};
+        if (key.trim()) {
+          headers.Authorization = `Bearer ${key.trim()}`;
+        }
+        const res = await fetch(targetModelsUrl, { headers });
         if (!res.ok) throw new Error(`Status ${res.status}`);
         const rawText = await res.text();
         const json = parseRobustJson<any>(rawText);
         const rawList = Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
+        const isLocal = isLocalBaseUrl(url);
         const detected: ModelOption[] = rawList.map((m: { id: string; context_length?: number }) => ({
           id: m.id,
           name: m.id,
           provider: 'custom',
           endpoint_id: 'custom',
-          endpoint_name: 'Custom Endpoint',
+          endpoint_name: isLocal ? 'Lokal (LM Studio)' : 'Custom Endpoint',
           context_length: m.context_length,
+          is_local: isLocal,
         }));
 
         set({ isDetectingModels: false });
@@ -945,57 +967,77 @@ export const useStore = create<AppStore>((set, get) => ({
     set({ isDetectingModels: true });
     const allModels: ModelOption[] = [];
 
-    // Sisipkan model Ollama lokal yang terdeteksi
-    if (localOllamaModels.length > 0) {
-      allModels.push(...localOllamaModels);
-    }
-
+    // Ambil dari seluruh Custom Endpoints yang aktif terlebih dahulu
     for (const endpoint of activeCustoms) {
-      const url = endpoint.base_url || 'http://localhost:20128/v1';
-      const key = endpoint.api_key;
-      const endpointLabel = endpoint.name || (endpoint.provider === 'custom' ? 'Custom Endpoint' : 'Local Proxy');
+      const url = endpoint.base_url || 'http://localhost:1234/v1';
+      const key = endpoint.api_key || '';
+      const isLocal = isLocalBaseUrl(url);
+      const endpointLabel =
+        endpoint.name ||
+        (url.includes(':1234') ? 'Lokal (LM Studio)' : endpoint.provider === 'custom' ? 'Custom Endpoint' : 'Local Proxy');
 
       try {
         const targetModelsUrl = getModelsEndpoint(url);
-        const res = await fetch(targetModelsUrl, {
-          headers: { Authorization: `Bearer ${key.trim()}` },
-        });
+        const headers: Record<string, string> = {};
+        if (key.trim()) {
+          headers.Authorization = `Bearer ${key.trim()}`;
+        }
+        const res = await fetch(targetModelsUrl, { headers });
         if (res.ok) {
           const rawText = await res.text();
           const json = parseRobustJson<any>(rawText);
           const rawList = Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
-          rawList.forEach((m: { id: string; context_length?: number }) => {
-            allModels.push({
-              id: m.id,
-              name: m.id,
-              provider: endpoint.provider,
-              endpoint_id: endpoint.provider,
-              endpoint_name: endpointLabel,
-              context_length: m.context_length,
+          rawList
+            .filter((m: any) => m && m.id && !String(m.id).toLowerCase().includes('embedding'))
+            .forEach((m: { id: string; context_length?: number; max_context_length?: number }) => {
+              if (!allModels.some((existing) => existing.id === m.id)) {
+                allModels.push({
+                  id: m.id,
+                  name: m.id,
+                  provider: endpoint.provider,
+                  endpoint_id: endpoint.provider,
+                  endpoint_name: endpointLabel,
+                  context_length: m.context_length || m.max_context_length || (isLocal ? 32768 : undefined),
+                  is_local: isLocal,
+                  capabilities: {
+                    vision: isVisionCapableModel(m.id),
+                  },
+                });
+              }
             });
-          });
         }
       } catch (e) {
         console.warn(`Gagal deteksi model untuk ${endpointLabel}:`, e);
       }
     }
 
-    // Selalu sediakan preset model lokal Liquid AI LFM3 jika belum ada di list
-    // agar user tetap dapat berinteraksi dalam mode chat tanpa harus memasukkan API key
-    DEFAULT_LOCAL_LFM3_MODELS.forEach((lfm) => {
-      if (!allModels.some((m) => m.id === lfm.id)) {
-        allModels.push(lfm);
-      }
-    });
+    // Sisipkan model LM Studio yang terdeteksi otomatis jika belum masuk dari custom endpoint
+    if (localLmStudioModels.length > 0) {
+      localLmStudioModels.forEach((lm) => {
+        if (!allModels.some((m) => m.id === lm.id)) {
+          allModels.push(lm);
+        }
+      });
+    }
+
+    // Sisipkan model Ollama lokal jika pengguna mengaktifkannya
+    if (localOllamaModels.length > 0) {
+      localOllamaModels.forEach((ol) => {
+        if (!allModels.some((m) => m.id === ol.id)) {
+          allModels.push(ol);
+        }
+      });
+    }
 
     const currentSelected = get().selectedModel;
     const stillValid = allModels.some((d) => d.id === currentSelected);
-    const nextModel = stillValid ? currentSelected : allModels[0].id;
+    const nextModel = stillValid ? currentSelected : (allModels[0]?.id || '');
+    const matchedNext = allModels.find((d) => d.id === nextModel);
 
     set({
       availableModels: allModels,
       selectedModel: nextModel,
-      selectedProvider: nextModel.startsWith('lfm3') ? 'ollama' : 'custom',
+      selectedProvider: matchedNext?.provider || 'custom',
       isDetectingModels: false,
     });
     return allModels.length;
@@ -1009,9 +1051,9 @@ export const useStore = create<AppStore>((set, get) => ({
   apiKeys: [
     {
       provider: 'custom',
-      name: 'Custom Endpoint 1',
+      name: 'LM Studio (Local)',
       api_key: '',
-      base_url: 'http://localhost:20128/v1',
+      base_url: 'http://localhost:1234/v1',
       is_active: true,
       updated_at: new Date().toISOString(),
     },
@@ -1074,6 +1116,7 @@ export const useStore = create<AppStore>((set, get) => ({
           return;
         }
       }
+      await get().fetchAvailableModels();
     } catch (err) {
       console.warn('Gagal memuat api keys dari SQLite database:', err);
     }
@@ -1094,10 +1137,16 @@ export const useStore = create<AppStore>((set, get) => ({
       }
     }
 
+    const isCustomOrLocal =
+      provider === 'custom' || provider.startsWith('custom_') || isLocalBaseUrl(baseUrl);
+
     // 2. Perbarui state Zustand
     set((s) => {
       const existing = s.apiKeys.find((k) => k.provider === provider);
       if (existing) {
+        const finalBaseUrl = baseUrl ?? existing.base_url;
+        const shouldBeActive =
+          apiKey.trim().length > 0 || (isCustomOrLocal && Boolean(finalBaseUrl && finalBaseUrl.trim().length > 0));
         return {
           apiKeys: s.apiKeys.map((k) =>
             k.provider === provider
@@ -1105,23 +1154,25 @@ export const useStore = create<AppStore>((set, get) => ({
                   ...k,
                   api_key: apiKey,
                   name: name ?? k.name,
-                  base_url: baseUrl ?? k.base_url,
-                  is_active: apiKey.trim().length > 0,
+                  base_url: finalBaseUrl,
+                  is_active: shouldBeActive,
                   updated_at: new Date().toISOString(),
                 }
               : k
           ),
         };
       }
+      const shouldBeActive =
+        apiKey.trim().length > 0 || (isCustomOrLocal && Boolean(baseUrl && baseUrl.trim().length > 0));
       return {
         apiKeys: [
           ...s.apiKeys,
           {
             provider,
-            name: name || (provider.startsWith('custom') ? 'Custom Endpoint' : provider),
+            name: name || (provider.startsWith('custom') ? 'LM Studio / Custom' : provider),
             api_key: apiKey,
             base_url: baseUrl,
-            is_active: apiKey.trim().length > 0,
+            is_active: shouldBeActive,
             updated_at: new Date().toISOString(),
           },
         ],

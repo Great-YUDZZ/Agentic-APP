@@ -74,6 +74,48 @@ export function extractStreamUsage(parsed: unknown): ExtractedStreamUsage | null
     }
   }
 
+  // 1b. Format LM Studio Native stats / timings ({ stats: { prompt_tokens_count, predicted_tokens_count } } atau { timings: { prompt_n, predicted_n } })
+  if (obj.stats && typeof obj.stats === 'object') {
+    const s = obj.stats as Record<string, unknown>;
+    const prompt = typeof s.prompt_tokens_count === 'number'
+      ? s.prompt_tokens_count
+      : typeof s.input_tokens === 'number'
+      ? s.input_tokens
+      : undefined;
+    const completion = typeof s.predicted_tokens_count === 'number'
+      ? s.predicted_tokens_count
+      : typeof s.completion_tokens_count === 'number'
+      ? s.completion_tokens_count
+      : typeof s.output_tokens === 'number'
+      ? s.output_tokens
+      : undefined;
+    if (prompt !== undefined || completion !== undefined) {
+      return {
+        promptTokens: prompt,
+        completionTokens: completion,
+        cachedTokens: 0,
+        cacheCreationTokens: 0,
+        cacheReadTokens: 0,
+      };
+    }
+  }
+
+  if (obj.timings && typeof obj.timings === 'object') {
+    const t = obj.timings as Record<string, unknown>;
+    const prompt = typeof t.prompt_n === 'number' ? t.prompt_n : undefined;
+    const completion = typeof t.predicted_n === 'number' ? t.predicted_n : undefined;
+    const cached = typeof t.cache_n === 'number' ? t.cache_n : 0;
+    if (prompt !== undefined || completion !== undefined) {
+      return {
+        promptTokens: prompt,
+        completionTokens: completion,
+        cachedTokens: cached,
+        cacheCreationTokens: 0,
+        cacheReadTokens: cached,
+      };
+    }
+  }
+
   // 2. Format Ollama Native pada potongan penutup { done: true, prompt_eval_count, eval_count }
   if (
     typeof obj.prompt_eval_count === 'number' ||

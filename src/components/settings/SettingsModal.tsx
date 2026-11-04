@@ -278,7 +278,13 @@ export const SettingsModal: React.FC = () => {
 
   const handleTestConnection = async (provider: string, baseUrl?: string, apiKey?: string) => {
     const trimmedKey = (apiKey || '').trim();
-    if (!trimmedKey && provider !== 'ollama') {
+    const isCustomOrLocal =
+      provider === 'ollama' ||
+      provider === 'custom' ||
+      provider.startsWith('custom_') ||
+      Boolean(baseUrl && (baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')));
+
+    if (!trimmedKey && !isCustomOrLocal) {
       setTestingStatus((prev) => ({ ...prev, [provider]: 'failed' }));
       setLatencies((prev) => {
         const next = { ...prev };
@@ -306,7 +312,10 @@ export const SettingsModal: React.FC = () => {
         const elapsed = Number(latency) || (Date.now() - startTime);
         setLatencies((prev) => ({ ...prev, [provider]: elapsed }));
         setTestingStatus((prev) => ({ ...prev, [provider]: 'success' }));
-        addToast('success', `Validasi ${provider} berhasil! Kunci API aktif (${elapsed}ms).`);
+        addToast('success', `Koneksi ke ${provider} berhasil (${elapsed}ms).`);
+        if (isCustomOrLocal) {
+          useStore.getState().fetchAvailableModels();
+        }
       } catch (err: any) {
         setTestingStatus((prev) => ({ ...prev, [provider]: 'failed' }));
         setLatencies((prev) => {
@@ -314,7 +323,7 @@ export const SettingsModal: React.FC = () => {
           delete next[provider];
           return next;
         });
-        const errMsg = typeof err === 'string' ? err : err?.message || 'Kunci API tidak valid atau koneksi ditolak.';
+        const errMsg = typeof err === 'string' ? err : err?.message || 'Koneksi ke server ditolak.';
         addToast('error', `Validasi ${provider} gagal: ${errMsg}`);
       }
       return;
@@ -322,10 +331,17 @@ export const SettingsModal: React.FC = () => {
 
     // Fallback mode peramban (non-Tauri)
     try {
-      let targetUrl = baseUrl;
+      let targetUrl = baseUrl ? baseUrl.replace(/\/+$/, '') : '';
       let headers: Record<string, string> = {};
 
-      if (!targetUrl) {
+      if (targetUrl) {
+        if (!targetUrl.endsWith('/models') && !targetUrl.includes('/api/tags')) {
+          targetUrl = `${targetUrl}/models`;
+        }
+        if (trimmedKey) {
+          headers = { Authorization: `Bearer ${trimmedKey}` };
+        }
+      } else {
         if (provider === 'gemini') {
           targetUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${trimmedKey}`;
         } else if (provider === 'openai') {
@@ -340,7 +356,7 @@ export const SettingsModal: React.FC = () => {
         } else if (provider === 'ollama') {
           targetUrl = 'http://localhost:11434/api/tags';
         } else {
-          targetUrl = 'http://localhost:20128/v1/models';
+          targetUrl = 'http://localhost:1234/v1/models';
           if (trimmedKey) headers = { Authorization: `Bearer ${trimmedKey}` };
         }
       }
@@ -355,7 +371,10 @@ export const SettingsModal: React.FC = () => {
       if (res.ok) {
         setLatencies((prev) => ({ ...prev, [provider]: elapsed }));
         setTestingStatus((prev) => ({ ...prev, [provider]: 'success' }));
-        addToast('success', `Validasi ${provider} berhasil (${elapsed}ms).`);
+        addToast('success', `Koneksi ke ${provider} berhasil (${elapsed}ms).`);
+        if (isCustomOrLocal) {
+          useStore.getState().fetchAvailableModels();
+        }
       } else {
         setTestingStatus((prev) => ({ ...prev, [provider]: 'failed' }));
         setLatencies((prev) => {
@@ -380,9 +399,10 @@ export const SettingsModal: React.FC = () => {
   };
 
   const handleSaveEndpoint = async (provider: string) => {
-    const key = keyInputs[provider] || '';
-    const baseUrl = baseUrlInputs[provider] || '';
-    const name = nameInputs[provider] || (provider.startsWith('custom') ? 'Custom Endpoint' : provider);
+    const existing = apiKeys.find((k) => k.provider === provider);
+    const key = keyInputs[provider] ?? existing?.api_key ?? '';
+    const baseUrl = baseUrlInputs[provider] ?? existing?.base_url ?? '';
+    const name = nameInputs[provider] ?? existing?.name ?? (provider.startsWith('custom') ? 'LM Studio / Custom' : provider);
 
     await saveApiKey(provider, key, baseUrl, name);
     addToast('success', `Pengaturan untuk "${name}" berhasil disimpan.`);
@@ -390,9 +410,9 @@ export const SettingsModal: React.FC = () => {
 
   const handleAddNewCustomEndpoint = async () => {
     const newId = `custom_${Date.now()}`;
-    const defaultName = `Custom Endpoint ${customEndpoints.length + 1}`;
-    await saveApiKey(newId, '', '', defaultName);
-    addToast('info', `Custom endpoint baru ditambahkan: ${defaultName}`);
+    const defaultName = `LM Studio / Custom ${customEndpoints.length + 1}`;
+    await saveApiKey(newId, '', 'http://localhost:1234/v1', defaultName);
+    addToast('info', `Endpoint baru ditambahkan: ${defaultName}`);
   };
 
   const handleDeleteEndpoint = async (provider: string) => {
@@ -1606,7 +1626,9 @@ export const SettingsModal: React.FC = () => {
                               </div>
 
                               <div>
-                                <label className="block text-[11px] text-[#707070] mb-1">API Key</label>
+                                <label className="block text-[11px] text-[#707070] mb-1">
+                                  API Key (Opsional untuk LM Studio / Lokal)
+                                </label>
                                 <div className="flex items-center gap-2">
                                   <div className="relative flex-1">
                                     <input
@@ -1618,7 +1640,7 @@ export const SettingsModal: React.FC = () => {
                                           [k.provider]: e.target.value,
                                         })
                                       }
-                                      placeholder="sk-..."
+                                      placeholder="Kosongkan untuk LM Studio, atau isi sk-..."
                                       className="w-full bg-[#1e1e1e] border border-[#383838] rounded-xl px-3 py-1.5 text-xs text-[#ececec] font-mono focus:outline-none focus:border-[#4f4f4f] pr-8"
                                     />
                                     <button
@@ -1653,7 +1675,7 @@ export const SettingsModal: React.FC = () => {
                                         ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
                                         : 'bg-[#1e1e1e] hover:bg-[#282828] border-[#383838] text-[#b4b4b4] hover:text-[#ececec]'
                                     }`}
-                                    title="Uji keabsahan kunci API ke endpoint"
+                                    title="Uji koneksi ke endpoint server"
                                   >
                                     <Activity
                                       className={`w-3.5 h-3.5 ${
@@ -1673,7 +1695,7 @@ export const SettingsModal: React.FC = () => {
                                         ? `${latency}ms`
                                         : status === 'failed'
                                         ? 'Gagal'
-                                        : 'Tes Kunci'}
+                                        : 'Tes Koneksi'}
                                     </span>
                                   </button>
 

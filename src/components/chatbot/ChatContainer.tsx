@@ -346,7 +346,7 @@ export const ChatContainer: React.FC = () => {
       const matchSearch = m.id.toLowerCase().includes(modelSearchQuery.toLowerCase());
       if (!matchSearch) return false;
       if (modelCategoryFilter === 'all') return true;
-      const cat = getModelCategory(m.id);
+      const cat = getModelCategory(m.id, m);
       return cat === modelCategoryFilter;
     })
     .sort((a, b) => {
@@ -658,36 +658,15 @@ export const ChatContainer: React.FC = () => {
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
 
-      // Jika model lokal dipilih, pastikan engine lokal telah aktif dan model telah terunduh di background
+      const matchedModelObj = availableModels.find((m) => m.id === selectedModel);
       const isLocal =
-        selectedModel.startsWith('lfm3') ||
-        selectedModel.startsWith('ollama') ||
-        selectedModel.includes(':1.7b');
-      const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
-
-      if (isLocal && isTauri) {
-        try {
-          const { invoke } = await import('@tauri-apps/api/core');
-          let status = await invoke<{
-            is_running: boolean;
-            has_model: boolean;
-            status: string;
-            progress: number;
-            message: string;
-          }>('get_local_engine_status');
-
-          if (!status.is_running) {
-            throw new Error('Layanan Ollama tidak terdeteksi pada sistem. Pastikan Ollama telah terpasang dan aktif di komputer Anda.');
-          }
-
-          if (!status.has_model) {
-            throw new Error('Model lokal LFM3 belum diunduh ke komputer ini. Silakan buka menu Pengaturan (Ctrl+,) -> Models -> Model Lokal untuk mengunduh model secara mandiri.');
-          }
-        } catch (engineErr: any) {
-          if (engineErr.message?.includes('Dibatalkan')) throw engineErr;
-          console.warn('Kendala verifikasi engine lokal:', engineErr);
-        }
-      }
+        Boolean(matchedModelObj?.is_local) ||
+        endpointConfig.provider.toLowerCase().includes('lm studio') ||
+        endpointConfig.provider === 'lmstudio' ||
+        endpointConfig.provider === 'ollama' ||
+        endpointConfig.baseUrl.includes('localhost') ||
+        endpointConfig.baseUrl.includes('127.0.0.1') ||
+        selectedModel.startsWith('lfm3');
 
       const startTimestamp = performance.now();
       let ttftRecorded = false;
@@ -697,7 +676,7 @@ export const ChatContainer: React.FC = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${endpointConfig.apiKey}`,
+          Authorization: `Bearer ${endpointConfig.apiKey || 'lm-studio'}`,
         },
         body: JSON.stringify(requestPayload),
         signal: abortController.signal,
@@ -1438,20 +1417,30 @@ export const ChatContainer: React.FC = () => {
                             <div className="space-y-1">
                               <p className="text-xs font-medium text-[#ececec]">Belum Ada Model Aktif</p>
                               <p className="text-[11px] text-[#888888] leading-relaxed">
-                                Tambahkan API Key di Pengaturan untuk mengaktifkan model AI.
+                                Nyalakan Local Server di LM Studio (localhost:1234) atau tambahkan API Key di Pengaturan.
                               </p>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsModelMenuOpen(false);
-                                setSettingsOpen(true);
-                              }}
-                              className="w-full py-1.5 px-3 rounded-xl bg-[#2b2b2b] hover:bg-[#383838] border border-[#383838] text-xs font-medium text-[#ececec] transition-colors flex items-center justify-center gap-1.5"
-                            >
-                              <SlidersHorizontal className="w-3.5 h-3.5 text-[#b4b4b4]" />
-                              <span>Buka Pengaturan API</span>
-                            </button>
+                            <div className="flex flex-col gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => fetchAvailableModels()}
+                                className="w-full py-1.5 px-3 rounded-xl bg-[#383838] hover:bg-[#444444] border border-[#4f4f4f] text-xs font-medium text-[#ececec] transition-colors flex items-center justify-center gap-1.5"
+                              >
+                                <RotateCw className={`w-3.5 h-3.5 ${isDetectingModels ? 'animate-spin' : ''}`} />
+                                <span>Pindai LM Studio Lokal</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsModelMenuOpen(false);
+                                  setSettingsOpen(true);
+                                }}
+                                className="w-full py-1.5 px-3 rounded-xl bg-[#2b2b2b] hover:bg-[#383838] border border-[#383838] text-xs font-medium text-[#ececec] transition-colors flex items-center justify-center gap-1.5"
+                              >
+                                <SlidersHorizontal className="w-3.5 h-3.5 text-[#b4b4b4]" />
+                                <span>Buka Pengaturan API</span>
+                              </button>
+                            </div>
                           </div>
                         ) : filteredModels.length === 0 ? (
                           <div className="p-4 text-center text-xs text-[#b4b4b4] space-y-2">
