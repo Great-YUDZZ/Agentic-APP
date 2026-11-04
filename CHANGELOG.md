@@ -2,6 +2,24 @@
 
 Semua perubahan penting pada proyek Autonomous AI Native Hub dicatat dalam dokumen ini.
 
+## [v0.4.8] - 2026-11-04
+
+### Custom Frameless Window & Explicit Confirmation Auto-Updater
+- **Penghapusan Header Bar OS Putih (Frameless Window Custom)**:
+  - Menonaktifkan native window decorations (`decorations: false`) di `tauri.conf.json` sehingga header bar putih bawaan GTK/GNOME dengan judul lama dihilangkan sepenuhnya.
+  - Menjadikan antarmuka menyatu penuh (seamless dark canvas) dengan standar desain Flat ChatGPT.
+  - Menambahkan area seret jendela (`data-tauri-drag-region`) pada bilah judul (`TitleBar.tsx`) dan header sidebar (`Sidebar.tsx`).
+  - Menambahkan tombol kontrol jendela desktop native (Minimalkan, Maksimalkan/Pulihkan, Tutup) terintegrasi pada bilah judul dengan dukungan double-click untuk toggle maximize.
+  - Memberikan hak izin kemampuan jendela (`core:window:default`) pada `capabilities/default.json`.
+- **Pemberian Konfirmasi Eksplisit Auto-Updater Linux (Polkit Mitigation)**:
+  - Memisahkan deteksi pasif (`checkUpdateAvailableSilently`) dari proses instalasi paket deb.
+  - Dialog autentikasi root Polkit tidak lagi muncul mendadak di latar belakang saat aplikasi dimuat atau saat membuka menu Pengaturan.
+  - Pemasangan paket pembaruan hanya dijalankan setelah pengguna memberikan konfirmasi sadar melalui tombol "Perbarui" pada banner pemberitahuan.
+- **Pembersihan Nama Aplikasi**:
+  - Memperbarui seluruh string identitas aplikasi di runtime Rust IPC dan antarmuka pengaturan lokal menjadi Nodra.
+
+---
+
 ## [v0.4.7] - 2026-11-04
 
 ### Bidirectional Context Vault Integration from Chat Mode

@@ -199,7 +199,7 @@ export function LocalModelsManager() {
         </div>
 
         <p className="text-[11px] text-[#707070] leading-relaxed pt-1 border-t border-[#303030]">
-          Agentic Native Hub terhubung langsung ke layanan Ollama di sistem Anda tanpa menyertakan binary runtime bawaan. Pastikan Ollama telah terpasang di komputer Anda jika ingin menjalankan inferensi secara offline.
+          Nodra terhubung langsung ke layanan Ollama di sistem Anda tanpa menyertakan binary runtime bawaan. Pastikan Ollama telah terpasang di komputer Anda jika ingin menjalankan inferensi secara offline.
         </p>
       </div>
 

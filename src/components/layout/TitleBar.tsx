@@ -16,6 +16,10 @@ import {
   PanelRight,
   Code2,
   FolderGit2,
+  Minus,
+  Square,
+  Copy,
+  X,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { AppMode, StudioTab } from '../../types';
@@ -65,6 +69,56 @@ export const TitleBar: React.FC = () => {
   } = useStore();
 
   const [isStudioMenuOpen, setIsStudioMenuOpen] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    (async () => {
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        const win = getCurrentWindow();
+        setIsMaximized(await win.isMaximized());
+        const unsub = await win.onResized(async () => {
+          setIsMaximized(await win.isMaximized());
+        });
+        unlisten = unsub;
+      } catch {
+        // Lingkungan non-Tauri
+      }
+    })();
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
+
+  const handleMinimize = async () => {
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      await getCurrentWindow().minimize();
+    } catch (err) {
+      console.warn('Minimize failed:', err);
+    }
+  };
+
+  const handleToggleMaximize = async () => {
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      const win = getCurrentWindow();
+      await win.toggleMaximize();
+      setIsMaximized(await win.isMaximized());
+    } catch (err) {
+      console.warn('Toggle maximize failed:', err);
+    }
+  };
+
+  const handleClose = async () => {
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      await getCurrentWindow().close();
+    } catch (err) {
+      console.warn('Close failed:', err);
+    }
+  };
 
   const handleExportCurrent = async () => {
     if (isVaultPageOpen) return;
@@ -142,9 +196,13 @@ export const TitleBar: React.FC = () => {
   };
 
   return (
-    <header className="grid grid-cols-[1fr_auto_1fr] items-center h-12 w-full bg-[#171717] border-b border-[#262626] px-4 select-none z-30 shrink-0">
-      {/* Left: Balanced spacer */}
-      <div className="flex items-center justify-start gap-2 min-w-0" />
+    <header
+      data-tauri-drag-region
+      onDoubleClick={handleToggleMaximize}
+      className="grid grid-cols-[1fr_auto_1fr] items-center h-12 w-full bg-[#171717] border-b border-[#262626] px-4 select-none z-30 shrink-0"
+    >
+      {/* Left: Balanced spacer with drag region */}
+      <div data-tauri-drag-region className="flex items-center justify-start gap-2 min-w-0 h-full" />
 
       {/* Center: Flat Segmented Capsule Pill Switcher (Exact 50% Horizontal Center, hidden in Vault) */}
       <div className="flex items-center justify-center shrink-0">
@@ -331,6 +389,38 @@ export const TitleBar: React.FC = () => {
             <Terminal className="w-3.5 h-3.5" />
           </button>
         )}
+
+        {/* Window Controls (Minimize, Maximize/Restore, Close) */}
+        <div className="flex items-center gap-1 pl-1.5 ml-1 border-l border-[#262626]">
+          <button
+            type="button"
+            onClick={handleMinimize}
+            title="Minimalkan"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#282828] transition-colors cursor-pointer"
+          >
+            <Minus className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={handleToggleMaximize}
+            title={isMaximized ? 'Pulihkan' : 'Maksimalkan'}
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#282828] transition-colors cursor-pointer"
+          >
+            {isMaximized ? (
+              <Copy className="w-3.5 h-3.5" />
+            ) : (
+              <Square className="w-3.5 h-3.5" />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={handleClose}
+            title="Tutup"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-[#b4b4b4] hover:text-white hover:bg-[#e11d48] transition-colors cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </header>
   );

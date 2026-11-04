@@ -269,7 +269,7 @@ export const Sidebar: React.FC = () => {
       {isVaultPageOpen ? (
         <>
           {/* Header Vault & Back Button */}
-          <div className="p-3 border-b border-[#262626] space-y-2.5">
+          <div data-tauri-drag-region className="p-3 border-b border-[#262626] space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-[#ececec]" />
@@ -340,7 +340,7 @@ export const Sidebar: React.FC = () => {
       ) : (
         <>
           {/* Header, New Chat & Context Vault */}
-          <div className="p-3 border-b border-[#262626] space-y-2.5">
+          <div data-tauri-drag-region className="p-3 border-b border-[#262626] space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <img src="/logo.png" alt="Hub Logo" className="w-4 h-4 rounded-md object-contain" />

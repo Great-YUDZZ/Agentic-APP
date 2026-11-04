@@ -230,7 +230,7 @@ pub async fn send_chat_message(
         })
         .collect();
 
-    let sys_prompt = Some("You are an autonomous AI coding assistant in Agentic Native Hub.".to_string());
+    let sys_prompt = Some("You are an autonomous AI coding assistant in Nodra.".to_string());
 
     let response = match provider.as_str() {
         "gemini" => {
@@ -1687,7 +1687,7 @@ pub async fn set_prevent_sleep(enabled: bool) -> Result<(), String> {
             let spawn_result = Command::new("systemd-inhibit")
                 .args([
                     "--what=idle:sleep",
-                    "--who=Agentic Native Hub",
+                    "--who=Nodra",
                     "--why=Prevent sleep during background execution",
                     "--mode=block",
                     "sleep",
@@ -1745,7 +1745,7 @@ pub async fn send_desktop_notification(title: String, body: String) -> Result<()
     {
         let status = Command::new("notify-send")
             .arg("-a")
-            .arg("Agentic Native Hub")
+            .arg("Nodra")
             .arg(&title)
             .arg(&body)
             .status();
@@ -1787,7 +1787,7 @@ pub async fn send_desktop_notification(title: String, body: String) -> Result<()
              $text[0].AppendChild($xml.CreateTextNode('{}')) | Out-Null; \
              $text[1].AppendChild($xml.CreateTextNode('{}')) | Out-Null; \
              $toast = [Windows.UI.Notifications.ToastNotification]::new($xml); \
-             [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('Agentic Native Hub').Show($toast);",
+             [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('Nodra').Show($toast);",
             escaped_title,
             escaped_body
         );
