@@ -53,13 +53,17 @@ AGENTS.md
 GEMINI.md
 DESIGN_MASTER.md
 
-# Test run artifacts
+# Test run artifacts & local scripts
 landing_page_output/
 web-showcase-demo/
 raw_web_generated.txt
 test_results_summary.json
 arsitektur_agentic.md
 ringkasan_arsitektur_agentic.md
+execute_tests.py
+run_full_test_suite.py
+run_mode3.py
+deploy-beta.sh
 
 # Voice models (large downloaded models & temporary parts)
 models/*.part

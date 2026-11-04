@@ -403,7 +403,7 @@ impl McpClientManager {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {},
                 "clientInfo": {
-                    "name": "agentic-native-hub",
+                    "name": "nodra",
                     "version": "0.1.0"
                 }
             }
@@ -640,7 +640,7 @@ impl McpClientManager {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {},
                 "clientInfo": {
-                    "name": "agentic-native-hub",
+                    "name": "nodra",
                     "version": "0.1.0"
                 }
             }

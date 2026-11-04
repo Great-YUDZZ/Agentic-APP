@@ -4,7 +4,7 @@ set -e
 export PATH="$HOME/.cargo/bin:$PATH"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-echo "Building Agentic Native Hub from $SCRIPT_DIR..."
+echo "Building Nodra from $SCRIPT_DIR..."
 
 cd /home/yudz/Agentic
 npm run build

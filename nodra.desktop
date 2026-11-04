@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Nodra
+Comment=Nodra - Desktop Multi-Agent Studio and Coding Assistant
+Exec=agentic_native_hub %U
+Icon=nodra
+Terminal=false
+Type=Application
+Categories=Development;IDE;
+StartupWMClass=Nodra

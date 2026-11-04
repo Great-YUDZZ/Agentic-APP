@@ -1,6 +1,25 @@
 # Changelog
 
-Semua perubahan penting pada proyek Autonomous AI Native Hub dicatat dalam dokumen ini.
+Semua perubahan penting pada proyek Nodra dicatat dalam dokumen ini.
+
+## [v0.4.9] - 2026-11-04
+
+### Native LM Studio Zero-API Key Discovery, Token Telemetry & Repository Cleanup
+- **Auto-Discovery LM Studio Tanpa API Key (Zero-Key)**:
+  - Menambahkan pemindaian otomatis (`probeLocalLmStudioModels`) ke server lokal LM Studio (`http://localhost:1234/v1/models`) tanpa memerlukan kunci API.
+  - Mengelompokkan model aktif dari LM Studio secara otomatis di bawah grup `Lokal (LM Studio)` pada tab `Lokal (Zero Key)` lengkap dengan lencana `Zero Key` dan deteksi kapabilitas `Vision`.
+  - Menghapus injeksi paksa preset bawaan `Lokal (Ollama)` (`lfm3`) sehingga daftar model bersih bagi pengguna LM Studio.
+- **Validasi Custom Endpoint Tanpa Kunci (Keyless Local Server)**:
+  - Mengizinkan kolom API Key dikosongkan sepenuhnya pada menu `Pengaturan -> Models -> Custom Endpoints` untuk seluruh server lokal (`localhost` / `127.0.0.1`).
+  - Memperbarui uji koneksi `test_provider` menggunakan `GET /v1/models` untuk pengecekan latensi server lokal yang instan tanpa ketergantungan nama model statis.
+- **Integrasi Penghitung Token Native LM Studio**:
+  - Memperluas ekstraktor telemetri stream (`extractStreamUsage`) untuk menangkap angka token asli langsung dari tokenizer LM Studio (`usage`, `stats.prompt_tokens_count` / `predicted_tokens_count`, dan `timings.prompt_n` / `predicted_n`).
+  - Mencatat seluruh konsumsi token lokal LM Studio ke halaman `Usage & Tokens` serta `Activity Heatmap`.
+- **Pembersihan Repositori & Standarisasi Identitas Nodra**:
+  - Menghapus berkas skrip pengujian Python lama (`execute_tests.py`, `run_full_test_suite.py`, `run_mode3.py`) serta `deploy-beta.sh` dari repositori.
+  - Mengganti berkas desktop menjadi `nodra.desktop` dan memperbarui judul rilis otomatis di GitHub Actions menjadi `Nodra`.
+
+---
 
 ## [v0.4.8] - 2026-11-04
 

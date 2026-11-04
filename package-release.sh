@@ -7,14 +7,14 @@ CACHE_TARGET="/home/yudz/.cache/target_agentic"
 RELEASE_DIR="$SRC_DIR/release"
 MIRROR_RELEASE_DIR="$MIRROR_DIR/release"
 
-echo "=== Memulai Pemaketan Rilis Agentic Native Hub ==="
+echo "=== Memulai Pemaketan Rilis Nodra ==="
 
 # 1. Sinkronisasi sumber daya dari flashdisk ke mirror build lokal
 echo "1. Menyinkronkan file ke $MIRROR_DIR..."
 rsync -av --exclude=node_modules --exclude=target "$SRC_DIR/src/" "$MIRROR_DIR/src/"
 rsync -av --exclude=target "$SRC_DIR/src-tauri/" "$MIRROR_DIR/src-tauri/"
 rsync -av "$SRC_DIR/package.json" "$MIRROR_DIR/package.json"
-rsync -av "$SRC_DIR/agentic-native-hub.desktop" "$MIRROR_DIR/agentic-native-hub.desktop"
+rsync -av "$SRC_DIR/nodra.desktop" "$MIRROR_DIR/nodra.desktop"
 
 # 2. Build frontend
 echo "2. Mengompilasi frontend React 19..."
@@ -64,42 +64,42 @@ echo "7. Membuat arsip portabel .zip..."
 BIN_SOURCE="$CACHE_TARGET/release/agentic_native_hub"
 APP_VERSION=$(node -p "require('$SRC_DIR/package.json').version")
 if [ -f "$BIN_SOURCE" ]; then
-    TEMP_ZIP_DIR=$(mktemp -d -t agentic-zip-XXXXXX)
-    PACKAGE_ROOT="$TEMP_ZIP_DIR/agentic-native-hub-v${APP_VERSION}-linux-x86_64"
+    TEMP_ZIP_DIR=$(mktemp -d -t nodra-zip-XXXXXX)
+    PACKAGE_ROOT="$TEMP_ZIP_DIR/nodra-v${APP_VERSION}-linux-x86_64"
     mkdir -p "$PACKAGE_ROOT"
 
-    cp "$BIN_SOURCE" "$PACKAGE_ROOT/agentic-native-hub"
-    chmod +x "$PACKAGE_ROOT/agentic-native-hub"
-    cp "$SRC_DIR/agentic-native-hub.desktop" "$PACKAGE_ROOT/"
+    cp "$BIN_SOURCE" "$PACKAGE_ROOT/nodra"
+    chmod +x "$PACKAGE_ROOT/nodra"
+    cp "$SRC_DIR/nodra.desktop" "$PACKAGE_ROOT/"
     cp "$SRC_DIR/src-tauri/icons/128x128.png" "$PACKAGE_ROOT/icon.png"
 
     cat << 'EOF' > "$PACKAGE_ROOT/run.sh"
 #!/bin/sh
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
-exec "$SCRIPT_DIR/agentic-native-hub" "$@"
+exec "$SCRIPT_DIR/nodra" "$@"
 EOF
     chmod +x "$PACKAGE_ROOT/run.sh"
 
     cat << EOF > "$PACKAGE_ROOT/README.txt"
-Agentic Native Hub - Portable Release (v${APP_VERSION})
+Nodra - Portable Release (v${APP_VERSION})
 ==============================================
 
 Cara Menjalankan:
-1. Pastikan file run.sh dan agentic-native-hub memiliki izin eksekusi:
-   chmod +x run.sh agentic-native-hub
+1. Pastikan file run.sh dan nodra memiliki izin eksekusi:
+   chmod +x run.sh nodra
 2. Jalankan aplikasi:
    ./run.sh
    atau
-   ./agentic-native-hub
+   ./nodra
 
 Integrasi Desktop Menu (Opsional):
-- Salin agentic-native-hub.desktop ke ~/.local/share/applications/
-- Salin icon.png ke ~/.local/share/icons/hicolor/128x128/apps/agentic-native-hub.png
+- Salin nodra.desktop ke ~/.local/share/applications/
+- Salin icon.png ke ~/.local/share/icons/hicolor/128x128/apps/nodra.png
 EOF
 
     cd "$TEMP_ZIP_DIR"
-    ZIP_NAME="agentic-native-hub-v${APP_VERSION}-linux-x86_64.zip"
-    zip -r "$ZIP_NAME" "agentic-native-hub-v${APP_VERSION}-linux-x86_64"
+    ZIP_NAME="nodra-v${APP_VERSION}-linux-x86_64.zip"
+    zip -r "$ZIP_NAME" "nodra-v${APP_VERSION}-linux-x86_64"
 
     cp "$ZIP_NAME" "$RELEASE_DIR/"
     cp "$ZIP_NAME" "$MIRROR_RELEASE_DIR/"

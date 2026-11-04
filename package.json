@@ -1,7 +1,7 @@
 {
   "name": "nodra",
   "private": true,
-  "version": "0.4.8",
+  "version": "0.4.9",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -9,8 +9,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "tauri": "tauri",
-    "deploy:beta": "bash ./deploy-beta.sh"
+    "tauri": "tauri"
   },
   "dependencies": {
     "@tauri-apps/plugin-process": "^2.2.0",
