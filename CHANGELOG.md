@@ -2,6 +2,17 @@
 
 Semua perubahan penting pada proyek Autonomous AI Native Hub dicatat dalam dokumen ini.
 
+## [v0.4.7] - 2026-11-04
+
+### Bidirectional Context Vault Integration from Chat Mode
+- **Integrasi Pencatatan Dua Arah ke Context Vault**:
+  - Penambahan tombol aksi cepat "Simpan ke Vault" pada setiap bubble balasan AI di Mode Chatbot.
+  - Komponen modal interaktif `SaveToVaultModal` dengan auto-suggest judul, pengelolaan chip `#tags`, pencarian semantik hybrid untuk menemukan catatan terkait, dan pratinjau markdown.
+  - Perintah backend native `append_vault_backlink` yang secara aman menyisipkan tautan balik `[[CatatanBaru]]` ke catatan lama di bawah seksi `## Catatan Terkait` dengan per-path locking dan pencatatan audit `.audit.jsonl`.
+  - Pemicuan event `vault-index-updated` untuk pembaruan *real-time* D3 Graph View saat catatan baru disimpan.
+  - Penambahan perintah pintas `/vault` di popover autocomplete slash commands.
+  - Pembaruan `CHATBOT_SYSTEM_PROMPT` dengan pedoman baku penulisan catatan Context Vault (aturan #6).
+
 ---
 
 ## [v0.4.6] - 2026-11-03

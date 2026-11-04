@@ -164,7 +164,7 @@ export const SettingsModal: React.FC = () => {
   const [latencies, setLatencies] = useState<Record<string, number>>({});
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [appVersion, setAppVersion] = useState<string>(
-    typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.4.6'
+    typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.4.7'
   );
 
   useEffect(() => {
