@@ -168,6 +168,8 @@ interface AppStore {
   // Settings
   isSettingsOpen: boolean;
   setSettingsOpen: (open: boolean) => void;
+  availableUpdate: { version: string; notes?: string; date?: string } | null;
+  setAvailableUpdate: (info: { version: string; notes?: string; date?: string } | null) => void;
   apiKeys: ApiKeyRecord[];
   setApiKeys: (keys: ApiKeyRecord[]) => void;
   loadApiKeysFromDb: () => Promise<void>;
@@ -1001,6 +1003,8 @@ export const useStore = create<AppStore>((set, get) => ({
 
   isSettingsOpen: false,
   setSettingsOpen: (isSettingsOpen) => set({ isSettingsOpen }),
+  availableUpdate: null,
+  setAvailableUpdate: (availableUpdate) => set({ availableUpdate }),
 
   apiKeys: [
     {

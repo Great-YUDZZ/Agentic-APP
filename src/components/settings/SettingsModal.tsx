@@ -144,6 +144,7 @@ export const SettingsModal: React.FC = () => {
     mcpServers,
     isStrictApprovalMode,
     setStrictApprovalMode,
+    setAvailableUpdate,
   } = useStore();
 
   const [activeSection, setActiveSection] = useState<SettingsSection>('general');
@@ -1192,7 +1193,11 @@ export const SettingsModal: React.FC = () => {
                         const result = await checkUpdateManually();
                         setIsCheckingUpdate(false);
                         if (result.hasUpdate) {
-                          addToast('success', `Pembaruan v${result.version} ditemukan dan sedang diunduh di latar belakang.`);
+                          setAvailableUpdate({
+                            version: result.version!,
+                            notes: result.notes,
+                          });
+                          addToast('info', `Pembaruan versi v${result.version} tersedia. Silakan klik tombol 'Perbarui' pada pemberitahuan di pojok layar.`);
                         } else if (result.error) {
                           addToast('error', `Gagal memeriksa pembaruan: ${result.error}`);
                         } else {

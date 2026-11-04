@@ -1,4 +1,4 @@
-import { check } from '@tauri-apps/plugin-updater';
+import { check, Update } from '@tauri-apps/plugin-updater';
 import { invoke } from '@tauri-apps/api/core';
 
 export interface UpdateInfo {
@@ -7,34 +7,63 @@ export interface UpdateInfo {
   date?: string;
 }
 
+let activeUpdateInstance: Update | null = null;
+
 /**
- * Pengecekan pembaruan otomatis di latar belakang saat aplikasi dijalankan.
- * Jika versi baru tersedia, paket akan langsung diunduh secara senyap.
+ * Pengecekan pembaruan di latar belakang tanpa mengunduh otomatis.
+ * Hanya mendeteksi apakah versi baru tersedia dan TIDAK memicu instalasi mendadak.
  */
-export async function checkAndDownloadUpdateSilently(
-  onUpdateDownloaded: (info: UpdateInfo) => void
+export async function checkUpdateAvailableSilently(
+  onUpdateAvailable: (info: UpdateInfo) => void
 ): Promise<void> {
   try {
     const update = await check();
     if (!update) {
+      activeUpdateInstance = null;
       return;
     }
 
-    // Unduh paket update di latar belakang tanpa memblokir aktivitas operator
-    await update.downloadAndInstall();
+    activeUpdateInstance = update;
 
-    onUpdateDownloaded({
+    onUpdateAvailable({
       version: update.version,
       notes: update.body || 'Pembaruan stabilitas dan peningkatan fitur.',
       date: update.date,
     });
   } catch (error) {
-    console.error('Pengecekan update latar belakang gagal:', error);
+    console.warn('Pengecekan update latar belakang gagal:', error);
+  }
+}
+
+// Alias untuk kompatibilitas ke belakang
+export const checkAndDownloadUpdateSilently = checkUpdateAvailableSilently;
+
+/**
+ * Mengunduh dan memasang pembaruan setelah disetujui secara eksplisit oleh operator.
+ */
+export async function downloadAndInstallConfirmedUpdate(): Promise<boolean> {
+  try {
+    let update = activeUpdateInstance;
+    if (!update) {
+      update = await check();
+      activeUpdateInstance = update;
+    }
+
+    if (!update) {
+      throw new Error('Tidak ada pembaruan aktif untuk dipasang.');
+    }
+
+    // Unduh dan pasang paket update secara eksplisit atas persetujuan operator
+    await update.downloadAndInstall();
+    return true;
+  } catch (error) {
+    console.error('Gagal memasang pembaruan:', error);
+    throw error;
   }
 }
 
 /**
- * Memulai ulang aplikasi untuk menerapkan versi baru yang telah terunduh.
+ * Memulai ulang aplikasi untuk menerapkan versi baru yang telah terpasang.
  */
 export async function applyUpdateAndRestart(): Promise<void> {
   try {
@@ -62,12 +91,14 @@ export async function checkUpdateManually(): Promise<{
   try {
     const update = await check();
     if (update) {
+      activeUpdateInstance = update;
       return {
         hasUpdate: true,
         version: update.version,
         notes: update.body || '',
       };
     }
+    activeUpdateInstance = null;
     return { hasUpdate: false };
   } catch (error: any) {
     return {

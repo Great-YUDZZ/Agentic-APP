@@ -22,14 +22,15 @@ import { QuickOpenModal } from './components/build/QuickOpenModal';
 import { GlobalSearchModal } from './components/build/GlobalSearchModal';
 import { useStore } from './store/useStore';
 import { applyTheme } from './utils/theme';
-import { checkAndDownloadUpdateSilently, type UpdateInfo } from './utils/updater';
+import { checkUpdateAvailableSilently } from './utils/updater';
 
 export const App: React.FC = () => {
-  const [availableUpdate, setAvailableUpdate] = React.useState<UpdateInfo | null>(null);
   const {
     currentMode,
     settings,
     setSettingsOpen,
+    availableUpdate,
+    setAvailableUpdate,
     toggleBuildSubMode,
     loadApiKeysFromDb,
     loadSessionsFromDb,
@@ -82,7 +83,7 @@ export const App: React.FC = () => {
     fetchMcpTools();
     refreshWorktrees();
     initHookTelemetryListener();
-    checkAndDownloadUpdateSilently((info) => {
+    checkUpdateAvailableSilently((info) => {
       setAvailableUpdate(info);
     });
   }, [loadApiKeysFromDb, loadSessionsFromDb, fetchMcpServers, fetchMcpTools, refreshWorktrees, initHookTelemetryListener]);
