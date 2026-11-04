@@ -932,6 +932,7 @@ export const useStore = create<AppStore>((set, get) => ({
     if (customUrl || customKey) {
       const url = customUrl || 'http://localhost:1234/v1';
       const key = customKey || '';
+      const isLocal = isLocalBaseUrl(url);
 
       set({ isDetectingModels: true });
       try {
@@ -945,20 +946,52 @@ export const useStore = create<AppStore>((set, get) => ({
         const rawText = await res.text();
         const json = parseRobustJson<any>(rawText);
         const rawList = Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
-        const isLocal = isLocalBaseUrl(url);
-        const detected: ModelOption[] = rawList.map((m: { id: string; context_length?: number }) => ({
-          id: m.id,
-          name: m.id,
-          provider: 'custom',
-          endpoint_id: 'custom',
-          endpoint_name: isLocal ? 'Lokal (LM Studio)' : 'Custom Endpoint',
-          context_length: m.context_length,
-          is_local: isLocal,
-        }));
+        const detected: ModelOption[] = rawList
+          .filter((m: any) => m && m.id && !String(m.id).toLowerCase().includes('embedding'))
+          .map((m: { id: string; context_length?: number }) => ({
+            id: m.id,
+            name: m.id,
+            provider: 'custom',
+            endpoint_id: 'custom',
+            endpoint_name: isLocal ? 'Lokal (LM Studio)' : 'Custom Endpoint',
+            base_url: url,
+            context_length: m.context_length,
+            is_local: isLocal,
+          }));
 
-        set({ isDetectingModels: false });
+        if (detected.length > 0) {
+          const existing = get().availableModels;
+          const merged = [...existing];
+          detected.forEach((d) => {
+            if (!merged.some((m) => m.id === d.id)) {
+              merged.push(d);
+            }
+          });
+          set({
+            availableModels: merged,
+            selectedModel: get().selectedModel || merged[0]?.id || '',
+            isDetectingModels: false,
+          });
+        } else {
+          set({ isDetectingModels: false });
+        }
         return detected.length;
       } catch (err) {
+        if (isLocal && localLmStudioModels.length > 0) {
+          const existing = get().availableModels;
+          const merged = [...existing];
+          localLmStudioModels.forEach((d) => {
+            if (!merged.some((m) => m.id === d.id)) {
+              merged.push(d);
+            }
+          });
+          set({
+            availableModels: merged,
+            selectedModel: get().selectedModel || merged[0]?.id || '',
+            isDetectingModels: false,
+          });
+          return localLmStudioModels.length;
+        }
         set({ isDetectingModels: false });
         throw err;
       }
@@ -967,14 +1000,27 @@ export const useStore = create<AppStore>((set, get) => ({
     set({ isDetectingModels: true });
     const allModels: ModelOption[] = [];
 
-    // Ambil dari seluruh Custom Endpoints yang aktif terlebih dahulu
+    // Sisipkan model LM Studio yang terdeteksi otomatis via native discovery terlebih dahulu (memiliki metadata kaya)
+    if (localLmStudioModels.length > 0) {
+      localLmStudioModels.forEach((lm) => {
+        if (!allModels.some((m) => m.id === lm.id)) {
+          allModels.push(lm);
+        }
+      });
+    }
+
+    // Ambil dari seluruh Custom Endpoints yang aktif
     for (const endpoint of activeCustoms) {
       const url = endpoint.base_url || 'http://localhost:1234/v1';
       const key = endpoint.api_key || '';
       const isLocal = isLocalBaseUrl(url);
       const endpointLabel =
         endpoint.name ||
-        (url.includes(':1234') ? 'Lokal (LM Studio)' : endpoint.provider === 'custom' ? 'Custom Endpoint' : 'Local Proxy');
+        (url.includes(':1234') || url.includes(':1235')
+          ? 'Lokal (LM Studio)'
+          : endpoint.provider === 'custom'
+            ? 'Custom Endpoint'
+            : 'Local Proxy');
 
       try {
         const targetModelsUrl = getModelsEndpoint(url);
@@ -997,6 +1043,7 @@ export const useStore = create<AppStore>((set, get) => ({
                   provider: endpoint.provider,
                   endpoint_id: endpoint.provider,
                   endpoint_name: endpointLabel,
+                  base_url: url,
                   context_length: m.context_length || m.max_context_length || (isLocal ? 32768 : undefined),
                   is_local: isLocal,
                   capabilities: {
@@ -1009,15 +1056,6 @@ export const useStore = create<AppStore>((set, get) => ({
       } catch (e) {
         console.warn(`Gagal deteksi model untuk ${endpointLabel}:`, e);
       }
-    }
-
-    // Sisipkan model LM Studio yang terdeteksi otomatis jika belum masuk dari custom endpoint
-    if (localLmStudioModels.length > 0) {
-      localLmStudioModels.forEach((lm) => {
-        if (!allModels.some((m) => m.id === lm.id)) {
-          allModels.push(lm);
-        }
-      });
     }
 
     // Sisipkan model Ollama lokal jika pengguna mengaktifkannya

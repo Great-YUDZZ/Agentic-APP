@@ -2,9 +2,14 @@
 name = "agentic_native_hub"
 version = "0.4.9"
 description = "Nodra Desktop Multi-Agent Studio and Coding Assistant"
-authors = ["Autonomous Team"]
+authors = ["Nodra Team"]
 license = "MIT"
 edition = "2021"
+default-run = "nodra"
+
+[[bin]]
+name = "nodra"
+path = "src/main.rs"
 
 [lib]
 name = "agentic_native_hub_lib"
