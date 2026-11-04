@@ -21,6 +21,19 @@ if [ -f "$TARGET_BIN" ]; then
     chmod +x /home/yudz/Agentic/agentic-native-hub
     cp --remove-destination "$TARGET_BIN" /media/yudz/FLASHDISK/Agentic/agentic-native-hub
     chmod +x /media/yudz/FLASHDISK/Agentic/agentic-native-hub
+
+    mkdir -p "$HOME/.local/share/applications"
+    cat > "$HOME/.local/share/applications/Nodra.desktop" <<EOF
+[Desktop Entry]
+Categories=Development;
+Comment=Nodra
+Exec=/home/yudz/Agentic/agentic-native-hub
+StartupWMClass=agentic_native_hub
+Icon=agentic_native_hub
+Name=Nodra
+Terminal=false
+Type=Application
+EOF
     echo "Release build and deployment successful!"
 else
     echo "Error: Target binary not found at $TARGET_BIN"

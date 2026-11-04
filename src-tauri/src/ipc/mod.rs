@@ -3207,6 +3207,262 @@ pub async fn app_is_maximized(window: tauri::Window) -> Result<bool, String> {
     window.is_maximized().map_err(|e| e.to_string())
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LmStudioModelMeta {
+    pub id: String,
+    pub name: String,
+    pub context_length: u32,
+    pub vision: bool,
+    pub base_url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LmStudioDiscoveryResult {
+    pub running: bool,
+    pub port: u16,
+    pub base_url: String,
+    pub models: Vec<LmStudioModelMeta>,
+}
+
+#[tauri::command]
+pub async fn discover_lmstudio_local() -> Result<LmStudioDiscoveryResult, String> {
+    let home_dir = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .unwrap_or_default();
+
+    let mut configured_port: u16 = 1234;
+    let mut cors_enabled = true;
+
+    if !home_dir.is_empty() {
+        let candidate_configs = [
+            std::path::PathBuf::from(&home_dir)
+                .join(".lmstudio/apps/bionic/.internal/http-server-config.json"),
+            std::path::PathBuf::from(&home_dir)
+                .join(".lmstudio/.internal/http-server-config.json"),
+        ];
+
+        for cfg_path in &candidate_configs {
+            if cfg_path.exists() {
+                if let Ok(raw) = std::fs::read_to_string(cfg_path) {
+                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw) {
+                        if let Some(p) = val.get("port").and_then(|v| v.as_u64()) {
+                            if p > 0 && p <= 65535 {
+                                configured_port = p as u16;
+                            }
+                        }
+                        if let Some(c) = val.get("cors").and_then(|v| v.as_bool()) {
+                            cors_enabled = c;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    let lms_bin = if !home_dir.is_empty() {
+        let unix_bin = std::path::PathBuf::from(&home_dir).join(".lmstudio/bin/lms");
+        let win_bin = std::path::PathBuf::from(&home_dir).join(".lmstudio/bin/lms.exe");
+        if unix_bin.exists() {
+            Some(unix_bin)
+        } else if win_bin.exists() {
+            Some(win_bin)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    let mut server_running = false;
+    let mut active_port = configured_port;
+
+    if let Some(ref bin_path) = lms_bin {
+        if let Ok(output) = tokio::process::Command::new(bin_path)
+            .args(["server", "status", "--json"])
+            .output()
+            .await
+        {
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                if let Ok(status_json) = serde_json::from_str::<serde_json::Value>(stdout.trim()) {
+                    server_running = status_json
+                        .get("running")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false);
+                    if let Some(p) = status_json.get("port").and_then(|v| v.as_u64()) {
+                        if p > 0 && p <= 65535 {
+                            active_port = p as u16;
+                        }
+                    }
+                }
+            }
+        }
+
+        // If server is running without CORS, or not running yet when models exist, ensure server is started with --cors
+        if server_running && !cors_enabled {
+            let _ = tokio::process::Command::new(bin_path)
+                .args(["server", "stop"])
+                .output()
+                .await;
+            let _ = tokio::process::Command::new(bin_path)
+                .args([
+                    "server",
+                    "start",
+                    "--port",
+                    &active_port.to_string(),
+                    "--cors",
+                ])
+                .output()
+                .await;
+            server_running = true;
+        } else if !server_running {
+            if let Ok(start_out) = tokio::process::Command::new(bin_path)
+                .args([
+                    "server",
+                    "start",
+                    "--port",
+                    &active_port.to_string(),
+                    "--cors",
+                ])
+                .output()
+                .await
+            {
+                if start_out.status.success() {
+                    server_running = true;
+                }
+            }
+        }
+    }
+
+    let mut models: Vec<LmStudioModelMeta> = Vec::new();
+    let mut base_url = format!("http://127.0.0.1:{}/v1", active_port);
+
+    // 1. Read installed LLM models via `lms ls --json`
+    if let Some(ref bin_path) = lms_bin {
+        if let Ok(output) = tokio::process::Command::new(bin_path)
+            .args(["ls", "--json"])
+            .output()
+            .await
+        {
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                if let Ok(arr) = serde_json::from_str::< Vec<serde_json::Value> >(stdout.trim()) {
+                    for item in arr {
+                        let model_type = item
+                            .get("type")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("llm");
+                        if model_type.eq_ignore_ascii_case("embedding") {
+                            continue;
+                        }
+                        let id = item
+                            .get("modelKey")
+                            .or_else(|| item.get("id"))
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .trim()
+                            .to_string();
+                        if id.is_empty() || id.to_lowercase().contains("embedding") {
+                            continue;
+                        }
+                        let display_name = item
+                            .get("displayName")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or(&id)
+                            .trim()
+                            .to_string();
+                        let ctx_len = item
+                            .get("maxContextLength")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(32768) as u32;
+                        let vision = item
+                            .get("vision")
+                            .and_then(|v| v.as_bool())
+                            .unwrap_or(false);
+
+                        if !models.iter().any(|m| m.id == id) {
+                            models.push(LmStudioModelMeta {
+                                id: id.clone(),
+                                name: if display_name.is_empty() { id } else { display_name },
+                                context_length: ctx_len,
+                                vision,
+                                base_url: base_url.clone(),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Also probe candidate local HTTP ports (active_port, 1234, 1235) via reqwest (no CORS limits)
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_millis(1500))
+        .build()
+        .unwrap_or_else(|_| reqwest::Client::new());
+
+    let mut candidate_ports = vec![active_port];
+    if !candidate_ports.contains(&1234) {
+        candidate_ports.push(1234);
+    }
+    if !candidate_ports.contains(&1235) {
+        candidate_ports.push(1235);
+    }
+
+    for port in candidate_ports {
+        let probe_url = format!("http://127.0.0.1:{}/v1/models", port);
+        if let Ok(resp) = client.get(&probe_url).send().await {
+            if resp.status().is_success() {
+                server_running = true;
+                active_port = port;
+                base_url = format!("http://127.0.0.1:{}/v1", port);
+                // Update base_url on already discovered models
+                for m in &mut models {
+                    m.base_url = base_url.clone();
+                }
+
+                if let Ok(json) = resp.json::<serde_json::Value>().await {
+                    if let Some(data_arr) = json.get("data").and_then(|d| d.as_array()) {
+                        for item in data_arr {
+                            if let Some(id) = item.get("id").and_then(|v| v.as_str()) {
+                                let trimmed_id = id.trim().to_string();
+                                if trimmed_id.is_empty()
+                                    || trimmed_id.to_lowercase().contains("embedding")
+                                {
+                                    continue;
+                                }
+                                if !models.iter().any(|m| m.id == trimmed_id) {
+                                    let lower = trimmed_id.to_lowercase();
+                                    let is_vision = lower.contains("vision")
+                                        || lower.contains("omni")
+                                        || lower.contains("-vl")
+                                        || lower.contains("llava");
+                                    models.push(LmStudioModelMeta {
+                                        id: trimmed_id.clone(),
+                                        name: trimmed_id,
+                                        context_length: 32768,
+                                        vision: is_vision,
+                                        base_url: base_url.clone(),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    Ok(LmStudioDiscoveryResult {
+        running: server_running,
+        port: active_port,
+        base_url,
+        models,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3393,6 +3649,22 @@ mod tests {
 
         state.clear_all_workers();
         assert!(state.get_all_workers().is_empty());
+    }
+
+    #[test]
+    fn test_discover_lmstudio_local() {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        rt.block_on(async {
+            let res = discover_lmstudio_local().await;
+            assert!(res.is_ok(), "discover_lmstudio_local should succeed");
+            let info = res.unwrap();
+            assert!(info.port > 0);
+            assert!(info.base_url.contains(&info.port.to_string()));
+        });
     }
 }
 

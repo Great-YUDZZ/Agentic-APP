@@ -123,7 +123,7 @@ export function isLocalBaseUrl(url?: string): boolean {
  */
 export function resolveEndpointForModel(
   modelId: string,
-  availableModels: Array<{ id: string; endpoint_id?: string; provider?: string; endpoint_name?: string; is_local?: boolean }>,
+  availableModels: Array<{ id: string; endpoint_id?: string; provider?: string; endpoint_name?: string; base_url?: string; is_local?: boolean }>,
   apiKeys: Array<{ provider: string; name?: string; api_key: string; base_url?: string; is_active: boolean }>
 ): { baseUrl: string; apiKey: string; provider: string } {
   const matchedModel = availableModels.find((m) => m.id === modelId);
@@ -134,10 +134,10 @@ export function resolveEndpointForModel(
     const customLmKey = apiKeys.find(
       (k) =>
         k.is_active &&
-        (k.base_url?.includes(':1234') || k.name?.toLowerCase().includes('lm studio'))
+        (k.base_url?.includes(':1234') || k.base_url?.includes(':1235') || k.name?.toLowerCase().includes('lm studio'))
     );
     return {
-      baseUrl: customLmKey?.base_url || 'http://localhost:1234/v1',
+      baseUrl: matchedModel?.base_url || customLmKey?.base_url || 'http://127.0.0.1:1234/v1',
       apiKey: customLmKey?.api_key?.trim() || 'lm-studio',
       provider: customLmKey?.name?.trim() || 'LM Studio',
     };
@@ -401,44 +401,98 @@ export function isVisionCapableModel(modelId: string): boolean {
 export const DEFAULT_LOCAL_LFM3_MODELS: ModelOption[] = [];
 
 /**
- * Memeriksa endpoint LM Studio lokal (port default 1234) untuk menemukan model yang sedang aktif tanpa API key
+ * Memeriksa endpoint LM Studio lokal (via backend native Tauri & multi-port 1234/1235) tanpa API key
  */
-export async function probeLocalLmStudioModels(baseUrl = 'http://localhost:1234/v1'): Promise<ModelOption[]> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 1500);
+export async function probeLocalLmStudioModels(baseUrl = 'http://127.0.0.1:1234/v1'): Promise<ModelOption[]> {
+  const isTauri = typeof window !== 'undefined' && Boolean((window as any).__TAURI_INTERNALS__);
 
-    const cleanBase = baseUrl.replace(/\/+$/, '');
-    const modelsUrl = cleanBase.endsWith('/v1') ? `${cleanBase}/models` : `${cleanBase}/v1/models`;
+  if (isTauri) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const discovery = await invoke<{
+        running: boolean;
+        port: number;
+        base_url: string;
+        models: Array<{
+          id: string;
+          name: string;
+          context_length: number;
+          vision: boolean;
+          base_url: string;
+        }>;
+      }>('discover_lmstudio_local');
 
-    const res = await fetch(modelsUrl, {
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
+      if (discovery && Array.isArray(discovery.models) && discovery.models.length > 0) {
+        return discovery.models.map((m) => ({
+          id: m.id,
+          name: m.name || m.id,
+          provider: 'lmstudio',
+          endpoint_id: 'lmstudio',
+          endpoint_name: `Lokal (LM Studio :${discovery.port})`,
+          base_url: m.base_url || discovery.base_url,
+          context_length: m.context_length || 32768,
+          is_local: true,
+          capabilities: {
+            vision: Boolean(m.vision) || isVisionCapableModel(m.id),
+          },
+        }));
+      }
+    } catch {
+      // Fallback ke HTTP probe di bawah
+    }
+  }
 
-    if (!res.ok) return [];
+  const candidateBases = Array.from(
+    new Set([
+      baseUrl.replace(/\/+$/, ''),
+      'http://127.0.0.1:1234/v1',
+      'http://127.0.0.1:1235/v1',
+      'http://localhost:1234/v1',
+      'http://localhost:1235/v1',
+    ])
+  );
 
-    const json = await res.json();
-    const rawList = Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
-    if (rawList.length === 0) return [];
+  for (const candidate of candidateBases) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 1500);
 
-    return rawList
-      .filter((m: any) => m && m.id && !String(m.id).toLowerCase().includes('embedding'))
-      .map((m: any) => ({
+      const cleanBase = candidate.endsWith('/v1') ? candidate : `${candidate}/v1`;
+      const modelsUrl = `${cleanBase}/models`;
+
+      const res = await fetch(modelsUrl, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) continue;
+
+      const json = await res.json();
+      const rawList = Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
+      const filtered = rawList.filter(
+        (m: any) => m && m.id && !String(m.id).toLowerCase().includes('embedding')
+      );
+      if (filtered.length === 0) continue;
+
+      return filtered.map((m: any) => ({
         id: m.id,
         name: m.id,
         provider: 'lmstudio',
         endpoint_id: 'lmstudio',
         endpoint_name: 'Lokal (LM Studio)',
+        base_url: cleanBase,
         context_length: m.context_length || m.max_context_length || 32768,
         is_local: true,
         capabilities: {
           vision: isVisionCapableModel(m.id),
         },
       }));
-  } catch {
-    return [];
+    } catch {
+      // Lanjut ke kandidat port berikutnya
+    }
   }
+
+  return [];
 }
 
 /**

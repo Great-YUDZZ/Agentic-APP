@@ -245,6 +245,7 @@ pub fn run() {
             ipc::app_toggle_maximize,
             ipc::app_close,
             ipc::app_is_maximized,
+            ipc::discover_lmstudio_local,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

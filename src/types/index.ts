@@ -16,6 +16,7 @@ export interface ModelOption {
   provider: string;
   endpoint_id?: string;
   endpoint_name?: string;
+  base_url?: string;
   context_length?: number;
   is_local?: boolean;
   capabilities?: { vision?: boolean };
