@@ -18,16 +18,16 @@
 
 ---
 
-## Unduh dan Rilis Siap Pakai (v0.4.11)
+## Unduh dan Rilis Siap Pakai (v0.4.12)
 
 Paket instalasi dan berkas binari mandiri untuk Linux dan Windows tersedia secara langsung pada rilis resmi. Anda dapat mengunduh berkas yang sesuai dengan sistem operasi yang digunakan:
 
 | Sistem Operasi | Tipe Berkas | Deskripsi | Tautan Unduh |
 | :--- | :--- | :--- | :--- |
-| **Linux (Debian/Ubuntu/Mint)** | `.deb` | Paket instalasi native berbasis Debian | [Unduh .deb](https://github.com/Great-YUDZZ/nodra/releases/download/v0.4.11/Nodra_0.4.11_amd64.deb) |
-| **Linux (Universal Portable)** | `.AppImage` | Berkas mandiri tanpa perlu instalasi, langsung jalan | [Unduh .AppImage](https://github.com/Great-YUDZZ/nodra/releases/download/v0.4.11/Nodra_0.4.11_amd64.AppImage) |
-| **Windows (x64)** | `.exe` | Installer wizard mandiri berbasis NSIS | [Unduh .exe](https://github.com/Great-YUDZZ/nodra/releases/download/v0.4.11/Nodra_0.4.11_x64-setup.exe) |
-| **Semua Platform** | GitHub Releases | Halaman daftar rilis lengkap dengan catatan versi | [Buka Rilis v0.4.11](https://github.com/Great-YUDZZ/nodra/releases/tag/v0.4.11) |
+| **Linux (Debian/Ubuntu/Mint)** | `.deb` | Paket instalasi native berbasis Debian | [Unduh .deb](https://github.com/Great-YUDZZ/nodra/releases/download/v0.4.12/Nodra_0.4.12_amd64.deb) |
+| **Linux (Universal Portable)** | `.AppImage` | Berkas mandiri tanpa perlu instalasi, langsung jalan | [Unduh .AppImage](https://github.com/Great-YUDZZ/nodra/releases/download/v0.4.12/Nodra_0.4.12_amd64.AppImage) |
+| **Windows (x64)** | `.exe` | Installer wizard mandiri berbasis NSIS | [Unduh .exe](https://github.com/Great-YUDZZ/nodra/releases/download/v0.4.12/Nodra_0.4.12_x64-setup.exe) |
+| **Semua Platform** | GitHub Releases | Halaman daftar rilis lengkap dengan catatan versi | [Buka Rilis v0.4.12](https://github.com/Great-YUDZZ/nodra/releases/tag/v0.4.12) |
 
 ### Petunjuk Instalasi dan Menjalankan
 

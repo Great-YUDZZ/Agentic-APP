@@ -2,6 +2,18 @@
 
 Semua perubahan penting pada proyek Nodra dicatat dalam dokumen ini.
 
+## [v0.4.12] - 2026-11-07
+
+### Fluid Viewport Box Model & Exhaustive Windows Silent Subprocesses
+- **Fluid Viewport Box Model (Zero Clipping / Zero Letterboxing on Zoom)**:
+  - Mengganti unit viewport kaku (h-screen w-screen / 100vw 100vh) menjadi fluid percentage model (h-full w-full / 100%) pada index.html, root container App.tsx, dan src/index.css.
+  - Memperbaiki masalah tampilan terpotong saat zoom in (Ctrl + +) serta menghilangkan ruang hitam kosong di sisi kanan/bawah saat zoom out (Ctrl + -).
+- **Audit Menyeluruh Silent Subprocess Windows**:
+  - Menerapkan atribut creation_flags(0x08000000) (CREATE_NO_WINDOW) pada thread HTTP internal crates/reqwest (pemanggilan curl) dan pendeteksi engine lokal engine/local_engine.rs (which, ollama serve, dsb.).
+  - Menghilangkan sepenuhnya jendela Command Prompt/terminal yang sempat muncul lalu tertutup otomatis saat membuka aplikasi di Windows.
+
+---
+
 ## [v0.4.11] - 2026-11-07
 
 ### Windows Silent Subprocesses, UI Zoom Controller & Brand Asset Synchronization
