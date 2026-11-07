@@ -59,7 +59,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDBBQUU0NTFERkFDQTNDOTgKUldTWVBNcjZIVVd1Q25zK0ZZTHdzcnhkNWVBNkJhODdSTnBCb3FKdndGWU83N3N2eUJ0TlNOL2IK",
       "endpoints": [
-        "https://github.com/Great-YUDZZ/Agentic-APP/releases/latest/download/latest.json"
+        "https://github.com/Great-YUDZZ/nodra/releases/latest/download/latest.json"
       ]
     }
   }

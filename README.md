@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="src-tauri/icons/128x128.png" alt="Nodra Logo" width="100" height="100" style="border-radius: 22px; margin-bottom: 12px;" />
+
 # Nodra - Autonomous AI Desktop Platform
 
 ### Multi-Agent Orchestration & Universal Context Workspace
@@ -7,7 +9,7 @@
 [![Tauri](https://img.shields.io/badge/Tauri-2.0-24C8D8?logo=tauri&logoColor=white)](https://tauri.app/)
 [![Rust](https://img.shields.io/badge/Rust-Tokio_Async-DEA584?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
-[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-0078D6)](https://github.com/Great-YUDZZ/Agentic-APP)
+[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-0078D6)](https://github.com/Great-YUDZZ/nodra)
 [![License](https://img.shields.io/badge/License-MIT-4ade80)](LICENSE)
 
 *Aplikasi desktop modern, aman, dan ringan untuk orkestrasi agen AI mandiri, kolaborasi tim multi-agen paralel, dan manajemen basis pengetahuan universal berbasis markdown.*
@@ -22,10 +24,10 @@ Paket instalasi dan berkas binari mandiri untuk Linux dan Windows tersedia secar
 
 | Sistem Operasi | Tipe Berkas | Deskripsi | Tautan Unduh |
 | :--- | :--- | :--- | :--- |
-| **Linux (Debian/Ubuntu/Mint)** | `.deb` | Paket instalasi native berbasis Debian | [Unduh .deb](https://github.com/Great-YUDZZ/Agentic-APP/releases/download/v0.4.10/Nodra_0.4.10_amd64.deb) |
-| **Linux (Universal Portable)** | `.AppImage` | Berkas mandiri tanpa perlu instalasi, langsung jalan | [Unduh .AppImage](https://github.com/Great-YUDZZ/Agentic-APP/releases/download/v0.4.10/Nodra_0.4.10_amd64.AppImage) |
-| **Windows (x64)** | `.exe` | Installer wizard mandiri berbasis NSIS | [Unduh .exe](https://github.com/Great-YUDZZ/Agentic-APP/releases/download/v0.4.10/Nodra_0.4.10_x64-setup.exe) |
-| **Semua Platform** | GitHub Releases | Halaman daftar rilis lengkap dengan catatan versi | [Buka Rilis v0.4.10](https://github.com/Great-YUDZZ/Agentic-APP/releases/tag/v0.4.10) |
+| **Linux (Debian/Ubuntu/Mint)** | `.deb` | Paket instalasi native berbasis Debian | [Unduh .deb](https://github.com/Great-YUDZZ/nodra/releases/download/v0.4.10/Nodra_0.4.10_amd64.deb) |
+| **Linux (Universal Portable)** | `.AppImage` | Berkas mandiri tanpa perlu instalasi, langsung jalan | [Unduh .AppImage](https://github.com/Great-YUDZZ/nodra/releases/download/v0.4.10/Nodra_0.4.10_amd64.AppImage) |
+| **Windows (x64)** | `.exe` | Installer wizard mandiri berbasis NSIS | [Unduh .exe](https://github.com/Great-YUDZZ/nodra/releases/download/v0.4.10/Nodra_0.4.10_x64-setup.exe) |
+| **Semua Platform** | GitHub Releases | Halaman daftar rilis lengkap dengan catatan versi | [Buka Rilis v0.4.10](https://github.com/Great-YUDZZ/nodra/releases/tag/v0.4.10) |
 
 ### Petunjuk Instalasi dan Menjalankan
 
