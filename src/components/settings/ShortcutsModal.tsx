@@ -76,6 +76,24 @@ const SHORTCUTS: ShortcutItem[] = [
     description: 'Toggle Sidecar Canvas',
   },
   {
+    id: 'zoom-in',
+    category: 'Navigation',
+    keys: ['Ctrl', '+'],
+    description: 'Zoom In UI',
+  },
+  {
+    id: 'zoom-out',
+    category: 'Navigation',
+    keys: ['Ctrl', '-'],
+    description: 'Zoom Out UI',
+  },
+  {
+    id: 'zoom-reset',
+    category: 'Navigation',
+    keys: ['Ctrl', '0'],
+    description: 'Reset Zoom (100%)',
+  },
+  {
     id: 'close-modal',
     category: 'Navigation',
     keys: ['Esc'],

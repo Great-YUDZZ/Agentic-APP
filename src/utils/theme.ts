@@ -59,15 +59,30 @@ function syncDomClasses(isDark: boolean, contrast: AppContrast, darkPreset: Dark
 }
 
 /**
+ * Applies active zoom level (percentage) to the document body or root element.
+ * Safely clamps value between 70% and 150%.
+ */
+export function applyZoom(zoomPercent: number): void {
+  if (typeof document === 'undefined') return;
+  const clamped = Math.min(150, Math.max(70, Math.round(zoomPercent)));
+  // Menggunakan document.documentElement.style.zoom untuk zoom antarmuka berbasis CSS
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (document.documentElement.style as any).zoom = `${clamped}%`;
+}
+
+/**
  * Applies active theme and contrast classes to the document root and body elements.
  * When theme is 'system', queries native OS color-scheme via Tauri IPC and falls back to matchMedia.
  */
 export function applyTheme(
   theme: AppTheme,
   contrast: AppContrast,
-  darkPreset: DarkPreset = 'default'
+  darkPreset: DarkPreset = 'default',
+  zoomLevel: number = 100
 ): void {
   if (typeof document === 'undefined') return;
+
+  applyZoom(zoomLevel);
 
   currentActiveTheme = theme;
   currentActiveContrast = contrast;

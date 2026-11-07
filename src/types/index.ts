@@ -274,6 +274,7 @@ export interface AppSettings {
   theme: 'system' | 'light' | 'dark';
   contrast: 'default' | 'strong';
   darkPreset: 'default' | 'charcoal' | 'oled';
+  zoomLevel?: number; // Zoom percentage: 70 to 150 (default 100)
   bgColor: string;
   fgColor: string;
   accentColor: string;

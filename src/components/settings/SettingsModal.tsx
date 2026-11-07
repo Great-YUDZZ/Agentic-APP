@@ -1301,6 +1301,43 @@ export const SettingsModal: React.FC = () => {
                         </button>
                       </div>
                     </div>
+
+                    <div className="p-4 flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-medium text-[#ececec]">Display Scale (Zoom)</div>
+                        <div className="text-xs text-[#707070]">Sesuaikan kepadatan tampilan (Ctrl + / - / 0)</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => updateSettings({ zoomLevel: Math.max(70, (settings.zoomLevel || 100) - 5) })}
+                          className="w-7 h-7 rounded-lg bg-[#1e1e1e] border border-[#383838] hover:bg-[#2e2e2e] text-[#ececec] flex items-center justify-center text-xs font-bold transition-colors"
+                          title="Zoom Out (Ctrl -)"
+                        >
+                          -
+                        </button>
+                        <span className="text-xs font-mono font-medium text-[#ececec] w-12 text-center">
+                          {settings.zoomLevel || 100}%
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => updateSettings({ zoomLevel: Math.min(150, (settings.zoomLevel || 100) + 5) })}
+                          className="w-7 h-7 rounded-lg bg-[#1e1e1e] border border-[#383838] hover:bg-[#2e2e2e] text-[#ececec] flex items-center justify-center text-xs font-bold transition-colors"
+                          title="Zoom In (Ctrl +)"
+                        >
+                          +
+                        </button>
+                        {(settings.zoomLevel || 100) !== 100 && (
+                          <button
+                            type="button"
+                            onClick={() => updateSettings({ zoomLevel: 100 })}
+                            className="px-2 py-1 rounded-lg bg-[#1e1e1e] border border-[#383838] hover:bg-[#2e2e2e] text-[11px] text-[#b4b4b4] hover:text-[#ececec] transition-colors"
+                          >
+                            Reset
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
 

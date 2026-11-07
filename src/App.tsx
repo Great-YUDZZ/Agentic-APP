@@ -43,14 +43,36 @@ export const App: React.FC = () => {
     setGlobalSearchModalOpen,
     refreshWorktrees,
     initHookTelemetryListener,
+    updateSettings,
   } = useStore();
 
   React.useEffect(() => {
-    applyTheme(settings.theme, settings.contrast, settings.darkPreset);
-  }, [settings.theme, settings.contrast, settings.darkPreset]);
+    applyTheme(settings.theme, settings.contrast, settings.darkPreset, settings.zoomLevel || 100);
+  }, [settings.theme, settings.contrast, settings.darkPreset, settings.zoomLevel]);
 
   React.useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Zoom shortcuts: Ctrl + Minus (Zoom Out), Ctrl + Equal / Plus (Zoom In), Ctrl + 0 (Reset Zoom)
+      if ((e.ctrlKey || e.metaKey) && (e.key === '-' || e.key === '_')) {
+        e.preventDefault();
+        const currentZoom = useStore.getState().settings.zoomLevel || 100;
+        const newZoom = Math.max(70, currentZoom - 5);
+        updateSettings({ zoomLevel: newZoom });
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
+        e.preventDefault();
+        const currentZoom = useStore.getState().settings.zoomLevel || 100;
+        const newZoom = Math.min(150, currentZoom + 5);
+        updateSettings({ zoomLevel: newZoom });
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === '0' || e.key === ')')) {
+        e.preventDefault();
+        updateSettings({ zoomLevel: 100 });
+        return;
+      }
+
       if ((e.ctrlKey || e.metaKey) && e.key === ',') {
         e.preventDefault();
         setSettingsOpen(true);

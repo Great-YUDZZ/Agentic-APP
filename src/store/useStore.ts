@@ -583,6 +583,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   theme: 'dark',
   contrast: 'default',
   darkPreset: 'default',
+  zoomLevel: 100,
   bgColor: '#212121',
   fgColor: '#ececec',
   accentColor: '#ececec',
