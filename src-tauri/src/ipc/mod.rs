@@ -540,9 +540,14 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
     Write-Output $dialog.SelectedPath
 }
 "#;
-            let output = std::process::Command::new("powershell")
-                .args(["-NoProfile", "-Command", script])
-                .output();
+            let mut cmd = std::process::Command::new("powershell");
+            cmd.args(["-NoProfile", "-Command", script]);
+            #[cfg(target_os = "windows")]
+            {
+                use std::os::windows::process::CommandExt;
+                cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+            }
+            let output = cmd.output();
 
             if let Ok(out) = output {
                 if out.status.success() {
@@ -1430,9 +1435,11 @@ pub async fn kill_terminal_command(
         }
         #[cfg(windows)]
         {
-            let _ = Command::new("taskkill")
-                .args(["/F", "/PID", &pid.to_string()])
-                .output();
+            use std::os::windows::process::CommandExt;
+            let mut cmd = Command::new("taskkill");
+            cmd.args(["/F", "/PID", &pid.to_string()]);
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+            let _ = cmd.output();
         }
 
         let mut lock = state.active_terminal_processes.lock().unwrap();
@@ -1800,9 +1807,14 @@ pub async fn send_desktop_notification(title: String, body: String) -> Result<()
             escaped_body
         );
 
-        let _ = Command::new("powershell")
-            .args(["-NoProfile", "-Command", &ps_command])
-            .status();
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            let mut cmd = Command::new("powershell");
+            cmd.args(["-NoProfile", "-Command", &ps_command]);
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+            let _ = cmd.status();
+        }
 
         log::info!("Windows desktop notification triggered: {}", title);
         Ok(())
@@ -1865,14 +1877,16 @@ pub async fn get_system_theme() -> Result<String, String> {
 
     #[cfg(target_os = "windows")]
     {
-        let output = Command::new("reg")
-            .args([
-                "query",
-                "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
-                "/v",
-                "AppsUseLightTheme",
-            ])
-            .output();
+        use std::os::windows::process::CommandExt;
+        let mut cmd = Command::new("reg");
+        cmd.args([
+            "query",
+            "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+            "/v",
+            "AppsUseLightTheme",
+        ]);
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        let output = cmd.output();
 
         if let Ok(out) = output {
             let s = String::from_utf8_lossy(&out.stdout);
@@ -3002,9 +3016,11 @@ pub async fn emergency_stop_all_workers(
         }
         #[cfg(windows)]
         {
-            let _ = std::process::Command::new("taskkill")
-                .args(["/F", "/PID", &pid.to_string()])
-                .output();
+            use std::os::windows::process::CommandExt;
+            let mut cmd = std::process::Command::new("taskkill");
+            cmd.args(["/F", "/PID", &pid.to_string()]);
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+            let _ = cmd.output();
         }
     }
     proc_lock.clear();
@@ -3278,11 +3294,14 @@ pub async fn discover_lmstudio_local() -> Result<LmStudioDiscoveryResult, String
     let mut active_port = configured_port;
 
     if let Some(ref bin_path) = lms_bin {
-        if let Ok(output) = tokio::process::Command::new(bin_path)
-            .args(["server", "status", "--json"])
-            .output()
-            .await
+        let mut status_cmd = tokio::process::Command::new(bin_path);
+        status_cmd.args(["server", "status", "--json"]);
+        #[cfg(target_os = "windows")]
         {
+            status_cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
+
+        if let Ok(output) = status_cmd.output().await {
             if output.status.success() {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 if let Ok(status_json) = serde_json::from_str::<serde_json::Value>(stdout.trim()) {
@@ -3301,33 +3320,42 @@ pub async fn discover_lmstudio_local() -> Result<LmStudioDiscoveryResult, String
 
         // If server is running without CORS, or not running yet when models exist, ensure server is started with --cors
         if server_running && !cors_enabled {
-            let _ = tokio::process::Command::new(bin_path)
-                .args(["server", "stop"])
-                .output()
-                .await;
-            let _ = tokio::process::Command::new(bin_path)
-                .args([
-                    "server",
-                    "start",
-                    "--port",
-                    &active_port.to_string(),
-                    "--cors",
-                ])
-                .output()
-                .await;
+            let mut stop_cmd = tokio::process::Command::new(bin_path);
+            stop_cmd.args(["server", "stop"]);
+            #[cfg(target_os = "windows")]
+            {
+                stop_cmd.creation_flags(0x08000000);
+            }
+            let _ = stop_cmd.output().await;
+
+            let mut start_cmd = tokio::process::Command::new(bin_path);
+            start_cmd.args([
+                "server",
+                "start",
+                "--port",
+                &active_port.to_string(),
+                "--cors",
+            ]);
+            #[cfg(target_os = "windows")]
+            {
+                start_cmd.creation_flags(0x08000000);
+            }
+            let _ = start_cmd.output().await;
             server_running = true;
         } else if !server_running {
-            if let Ok(start_out) = tokio::process::Command::new(bin_path)
-                .args([
-                    "server",
-                    "start",
-                    "--port",
-                    &active_port.to_string(),
-                    "--cors",
-                ])
-                .output()
-                .await
+            let mut start_cmd = tokio::process::Command::new(bin_path);
+            start_cmd.args([
+                "server",
+                "start",
+                "--port",
+                &active_port.to_string(),
+                "--cors",
+            ]);
+            #[cfg(target_os = "windows")]
             {
+                start_cmd.creation_flags(0x08000000);
+            }
+            if let Ok(start_out) = start_cmd.output().await {
                 if start_out.status.success() {
                     server_running = true;
                 }
@@ -3340,11 +3368,13 @@ pub async fn discover_lmstudio_local() -> Result<LmStudioDiscoveryResult, String
 
     // 1. Read installed LLM models via `lms ls --json`
     if let Some(ref bin_path) = lms_bin {
-        if let Ok(output) = tokio::process::Command::new(bin_path)
-            .args(["ls", "--json"])
-            .output()
-            .await
+        let mut ls_cmd = tokio::process::Command::new(bin_path);
+        ls_cmd.args(["ls", "--json"]);
+        #[cfg(target_os = "windows")]
         {
+            ls_cmd.creation_flags(0x08000000);
+        }
+        if let Ok(output) = ls_cmd.output().await {
             if output.status.success() {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 if let Ok(arr) = serde_json::from_str::< Vec<serde_json::Value> >(stdout.trim()) {

@@ -22,11 +22,21 @@ pub struct GitStatusResponse {
     pub untracked_files: Vec<GitFileItem>,
 }
 
+fn create_git_command() -> Command {
+    let mut cmd = Command::new("git");
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW: senyap tanpa jendela console
+    }
+    cmd
+}
+
 /// Helper to execute a git command in the given workspace directory
 fn run_git_cmd(workspace: &Path, args: &[&str]) -> Result<String> {
-    let output = Command::new("git")
-        .current_dir(workspace)
-        .args(args)
+    let mut cmd = create_git_command();
+    cmd.current_dir(workspace).args(args);
+    let output = cmd
         .output()
         .map_err(|e| anyhow!("Failed to execute git command {:?}: {}", args, e))?;
 
@@ -49,10 +59,9 @@ fn run_git_cmd(workspace: &Path, args: &[&str]) -> Result<String> {
 /// Parse git status and branch information
 pub fn get_git_status(workspace: &Path) -> Result<GitStatusResponse> {
     // Check if repository exists
-    let is_inside = Command::new("git")
-        .current_dir(workspace)
-        .args(["rev-parse", "--is-inside-work-tree"])
-        .output();
+    let mut is_inside_cmd = create_git_command();
+    is_inside_cmd.current_dir(workspace).args(["rev-parse", "--is-inside-work-tree"]);
+    let is_inside = is_inside_cmd.output();
 
     if is_inside.is_err() || !is_inside.as_ref().unwrap().status.success() {
         return Ok(GitStatusResponse {
@@ -260,9 +269,9 @@ pub fn git_discard_file(workspace: &Path, file_path: &str) -> Result<()> {
     let target = workspace.join(file_path);
 
     // If file is untracked, remove it from disk
-    let is_tracked = Command::new("git")
-        .current_dir(workspace)
-        .args(["ls-files", "--error-unmatch", "--", file_path])
+    let mut check_tracked_cmd = create_git_command();
+    check_tracked_cmd.current_dir(workspace).args(["ls-files", "--error-unmatch", "--", file_path]);
+    let is_tracked = check_tracked_cmd
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false);
@@ -339,8 +348,9 @@ pub fn git_clone_repo(target_dir: &Path, repo_url: &str) -> Result<String> {
             std::fs::create_dir_all(parent)?;
         }
     }
-    let output = Command::new("git")
-        .args(["clone", repo_url, target_dir.to_str().unwrap_or("")])
+    let mut clone_cmd = create_git_command();
+    clone_cmd.args(["clone", repo_url, target_dir.to_str().unwrap_or("")]);
+    let output = clone_cmd
         .output()
         .map_err(|e| anyhow!("Failed to execute git clone: {}", e))?;
 

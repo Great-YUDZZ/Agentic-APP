@@ -111,12 +111,25 @@ const KNOWN_AGENTS: &[KnownAgentDefinition] = &[
 ];
 
 pub fn find_binary_in_path_or_dirs(binary_name: &str, extra_dirs: &[&str]) -> Option<PathBuf> {
+    #[cfg(target_os = "windows")]
+    let name_variants: Vec<String> = vec![
+        format!("{}.exe", binary_name),
+        format!("{}.cmd", binary_name),
+        format!("{}.bat", binary_name),
+        binary_name.to_string(),
+    ];
+
+    #[cfg(not(target_os = "windows"))]
+    let name_variants: Vec<String> = vec![binary_name.to_string()];
+
     // 1. Check system PATH first
     if let Ok(path_var) = std::env::var("PATH") {
         for dir in std::env::split_paths(&path_var) {
-            let candidate = dir.join(binary_name);
-            if candidate.is_file() && is_executable(&candidate) {
-                return Some(candidate);
+            for variant in &name_variants {
+                let candidate = dir.join(variant);
+                if candidate.is_file() && is_executable(&candidate) {
+                    return Some(candidate);
+                }
             }
         }
     }
@@ -130,17 +143,21 @@ pub fn find_binary_in_path_or_dirs(binary_name: &str, extra_dirs: &[&str]) -> Op
                 if sub_dir.contains("nvm") {
                     if let Ok(entries) = std::fs::read_dir(&candidate_dir) {
                         for entry in entries.flatten() {
-                            let nvm_bin = entry.path().join("bin").join(binary_name);
-                            if nvm_bin.is_file() && is_executable(&nvm_bin) {
-                                return Some(nvm_bin);
+                            for variant in &name_variants {
+                                let nvm_bin = entry.path().join("bin").join(variant);
+                                if nvm_bin.is_file() && is_executable(&nvm_bin) {
+                                    return Some(nvm_bin);
+                                }
                             }
                         }
                     }
                 }
 
-                let direct = candidate_dir.join(binary_name);
-                if direct.is_file() && is_executable(&direct) {
-                    return Some(direct);
+                for variant in &name_variants {
+                    let direct = candidate_dir.join(variant);
+                    if direct.is_file() && is_executable(&direct) {
+                        return Some(direct);
+                    }
                 }
             }
         }
@@ -161,11 +178,32 @@ fn is_executable(path: &Path) -> bool {
 
 #[cfg(not(unix))]
 fn is_executable(path: &Path) -> bool {
-    path.exists()
+    path.is_file()
 }
 
 pub fn query_binary_version(binary_path: &Path, arg: &str) -> Option<String> {
+    #[cfg(target_os = "windows")]
+    let mut cmd = {
+        use std::os::windows::process::CommandExt;
+        let mut c = if let Some(ext) = binary_path.extension().and_then(|e| e.to_str()) {
+            let ext_lower = ext.to_lowercase();
+            if ext_lower == "cmd" || ext_lower == "bat" {
+                let mut cmd_proc = Command::new("cmd.exe");
+                cmd_proc.args(["/C", binary_path.to_str().unwrap_or("")]);
+                cmd_proc
+            } else {
+                Command::new(binary_path)
+            }
+        } else {
+            Command::new(binary_path)
+        };
+        c.creation_flags(0x08000000); // CREATE_NO_WINDOW: cegah window cmd berkedip/muncul saat startup
+        c
+    };
+
+    #[cfg(not(target_os = "windows"))]
     let mut cmd = Command::new(binary_path);
+
     cmd.arg(arg);
     cmd.stdout(std::process::Stdio::piped());
     cmd.stderr(std::process::Stdio::piped());

@@ -18,6 +18,16 @@ pub struct WorktreeSessionInfo {
     pub created_at: i64,
 }
 
+fn create_git_command() -> Command {
+    let mut cmd = Command::new("git");
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    cmd
+}
+
 pub struct WorktreeManager;
 
 impl WorktreeManager {
@@ -85,12 +95,13 @@ impl WorktreeManager {
             .collect::<String>();
 
         // Cek apakah branch sudah ada
-        let check_branch = Command::new("git")
+        let mut check_branch_cmd = create_git_command();
+        check_branch_cmd
             .arg("rev-parse")
             .arg("--verify")
             .arg(&safe_branch)
-            .current_dir(repo_path)
-            .output();
+            .current_dir(repo_path);
+        let check_branch = check_branch_cmd.output();
 
         let branch_exists = match check_branch {
             Ok(output) => output.status.success(),
@@ -98,22 +109,24 @@ impl WorktreeManager {
         };
 
         let add_res = if branch_exists {
-            Command::new("git")
+            let mut add_cmd = create_git_command();
+            add_cmd
                 .arg("worktree")
                 .arg("add")
                 .arg(&worktree_dir)
                 .arg(&safe_branch)
-                .current_dir(repo_path)
-                .output()
+                .current_dir(repo_path);
+            add_cmd.output()
         } else {
-            Command::new("git")
+            let mut add_cmd = create_git_command();
+            add_cmd
                 .arg("worktree")
                 .arg("add")
                 .arg("-b")
                 .arg(&safe_branch)
                 .arg(&worktree_dir)
-                .current_dir(repo_path)
-                .output()
+                .current_dir(repo_path);
+            add_cmd.output()
         };
 
         match add_res {
@@ -141,11 +154,13 @@ impl WorktreeManager {
 
     /// Mendapatkan daftar worktree yang terdaftar pada git repository
     pub fn list_worktrees(repo_path: &Path) -> Result<Vec<WorktreeSessionInfo>, String> {
-        let output = Command::new("git")
+        let mut list_cmd = create_git_command();
+        list_cmd
             .arg("worktree")
             .arg("list")
             .arg("--porcelain")
-            .current_dir(repo_path)
+            .current_dir(repo_path);
+        let output = list_cmd
             .output()
             .map_err(|e| format!("Gagal menjalankan git worktree list: {}", e))?;
 
@@ -224,7 +239,7 @@ impl WorktreeManager {
 
     /// Menghapus git worktree dan membersihkan metadata git
     pub fn remove_worktree(repo_path: &Path, worktree_path: &Path, force: bool) -> Result<(), String> {
-        let mut cmd = Command::new("git");
+        let mut cmd = create_git_command();
         cmd.arg("worktree").arg("remove");
         if force {
             cmd.arg("--force");
@@ -236,7 +251,8 @@ impl WorktreeManager {
         if !output.status.success() {
             let err = String::from_utf8_lossy(&output.stderr);
             // Jika git remove gagal karena direktori sudah hilang, kita prune
-            let _ = Command::new("git")
+            let mut prune_cmd = create_git_command();
+            let _ = prune_cmd
                 .arg("worktree")
                 .arg("prune")
                 .current_dir(repo_path)
@@ -247,7 +263,8 @@ impl WorktreeManager {
             return Err(format!("Gagal menghapus worktree via git: {}", err));
         }
 
-        let _ = Command::new("git")
+        let mut prune_cmd = create_git_command();
+        let _ = prune_cmd
             .arg("worktree")
             .arg("prune")
             .current_dir(repo_path)
@@ -258,7 +275,8 @@ impl WorktreeManager {
 
     /// Menggabungkan (merge) cabang worktree ke cabang utama repositori
     pub fn merge_worktree_branch(repo_path: &Path, branch_name: &str) -> Result<String, String> {
-        let output = Command::new("git")
+        let mut merge_cmd = create_git_command();
+        let output = merge_cmd
             .arg("merge")
             .arg("--no-ff")
             .arg("-m")
