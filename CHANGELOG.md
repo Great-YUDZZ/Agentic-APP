@@ -2,6 +2,17 @@
 
 Semua perubahan penting pada proyek Nodra dicatat dalam dokumen ini.
 
+## [v0.4.10] - 2026-11-07
+
+### Native Static Bundled SQLite3 & Windows Self-Contained Deployment
+- **Static SQLite3 C Engine Embedding (`rusqlite`)**:
+  - Mengintegrasikan fitur resmi `rusqlite = { version = "0.32.0", features = ["bundled"] }` yang mengkompilasi engine SQLite C secara statis ke dalam biner eksekusi.
+  - Menghilangkan ketergantungan `sqlite3.dll` eksternal pada platform Windows sehingga aplikasi bersifat mandiri (*zero-dependency / portable*).
+- **Pembersihan Alur Kerja CI**:
+  - Menghapus langkah instalasi vcpkg SQLite3 manual pada alur kerja rilis GitHub Actions Windows runner.
+
+---
+
 ## [v0.4.9] - 2026-11-04
 
 ### Native LM Studio Zero-API Key Discovery, Token Telemetry & Repository Cleanup
