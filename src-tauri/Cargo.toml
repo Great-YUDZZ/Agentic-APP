@@ -1,6 +1,6 @@
 [package]
 name = "agentic_native_hub"
-version = "0.4.10"
+version = "0.4.11"
 description = "Nodra Desktop Multi-Agent Studio and Coding Assistant"
 authors = ["Nodra Team"]
 license = "MIT"

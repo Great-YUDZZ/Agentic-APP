@@ -2,6 +2,21 @@
 
 Semua perubahan penting pada proyek Nodra dicatat dalam dokumen ini.
 
+## [v0.4.11] - 2026-11-07
+
+### Windows Silent Subprocesses, UI Zoom Controller & Brand Asset Synchronization
+- **Eliminasi Popup Terminal Hitam di Windows (CREATE_NO_WINDOW)**:
+  - Menambahkan flag creation_flags(0x08000000) (CREATE_NO_WINDOW) pada seluruh eksekusi perintah subproses backend Rust (deteksi CLI agen gemini, opencode, claude, gy, probing versi .cmd / .bat, kueri registry tema Windows, dialog folder PowerShell, notifikasi toast, dan operasi git/worktree).
+  - Memastikan startup aplikasi di Windows berjalan 100% senyap tanpa ada jendela console cmd.exe yang berkedip di layar.
+- **Display Scale & Zoom Controller (Ctrl + - / + / 0)**:
+  - Menambahkan pintasan keyboard global Ctrl + Minus (zoom out), Ctrl + Plus (zoom in), dan Ctrl + 0 (reset 100%).
+  - Menyediakan kontrol visual *Display Scale (Zoom)* di menu Pengaturan -> Appearance dengan rentang batas aman 70% hingga 150% yang tersimpan otomatis di penyimpanan lokal.
+- **Sinkronisasi Repositori & Ikon Desktop**:
+  - Menyelaraskan seluruh tautan unduhan dan endpoint pembaruan otomatis ke repositori kanonik Great-YUDZZ/Nodra.
+  - Mengintegrasikan logo desktop squircle resmi ke aset antarmuka web dan menyematkan pratinjau ikon ke header README.md.
+
+---
+
 ## [v0.4.10] - 2026-11-07
 
 ### Native Static Bundled SQLite3 & Windows Self-Contained Deployment
