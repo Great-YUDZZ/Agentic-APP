@@ -114,7 +114,13 @@ pub async fn get_installed_models() -> Result<Vec<String>, String> {
 }
 
 fn find_system_ollama() -> Option<PathBuf> {
-    if let Ok(output) = Command::new("which").arg("ollama").output() {
+    let mut which_cmd = Command::new("which");
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        which_cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    if let Ok(output) = which_cmd.arg("ollama").output() {
         if output.status.success() {
             let path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
             if !path_str.is_empty() {
@@ -133,6 +139,11 @@ fn find_system_ollama() -> Option<PathBuf> {
 
 fn spawn_ollama_serve(bin_path: &PathBuf) -> Result<(), String> {
     let mut cmd = Command::new(bin_path);
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
     cmd.arg("serve");
     cmd.env("OLLAMA_ORIGINS", "*");
     cmd.env("OLLAMA_HOST", "127.0.0.1:11434");
@@ -172,6 +183,11 @@ pub fn pull_and_alias_model(app_handle: Option<&tauri::AppHandle>) -> Result<(),
     })?;
 
     let mut curl_cmd = Command::new("curl");
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        curl_cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
     curl_cmd
         .arg("-sN")
         .arg("-X")
@@ -236,6 +252,11 @@ pub fn pull_and_alias_model(app_handle: Option<&tauri::AppHandle>) -> Result<(),
     });
     if let Ok(copy_str) = serde_json::to_string(&copy_body) {
         let mut copy_cmd = Command::new("curl");
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            copy_cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
         copy_cmd
             .arg("-s")
             .arg("-X")

@@ -112,7 +112,7 @@ export const App: React.FC = () => {
 
   return (
     <ErrorBoundary fallbackTitle="Nodra Workspace Error">
-      <div className="h-screen w-screen flex bg-[#212121] text-[#ececec] font-sans overflow-hidden">
+      <div className="h-full w-full flex bg-[#212121] text-[#ececec] font-sans overflow-hidden">
         {/* Full-Height Modern Sidebar on the Left */}
         <Sidebar />
 

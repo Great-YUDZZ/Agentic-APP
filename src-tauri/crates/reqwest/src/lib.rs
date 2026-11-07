@@ -139,6 +139,11 @@ impl RequestBuilder {
         // Run curl in a background thread
         let handle = std::thread::spawn(move || -> Result<Response> {
             let mut cmd = Command::new("curl");
+            #[cfg(target_os = "windows")]
+            {
+                use std::os::windows::process::CommandExt;
+                cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+            }
             cmd.arg("-s").arg("-S");
 
             if let Some(to) = timeout {
